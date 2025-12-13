@@ -1,0 +1,188 @@
+Using CPU. Note: This module is much faster with a GPU.
+[ WARN:0@20.722] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_v4l.cpp (902) open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+[ WARN:0@20.775] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_gstreamer.cpp (2401) handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module v4l2src0 reported: Cannot identify device '/dev/video0'.
+[ WARN:0@20.775] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_gstreamer.cpp (1356) open OpenCV | GStreamer warning: unable to start pipeline
+[ WARN:0@20.775] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_gstreamer.cpp (862) isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+[ WARN:0@20.784] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_gstreamer.cpp (2401) handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module v4l2src1 reported: Cannot identify device '/dev/video0'.
+[ WARN:0@20.785] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_gstreamer.cpp (1356) open OpenCV | GStreamer warning: unable to start pipeline
+[ WARN:0@20.785] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_gstreamer.cpp (862) isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+[ WARN:0@20.785] global /home/nvidia/Downloads/workspace/opencv-4.6.0/modules/videoio/src/cap_v4l.cpp (902) open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/lib/aarch64-linux-gnu, /usr/lib/aarch64-linux-gnu/tegra, /usr/local/cuda-11.4/targets/aarch64-linux/lib, /usr/local/cuda-11.4/lib64, /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ Harvesters imported successfully
+✅ Ultralytics YOLO imported successfully
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ Ultralytics (YOLOv8) available
+✅ ONNX Runtime available
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ Cap detection modules imported successfully
+✅ Applied PIL ANTIALIAS compatibility fix
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ Successfully imported USBCamera from libs.camera.usbcamra
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ EasyOCR initialized with GPU: False
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+✅ CUDA paths set: CUDA_HOME=/usr/local/cuda-11.4
+   LD_LIBRARY_PATH includes: /usr/local/lib
+   PYTHONPATH includes: /usr/local/lib/python3.8/site-packages/
+🚀 Detected Jetson - Enabling fullscreen support
+🔄 TASTE SELECTION: Hiding taste selection checkboxes
+🔄 EXPIRY FILTER: Hiding range date selection
+🔄 EXPIRY FILTER: Hiding specific date selection
+🔄 EXPIRY FILTER: Hiding expiry filter controls
+🔄 ลองใช้ V4L2 แบบอื่น...
+❌ ไม่สามารถเปิดกล้อง USB ได้
+❌ Failed to initialize USB Camera
+🔧 Setting up SENTECH Camera with Harvesters...
+🔧 Initializing SENTECH camera...
+🔧 Initializing SENTECH camera with Harvesters...
+❌ No SENTECH devices found
+❌ Failed to initialize SENTECH camera
+🔧 Setting up cap detection models...
+🔧 Setting up cap detection models...
+⚠️ PyTorch CUDA not available - using CPU for cap detection
+✅ YOLOv8 model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/models/detection/cap.pt
+⚠️ Using CPU for YOLO model (CUDA not available)
+Model summary: 169 layers, 25,856,899 parameters, 0 gradients, 79.1 GFLOPs
+Model info: (169, 25856899, 0, 79.0656)
+✅ Cap detector initialized
+⚠️ PyTorch CUDA not available - using CPU for rotation CRAFT
+🔧 CRAFT modules not imported yet, importing now...
+🔧 Importing CRAFT modules...
+✅ vgg16_bn imported successfully
+✅ CRAFT imported with vgg16_bn injection
+✅ CRAFT modules imported successfully
+✅ CRAFT class: <class 'craft.CRAFT'>
+✅ vgg16_bn class: <class 'vgg16_bn.vgg16_bn'>
+🔧 Creating CRAFT model...
+✅ CRAFT model created successfully
+⚠️ Could not initialize weights: 'Conv2d' object is not iterable
+   Continuing without weight initialization...
+Loading main model weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_mlt_25k.pth)
+✅ Model weights loaded successfully
+✓ Main model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_mlt_25k.pth
+Loading refiner weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_refiner_CTW1500.pth)
+✓ Refiner model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_refiner_CTW1500.pth
+✅ CRAFT detector initialized
+⚠️ PyTorch CUDA not available - using CPU for rotation model
+Loading rotation model from /home/nvidia/Desktop/final_boss/backupsdcard/final/models/rotation/text_rotation_model.pth...
+Using torchvision's EfficientNet-B0 architecture.
+✅ Rotation model loaded successfully.
+✅ Rotation model initialized
+⚠️ PyTorch CUDA not available - using CPU for rotation CRAFT
+🔧 Creating CRAFT model...
+✅ CRAFT model created successfully
+⚠️ Could not initialize weights: 'Conv2d' object is not iterable
+   Continuing without weight initialization...
+Loading main model weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_mlt_25k.pth)
+✅ Model weights loaded successfully
+✓ Main model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_mlt_25k.pth
+Loading refiner weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_refiner_CTW1500.pth)
+✓ Refiner model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_refiner_CTW1500.pth
+✅ CRAFT detector initialized successfully
+✅ CRAFT detector initialized in rotation model
+⚠️ PyTorch CUDA not available - using CPU for craft line detection
+Loading CRAFT model from /home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_mlt_25k.pth...
+Loading main model weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_mlt_25k.pth)
+Loading refiner weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_refiner_CTW1500.pth)
+✓ Refiner model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/external/CRAFT-pytorch/craft_refiner_CTW1500.pth
+✅ CRAFT model loaded successfully.
+✓ Refiner model loaded successfully.
+✅ Settings UI updated: padding=0, shrink_x=2.0%, shrink_y=10.0%, max_height_ratio=10.0%
+✅ Line detector initialized
+✅ Deep OCR using device: cpu
+Loading Deep OCR model from /home/nvidia/Desktop/final_boss/backupsdcard/final/models/ocr/fix10.pth...
+🔧 Detected DataParallel state dict, removing 'module.' prefix...
+🔍 Model state dict keys (first 10): ['Transformation.LocalizationNetwork.conv.0.weight', 'Transformation.LocalizationNetwork.conv.1.weight', 'Transformation.LocalizationNetwork.conv.1.bias', 'Transformation.LocalizationNetwork.conv.1.running_mean', 'Transformation.LocalizationNetwork.conv.1.running_var', 'Transformation.LocalizationNetwork.conv.1.num_batches_tracked', 'Transformation.LocalizationNetwork.conv.4.weight', 'Transformation.LocalizationNetwork.conv.5.weight', 'Transformation.LocalizationNetwork.conv.5.bias', 'Transformation.LocalizationNetwork.conv.5.running_mean']
+🔍 Found attention cell in model - this is an Attn model
+🔍 Detected 67 classes in model
+🔍 Detected character set: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:/
+🔍 Character set length: 64
+⚠️ Character set length mismatch: expected 67, got 64
+🔧 Adjusting character set length...
+🔧 Using 65-character set for 67-class model (with 2 tokens)
+🔧 Adjusted character set: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:/
+🔧 Adjusted length: 64
+❌ Character set length verification failed: 64 != 67
+🔧 Final character set length: 67
+⚠️ Duplicate characters detected, removing duplicates...
+🔧 Final character set after removing duplicates: 67
+📊 Using model's actual number of classes: 67
+🔍 Detected Attn prediction type from model structure
+🔍 Creating converter with character set length: 67
+🔍 AttnLabelConverter created with 69 characters
+🔍 AttnLabelConverter tokens: ['[GO]', '[s]']
+🔍 Converter type: <class 'utils.AttnLabelConverter'>
+🔍 Converter character set length: 69
+📊 Final model configuration: 67 classes, character set length: 67
+Model input parameters: 32 100 20 1 512 256 67 25 TPS ResNet BiLSTM Attn
+✅ Model weights loaded with strict=True
+✅ Deep OCR model loaded successfully.
+✅ OCR model initialized
+🔧 Optimizing OCR settings for better number recognition...
+✅ OCR settings optimized for number recognition:
+   - Image height: 64
+   - Image width: 200
+   - Max length: 10
+   - Padding enabled: True
+✅ YOLO model for faded text detection initialized
+✅ All cap detection models initialized successfully
+🔧 Setting up Modbus connection...
+🔧 Starting Modbus thread...
+✅ Modbus thread started successfully
+⏸️ โปรแกรมพร้อมทำงาน (รอ M511 เพื่อเริ่มการทำงาน)
+✅ Jetson keyboard shortcuts configured
+   F11: Toggle fullscreen
+   Escape: Exit fullscreen
+   Ctrl+Q: Exit application
+Connection to (192.168.1.5, 502) failed: [Errno 111] Connection refused
+🔧 Initializing Modbus state...
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Failed to reset bottle types and M600
+🔧 Setting initial taste mode: 3
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ Failed to ON M720
+Connection to (192.168.1.5, 502) failed: [Errno 111] Connection refused
+❌ Error with M503: Modbus Error: [Connection] Failed to connect[ModbusTcpClient 192.168.1.5:502]
+🔄 MODE CHANGE: Selected mode = ID 7 full auto (index: 0)
+❌ Modbus client ไม่พร้อมใช้งาน
+❌ MODE CHANGE: Failed to ON M90
+🔄 CLOSE EVENT: Stopping status timer...
+🛑 ปิดกล้อง USB แล้ว

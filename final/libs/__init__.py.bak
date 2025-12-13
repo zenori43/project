@@ -1,0 +1,89 @@
+# -*- coding: utf-8 -*-
+"""
+Modules Package - รวม external modules ทั้งหมด
+"""
+
+# Re-export for convenience
+from modules.camera.usbcamra import USBCamera
+from modules.detection.bottledetect import (
+    detect_bottle_and_crop_type,
+    process_bottle_image_simple,
+    get_type_crops_only,
+    get_detection_summary,
+    draw_detections_on_image,
+    save_cropped_type
+)
+from modules.detection.capmodel import (
+    CapDetector,
+    initialize_detector as initialize_cap_detector,
+    detect_caps_from_path,
+    detect_caps_from_array
+)
+from modules.processing.rotationmodel import (
+    RotationModel,
+    initialize_model,
+    get_rotated_image_from_array,
+    process_craft_rotated_from_array,
+    get_cropped_from_craft_rotated_array,
+    process_craft_rotated_with_verification_from_array,
+    get_cropped_with_verification_from_craft_rotated_array
+)
+from modules.processing.rotationCRAFT import (
+    CRAFTTextDetector,
+    initialize_detector as initialize_craft_detector,
+    detect_text_and_rotate_from_array
+)
+from modules.processing.craft_line_detection import (
+    CRAFTLineDetector,
+    initialize_detector as initialize_line_detector,
+    detect_lines_from_rotation_result,
+    get_cropped_lines_from_rotation_result
+)
+from modules.processing.deep_ocr import (
+    DeepOCRModel,
+    initialize_ocr_model,
+    recognize_text_from_craft_lines
+)
+
+__all__ = [
+    # Camera
+    'USBCamera',
+    
+    # Detection
+    'detect_bottle_and_crop_type',
+    'process_bottle_image_simple',
+    'get_type_crops_only',
+    'get_detection_summary',
+    'draw_detections_on_image',
+    'save_cropped_type',
+    'CapDetector',
+    'initialize_cap_detector',
+    'detect_caps_from_path',
+    'detect_caps_from_array',
+    
+    # Processing - Rotation
+    'RotationModel',
+    'initialize_model',
+    'get_rotated_image_from_array',
+    'process_craft_rotated_from_array',
+    'get_cropped_from_craft_rotated_array',
+    'process_craft_rotated_with_verification_from_array',
+    'get_cropped_with_verification_from_craft_rotated_array',
+    
+    # Processing - CRAFT
+    'CRAFTTextDetector',
+    'initialize_craft_detector',
+    'detect_text_and_rotate_from_array',
+    
+    # Processing - Line Detection
+    'CRAFTLineDetector',
+    'initialize_line_detector',
+    'detect_lines_from_rotation_result',
+    'get_cropped_lines_from_rotation_result',
+    
+    # Processing - OCR
+    'DeepOCRModel',
+    'initialize_ocr_model',
+    'recognize_text_from_craft_lines',
+]
+

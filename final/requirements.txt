@@ -1,0 +1,32 @@
+# -*- coding: utf-8 -*-
+# Requirements for bottle detection application
+
+# GUI Framework
+PyQt5>=5.15.0
+
+# Image Processing
+opencv-python>=4.5.0
+opencv-contrib-python>=4.5.0
+numpy>=1.19.0
+Pillow>=8.0.0
+matplotlib>=3.3.0
+
+# OCR
+easyocr>=1.6.0
+
+# Deep Learning
+torch>=1.9.0
+torchvision>=0.10.0
+ultralytics>=8.0.0
+
+# Modbus Communication
+pymodbus>=3.0.0
+
+# Camera Support (Harvesters for SENTECH camera)
+# Note: Harvesters may need to be installed separately
+# pip install harvesters
+
+# Additional dependencies
+difflib  # Built-in, but listed for reference
+typing  # Built-in, but listed for reference
+
