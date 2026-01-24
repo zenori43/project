@@ -11,6 +11,7 @@ from core.business_logic import CapDetectionThread
 import cv2
 import numpy as np
 import datetime
+import os
 
 # Import CUDA image utilities
 from core.cuda_image_utils import cuda_cvtColor
@@ -58,6 +59,7 @@ class CapDetectionHandlers:
                     self.display_sentech_image(image)
                     self.gui.sentech_image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
                     self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
+                    self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is loaded
                     # Manual rotation buttons removed
                     self.gui.status_label.setText('✅ โหลดภาพฝาสำเร็จ - พร้อมประมวลผล')
                     self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
@@ -113,6 +115,7 @@ class CapDetectionHandlers:
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
+                self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech สำเร็จ - พร้อมประมวลผลฝา')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
             else:
@@ -128,6 +131,7 @@ class CapDetectionHandlers:
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
+                        self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         return
@@ -149,6 +153,7 @@ class CapDetectionHandlers:
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
+                        self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         return
@@ -232,6 +237,7 @@ class CapDetectionHandlers:
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
+                self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพอัตโนมัติจาก Sentech สำเร็จ - พร้อมประมวลผลฝา')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
@@ -290,6 +296,7 @@ class CapDetectionHandlers:
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
+                        self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         
@@ -370,6 +377,7 @@ class CapDetectionHandlers:
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
+                self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech จากคิวสำเร็จ - พร้อมประมวลผลฝา')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
@@ -428,6 +436,7 @@ class CapDetectionHandlers:
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
+                        self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         
@@ -486,7 +495,20 @@ class CapDetectionHandlers:
                 
                 # Start processing thread
                 from core.business_logic import CapDetectionThread
-                self.gui.cap_processing_thread = CapDetectionThread(captured_image)
+                # ส่ง bottle_type ไปยัง CapDetectionThread เพื่อใช้ค่าที่เหมาะสมในการตรวจจับ fade
+                bottle_type = getattr(self.gui, 'current_bottle_type', None)
+                print(f"🏷️ CAP AUTO CAPTURE: ส่ง bottle_type = {bottle_type} ไปยัง CapDetectionThread")
+                
+                self.gui.cap_processing_thread = CapDetectionThread(
+                    captured_image,
+                    self.gui.cap_detector,
+                    self.gui.craft_detector,
+                    self.gui.rotation_model,
+                    self.gui.line_detector,
+                    self.gui.ocr_model,
+                    getattr(self.gui, 'faded_text_yolo_model', None),
+                    bottle_type=bottle_type  # ส่ง bottle_type เพื่อใช้ค่าที่เหมาะสม
+                )
                 self.gui.cap_processing_thread.result_ready.connect(self.on_cap_processing_complete)
                 self.gui.cap_processing_thread.start()
                 print("🔇 SILENT PROCESS: Cap processing thread started")
@@ -521,6 +543,67 @@ class CapDetectionHandlers:
             
         except Exception as e:
             print(f"❌ DISPLAY FROM QUEUE ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def save_sentech_image(self):
+        """Save the currently captured/loaded Sentech image to disk"""
+        if self.gui.current_sentech_image is None:
+            QMessageBox.warning(self.gui, "ข้อผิดพลาด", "ไม่มีภาพฝาให้บันทึก\nกรุณาถ่ายภาพจาก Sentech หรือเลือกไฟล์ภาพก่อน")
+            return
+        
+        try:
+            # Create default folder for manual captures
+            default_folder = "captured_images"
+            manual_folder = os.path.join(default_folder, "manual_capture")
+            sentech_folder = os.path.join(manual_folder, "sentech")
+            os.makedirs(sentech_folder, exist_ok=True)
+            
+            # Generate filename with timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"sentech_cap_{timestamp}.png"
+            default_path = os.path.join(sentech_folder, default_filename)
+            
+            # Ask user where to save (with default path)
+            file_path, _ = QFileDialog.getSaveFileName(
+                self.gui,
+                "บันทึกรูปภาพฝา",
+                default_path,
+                "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;All Files (*)"
+            )
+            
+            if file_path:
+                # Handle grayscale images (Mono8 from Sentech camera)
+                image_to_save = self.gui.current_sentech_image
+                if len(image_to_save.shape) == 2:
+                    # Grayscale image - save as is or convert to BGR for JPEG
+                    if file_path.lower().endswith(('.jpg', '.jpeg')):
+                        # Convert grayscale to BGR for JPEG
+                        image_to_save = cv2.cvtColor(image_to_save, cv2.COLOR_GRAY2BGR)
+                elif len(image_to_save.shape) == 3:
+                    # Color image - ensure it's BGR for OpenCV
+                    if image_to_save.shape[2] == 3:
+                        # Already BGR or RGB, assume BGR
+                        pass
+                
+                # Save image
+                success = cv2.imwrite(file_path, image_to_save)
+                if success:
+                    self.gui.status_label.setText(f'✅ บันทึกรูปภาพฝาสำเร็จ: {os.path.basename(file_path)}')
+                    self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+                    print(f"💾 บันทึกรูปภาพฝาสำเร็จ: {file_path}")
+                    QMessageBox.information(self.gui, "สำเร็จ", f"บันทึกรูปภาพฝาสำเร็จ\n{file_path}")
+                else:
+                    self.gui.status_label.setText('❌ ไม่สามารถบันทึกรูปภาพฝาได้')
+                    self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                    QMessageBox.warning(self.gui, "ข้อผิดพลาด", "ไม่สามารถบันทึกรูปภาพฝาได้")
+                    print(f"❌ ไม่สามารถบันทึกรูปภาพฝาได้: {file_path}")
+        except Exception as e:
+            error_msg = f"เกิดข้อผิดพลาดในการบันทึกรูปภาพฝา: {str(e)}"
+            self.gui.status_label.setText(f'❌ {error_msg}')
+            self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            QMessageBox.critical(self.gui, "ข้อผิดพลาด", error_msg)
+            print(f"❌ SAVE SENTECH IMAGE ERROR: {str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -572,7 +655,22 @@ class CapDetectionHandlers:
             self.gui.sentech_image_label.setText(f"ข้อผิดพลาด: {str(e)}")
     
     def process_cap_detection(self):
-        """Process cap detection on Sentech image or selected image file"""
+        """Process cap detection on Sentech image or selected image file
+        ⚠️ ต้องประมวลผลฉลากก่อน (เพื่อให้ได้ bottle_type)"""
+        # ตรวจสอบว่ามี bottle_type หรือยัง (ต้องประมวลผลฉลากก่อน)
+        bottle_type = getattr(self.gui, 'current_bottle_type', None)
+        if bottle_type is None:
+            QMessageBox.warning(
+                self.gui, 
+                "⚠️ ต้องประมวลผลฉลากก่อน", 
+                "กรุณาประมวลผลฉลากก่อน (เพื่อให้ได้รส/bottle_type)\n\n"
+                "ขั้นตอน:\n"
+                "1. ถ่ายภาพจาก USB และ Sentech\n"
+                "2. กดปุ่ม 'ประมวลผล' ในแท็บ 'ตรวจจับขวด' เพื่อประมวลผลฉลาก\n"
+                "3. หลังจากได้ bottle_type แล้ว จึงจะสามารถประมวลผลฝาได้"
+            )
+            return
+        
         # Check for image from either Sentech camera or file selection
         image_to_process = None
         image_source = ""
@@ -595,6 +693,7 @@ class CapDetectionHandlers:
             return
         
         print(f"🔄 CAP PROCESS: Starting cap detection for image shape: {image_to_process.shape} (from {image_source})")
+        print(f"🏷️ CAP PROCESS: ใช้ bottle_type = {bottle_type} สำหรับการปรับ brightness/contrast")
         
         # แสดงผล GUI สำหรับการประมวลผลฝา
         self.display_cap_processing_ui()
@@ -608,6 +707,7 @@ class CapDetectionHandlers:
         
         # Disable process button and enable stop button
         self.gui.btn_process_cap.setEnabled(False)
+        self.gui.btn_save_sentech_image.setEnabled(False)  # Disable save button when processing starts
         self.gui.btn_stop_processing.setEnabled(True)
         
         self.gui.cap_processing_thread = CapDetectionThread(
@@ -617,7 +717,8 @@ class CapDetectionHandlers:
             self.gui.rotation_model,
             self.gui.line_detector,
             self.gui.ocr_model,
-            getattr(self.gui, 'faded_text_yolo_model', None)
+            getattr(self.gui, 'faded_text_yolo_model', None),
+            bottle_type=bottle_type  # ส่ง bottle_type เพื่อใช้ค่าที่เหมาะสม
         )
         self.gui.cap_processing_thread.result_ready.connect(self.on_cap_processing_complete)
         self.gui.cap_processing_thread.status_updated.connect(self.update_cap_progress)
@@ -774,6 +875,7 @@ class CapDetectionHandlers:
         
         # Reset button states
         self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
+        self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when processing completes
         self.gui.btn_stop_processing.setEnabled(False)
         
         # Check if silent mode - store result in queue instead of displaying

@@ -20,6 +20,7 @@ from PyQt5.QtCore import Qt, QThread
 import cv2
 import numpy as np
 import datetime
+import os
 
 # Import CUDA image utilities
 from core.cuda_image_utils import cuda_resize, cuda_cvtColor
@@ -38,6 +39,89 @@ class BottleDetectionHandlers:
         self.gui = gui_instance
         self.silent_mode = False  # Flag for silent processing (no UI display, no Modbus signals)
         self.pending_bottle_result = None  # Store result for silent processing
+    
+    def capture_both_cameras(self):
+        """Capture images from both USB and Sentech cameras simultaneously"""
+        try:
+            self.gui.status_label.setText('📸 กำลังถ่ายภาพจาก USB และ Sentech...')
+            self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+            QtWidgets.QApplication.processEvents()
+            
+            usb_image = None
+            sentech_image = None
+            
+            # Capture from USB camera
+            if self.gui.usb_camera is None:
+                QMessageBox.warning(self.gui, "ข้อผิดพลาด", "กล้อง USB ยังไม่ได้เริ่มต้น")
+                return
+            else:
+                print("📸 CAPTURE BOTH: กำลังถ่ายภาพจาก USB...")
+                for attempt in range(3):
+                    print(f"📸 CAPTURE BOTH USB: Attempt {attempt + 1}/3")
+                    usb_image = self.gui.usb_camera.capture_image()
+                    if usb_image is not None:
+                        print(f"✅ CAPTURE BOTH USB: Success on attempt {attempt + 1}")
+                        break
+                    QThread.msleep(100)
+            
+            # Capture from Sentech camera
+            if self.gui.sentech_camera is None:
+                print("⚠️ CAPTURE BOTH: กล้อง Sentech ยังไม่ได้เริ่มต้น - ข้าม")
+            else:
+                print("📸 CAPTURE BOTH: กำลังถ่ายภาพจาก Sentech...")
+                try:
+                    sentech_image = self.gui.sentech_camera.capture_image()
+                    print(f"📸 CAPTURE BOTH Sentech: Result = {sentech_image is not None}")
+                except Exception as e:
+                    print(f"❌ CAPTURE BOTH Sentech Error: {e}")
+                    sentech_image = None
+            
+            # Update USB image display
+            if usb_image is not None:
+                self.gui.current_image = usb_image
+                self.display_image(usb_image)
+                self.gui.image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
+                self.gui.btn_process.setEnabled(True)
+                self.gui.btn_save_image.setEnabled(True)
+                print("✅ CAPTURE BOTH: USB image captured and displayed")
+            else:
+                print("❌ CAPTURE BOTH: ไม่สามารถถ่ายภาพจาก USB ได้")
+            
+            # Update Sentech image display
+            if sentech_image is not None:
+                self.gui.current_sentech_image = sentech_image
+                # ใช้ cap_handlers จาก GUI เพื่อแสดงภาพ Sentech
+                if hasattr(self.gui, 'cap_handlers') and self.gui.cap_handlers:
+                    self.gui.cap_handlers.display_sentech_image(sentech_image)
+                else:
+                    # Fallback: แสดงภาพโดยตรงถ้า cap_handlers ยังไม่มี
+                    print("⚠️ CAPTURE BOTH: cap_handlers ยังไม่มี - ข้ามการแสดงภาพ Sentech")
+                self.gui.sentech_image_info_label.setText(f"ขนาด: {sentech_image.shape[1]}x{sentech_image.shape[0]}")
+                self.gui.btn_save_sentech_image.setEnabled(True)
+                print("✅ CAPTURE BOTH: Sentech image captured and displayed")
+            else:
+                print("⚠️ CAPTURE BOTH: ไม่สามารถถ่ายภาพจาก Sentech ได้")
+            
+            # Update status
+            if usb_image is not None and sentech_image is not None:
+                self.gui.status_label.setText('✅ ถ่ายภาพจาก USB และ Sentech สำเร็จ')
+                self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            elif usb_image is not None:
+                self.gui.status_label.setText('✅ ถ่ายภาพจาก USB สำเร็จ (Sentech ไม่พร้อม)')
+                self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+            elif sentech_image is not None:
+                self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech สำเร็จ (USB ไม่พร้อม)')
+                self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+            else:
+                self.gui.status_label.setText('❌ ไม่สามารถถ่ายภาพได้')
+                self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                
+        except Exception as e:
+            print(f"❌ CAPTURE BOTH ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.gui.status_label.setText(f'❌ ข้อผิดพลาด: {str(e)}')
+            self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
     
     def capture_image_manual(self):
         """Capture image manually"""
@@ -65,6 +149,7 @@ class BottleDetectionHandlers:
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
+                self.gui.btn_save_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
             else:
@@ -99,6 +184,7 @@ class BottleDetectionHandlers:
                     self.display_image(image)
                     self.gui.image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
                     self.gui.btn_process.setEnabled(True)
+                    self.gui.btn_save_image.setEnabled(True)  # Enable save button when image is loaded
                     self.gui.status_label.setText('✅ โหลดภาพสำเร็จ - พร้อมประมวลผล')
                     self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                     print(f"✅ IMAGE SELECTION: Successfully loaded image with shape: {image.shape}")
@@ -113,6 +199,53 @@ class BottleDetectionHandlers:
             self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             QMessageBox.critical(self.gui, "ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการเลือกไฟล์:\n{str(e)}")
             print(f"❌ IMAGE SELECTION ERROR: {str(e)}")
+    
+    def save_captured_image(self):
+        """Save the currently captured/loaded image to disk"""
+        if self.gui.current_image is None:
+            QMessageBox.warning(self.gui, "ข้อผิดพลาด", "ไม่มีภาพให้บันทึก\nกรุณาถ่ายภาพหรือเลือกไฟล์ภาพก่อน")
+            return
+        
+        try:
+            # Create default folder for manual captures
+            default_folder = "captured_images"
+            manual_folder = os.path.join(default_folder, "manual_capture")
+            os.makedirs(manual_folder, exist_ok=True)
+            
+            # Generate filename with timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"manual_capture_{timestamp}.png"
+            default_path = os.path.join(manual_folder, default_filename)
+            
+            # Ask user where to save (with default path)
+            file_path, _ = QFileDialog.getSaveFileName(
+                self.gui,
+                "บันทึกรูปภาพ",
+                default_path,
+                "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;All Files (*)"
+            )
+            
+            if file_path:
+                # Save image
+                success = cv2.imwrite(file_path, self.gui.current_image)
+                if success:
+                    self.gui.status_label.setText(f'✅ บันทึกรูปภาพสำเร็จ: {os.path.basename(file_path)}')
+                    self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+                    print(f"💾 บันทึกรูปภาพสำเร็จ: {file_path}")
+                    QMessageBox.information(self.gui, "สำเร็จ", f"บันทึกรูปภาพสำเร็จ\n{file_path}")
+                else:
+                    self.gui.status_label.setText('❌ ไม่สามารถบันทึกรูปภาพได้')
+                    self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                    QMessageBox.warning(self.gui, "ข้อผิดพลาด", "ไม่สามารถบันทึกรูปภาพได้")
+                    print(f"❌ ไม่สามารถบันทึกรูปภาพได้: {file_path}")
+        except Exception as e:
+            error_msg = f"เกิดข้อผิดพลาดในการบันทึกรูปภาพ: {str(e)}"
+            self.gui.status_label.setText(f'❌ {error_msg}')
+            self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            QMessageBox.critical(self.gui, "ข้อผิดพลาด", error_msg)
+            print(f"❌ SAVE IMAGE ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def capture_image_auto(self):
         """Capture image automatically from Modbus trigger"""
@@ -599,6 +732,11 @@ class BottleDetectionHandlers:
                 self.gui.successful_detections_count += 1
                 self.gui.status_handlers.update_performance_stats(successful_detections=self.gui.successful_detections_count)
                 self.handle_bottle_type_detection(result['bottle_type'], result['combined_ocr_text'])
+                
+                # เปิดใช้งานปุ่มประมวลผลฝาหลังจากได้ bottle_type แล้ว
+                if hasattr(self.gui, 'btn_process_cap'):
+                    self.gui.btn_process_cap.setEnabled(True)
+                    print(f"✅ BOTTLE PROCESS: เปิดใช้งานปุ่มประมวลผลฝา (bottle_type = {result['bottle_type']})")
             else:
                 print("❌ PROCESS COMPLETE: No bottle type or OCR text found")
                 print(f"❌ PROCESS COMPLETE: bottle_type: {result.get('bottle_type')}")
@@ -809,8 +947,11 @@ class BottleDetectionHandlers:
             
             # เรียกใช้ process_cap_detection() เหมือนการกดปุ่ม
             print("🔍 AUTO CAP PROCESS: Calling process_cap_detection()...")
-            self.gui.process_cap_detection()
-            print("🔍 AUTO CAP PROCESS: process_cap_detection() completed")
+            if hasattr(self.gui, 'cap_handlers') and self.gui.cap_handlers:
+                self.gui.cap_handlers.process_cap_detection()
+                print("🔍 AUTO CAP PROCESS: process_cap_detection() completed")
+            else:
+                print("❌ AUTO CAP PROCESS: cap_handlers ไม่พร้อม")
             
             # รอให้การประมวลผลเสร็จสิ้น
             print("🔍 AUTO CAP PROCESS: Waiting for cap processing to complete...")
@@ -939,6 +1080,7 @@ class BottleDetectionHandlers:
             
             # Reset button states
             self.gui.btn_process.setEnabled(False)
+            self.gui.btn_save_image.setEnabled(False)  # Disable save button when image is cleared
             self.gui.btn_process_cap.setEnabled(False)
             self.gui.btn_stop_processing.setEnabled(False)
             

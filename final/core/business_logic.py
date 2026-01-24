@@ -47,7 +47,7 @@ class CapDetectionThread(QThread):
     status_updated = pyqtSignal(str)
     rotation_attempt_updated = pyqtSignal(int, int, object, object, object)  # attempt_num, total_attempts, rotated_image, ocr_results, format_valid
     
-    def __init__(self, image, cap_detector, craft_detector, rotation_model, line_detector, ocr_model, faded_text_yolo_model=None):
+    def __init__(self, image, cap_detector, craft_detector, rotation_model, line_detector, ocr_model, faded_text_yolo_model=None, bottle_type=None):
         super().__init__()
         self.image = image
         self.cap_detector = cap_detector
@@ -56,6 +56,7 @@ class CapDetectionThread(QThread):
         self.line_detector = line_detector
         self.ocr_model = ocr_model
         self.faded_text_yolo_model = faded_text_yolo_model
+        self.bottle_type = bottle_type  # เก็บ bottle_type เพื่อใช้ในการปรับ brightness/contrast
         self.modbus_thread = None  # Will be set by GUI if needed
         
     def run(self):
@@ -273,10 +274,12 @@ class CapDetectionThread(QThread):
                     # Step 2a.5: Detect faded text in the cropped cap BEFORE CRAFT rotation
                     self.status_updated.emit(f"กำลังตรวจสอบรอยจางในฝาที่ {bottommost_index + 1}...")
                     print(f"🔄 CAP DETECTION THREAD: Step 2a.5 - ตรวจสอบรอยจางในฝาที่ {bottommost_index + 1} (ก่อน CRAFT)")
+                    print(f"🏷️ CAP DETECTION THREAD: ใช้ bottle_type = {self.bottle_type} สำหรับการปรับ brightness/contrast")
                     faded_text_result = detect_faded_text_in_cap(
                         bottommost_cap, 
                         yolo_model=None,  # ไม่ใช้ YOLO model ใหม่ ใช้รูปที่ crop แล้วโดยตรง
-                        show_debug=True  # เปิด debug mode เพื่อแสดงภาพใน UI
+                        show_debug=True,  # เปิด debug mode เพื่อแสดงภาพใน UI
+                        bottle_type=self.bottle_type  # ส่ง bottle_type เพื่อใช้ค่าที่เหมาะสม
                     )
                     cap_result['faded_text_result'] = faded_text_result
                     print(f"🔄 CAP DETECTION THREAD: ตรวจสอบรอยจางฝาที่ {bottommost_index + 1} สำเร็จ - สถานะ: {faded_text_result['status']}")
@@ -523,6 +526,12 @@ class ModbusThread(QThread):
                     
                     # Check if capture only mode (ID 5)
                     if self.capture_only_mode:
+                        # ตรวจสอบว่าถ่ายครบจำนวนแล้วหรือยัง
+                        if self.capture_limit_reached:
+                            print(f"⏹️ ID 5 CAPTURE ONLY: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่รับ M301 ต่อ")
+                            self.modbus_status.emit(f"⏹️ ID 5: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่รับ M301 ต่อ")
+                            continue  # หยุดการถ่ายภาพต่อ
+                        
                         # ID 5: Capture only mode - just capture images, no processing
                         if not self.m600_reset_pending:
                             # M600 พร้อม - ถ่ายภาพทันที → ON M600 → รอ M401 ON
@@ -750,8 +759,12 @@ class ModbusThread(QThread):
                         
                         # Check if capture only mode (ID 5) - handle differently
                         if self.capture_only_mode:
-                            # ID 5: Capture only mode - ถ่ายภาพจากคิว (ถ้ามี) หรือ ON M600 ต่อ (ถ้าไม่มี)
-                            if self.pending_m301_count > 0:
+                            # ตรวจสอบว่าถ่ายครบจำนวนแล้วหรือยัง
+                            if self.capture_limit_reached:
+                                print(f"⏹️ ID 5 CAPTURE ONLY: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่ถ่ายภาพจากคิวต่อ")
+                                self.modbus_status.emit(f"⏹️ ID 5: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่ถ่ายภาพต่อ")
+                                # ไม่ต้องถ่ายภาพจากคิวต่อ - รอหยุดระบบ
+                            elif self.pending_m301_count > 0:
                                 # มีคิว - ถ่ายภาพจากคิว
                                 print(f"📸 ID 5 CAPTURE ONLY: M401=ON - ถ่ายภาพจากคิว (คิว: {self.pending_m301_count})")
                                 self.modbus_status.emit(f"📸 ID 5: ถ่ายภาพจากคิว (คิว: {self.pending_m301_count})")
@@ -773,17 +786,18 @@ class ModbusThread(QThread):
                                 except Exception as e:
                                     print(f"❌ CAPTURE ONLY: ไม่สามารถ ON M600 ต่อได้: {e}")
                             else:
-                                # ไม่มีคิว - ON M600 ต่อเพื่อรอ M301 ถัดไป
-                                try:
-                                    if self.modbus_client:
-                                        self.modbus_client.write_coil(600, True, unit=1)
-                                        print("✅ CAPTURE ONLY: ON M600 ต่อทันที (รอ M301 ถัดไป)")
-                                        self.modbus_status.emit("✅ CAPTURE ONLY: ON M600 ต่อทันที (รอ M301 ถัดไป)")
-                                        self.m600_reset_pending = True  # Set pending again for next cycle
-                                    else:
-                                        print("❌ CAPTURE ONLY: Modbus client ไม่พร้อมใช้งาน")
-                                except Exception as e:
-                                    print(f"❌ CAPTURE ONLY: ไม่สามารถ ON M600 ต่อได้: {e}")
+                                # ไม่มีคิว - ON M600 ต่อเพื่อรอ M301 ถัดไป (ถ้ายังไม่ครบ)
+                                if not self.capture_limit_reached:
+                                    try:
+                                        if self.modbus_client:
+                                            self.modbus_client.write_coil(600, True, unit=1)
+                                            print("✅ CAPTURE ONLY: ON M600 ต่อทันที (รอ M301 ถัดไป)")
+                                            self.modbus_status.emit("✅ CAPTURE ONLY: ON M600 ต่อทันที (รอ M301 ถัดไป)")
+                                            self.m600_reset_pending = True  # Set pending again for next cycle
+                                        else:
+                                            print("❌ CAPTURE ONLY: Modbus client ไม่พร้อมใช้งาน")
+                                    except Exception as e:
+                                        print(f"❌ CAPTURE ONLY: ไม่สามารถ ON M600 ต่อได้: {e}")
                         # แสดงผลลัพธ์จาก queue (ถ้ามี) หรือถ่ายภาพใหม่ (ถ้าไม่มี)
                         elif len(self.pending_results_queue) > 0:
                             # มีผลลัพธ์ที่ประมวลผลแล้ว - แสดงผลและส่งสัญญาณ

@@ -101,6 +101,7 @@ from gui.components.cap_tab import create_cap_tab
 from gui.components.status_tab import create_status_tab
 from gui.components.ocr_test_tab import create_ocr_test_tab
 from gui.components.settings_tab import create_settings_tab
+from gui.components.arean_tab import create_arean_tab
 from gui.components.history_tab import create_history_tab, create_history_item
 from gui.components.robot_test_tab import create_robot_test_tab
 
@@ -452,10 +453,17 @@ class BottleDetectionGUI(QWidget):
         control_layout.addWidget(self.btn_reset)
         
         # Manual capture button
-        self.btn_capture = QPushButton('📸 ถ่ายภาพด้วยตนเอง')
-        self.btn_capture.clicked.connect(self.bottle_handlers.capture_image_manual)
+        self.btn_capture = QPushButton('📸 ถ่ายภาพ (USB + Sentech)')
+        self.btn_capture.clicked.connect(self.bottle_handlers.capture_both_cameras)
         self.btn_capture.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; }")
         control_layout.addWidget(self.btn_capture)
+        
+        # Save captured image button
+        self.btn_save_image = QPushButton('💾 บันทึกรูปภาพ')
+        self.btn_save_image.clicked.connect(self.bottle_handlers.save_captured_image)
+        self.btn_save_image.setEnabled(False)
+        self.btn_save_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #9b59b6; color: white; }")
+        control_layout.addWidget(self.btn_save_image)
         
         # Select image file button
         self.btn_select_image = QPushButton('📁 เลือกไฟล์ภาพ')
@@ -763,16 +771,28 @@ class BottleDetectionGUI(QWidget):
         self.cap_results_container = cap_widgets['cap_results_container']
         self.cap_results_layout = cap_widgets['cap_results_layout']
         self.cap_detection_text = cap_widgets['cap_detection_text']
-        self.btn_sentech_capture = cap_widgets['btn_sentech_capture']
+        self.btn_save_sentech_image = cap_widgets['btn_save_sentech_image']
         self.btn_select_cap_image = cap_widgets['btn_select_cap_image']
         self.btn_process_cap = cap_widgets['btn_process_cap']
         # Connect event handlers
-        self.btn_sentech_capture.clicked.connect(self.cap_handlers.capture_sentech_image)
+        self.btn_save_sentech_image.clicked.connect(self.cap_handlers.save_sentech_image)
         self.btn_select_cap_image.clicked.connect(self.cap_handlers.select_cap_image_file)
         self.btn_process_cap.clicked.connect(self.cap_handlers.process_cap_detection)
         self.tab_widget.addTab(cap_tab, "🔍 ตรวจจับฝา")
         
-        # Tab 3: Modbus Status - Use component
+        # Tab 3: Area Navigation - Use component
+        arean_tab, arean_widgets = create_arean_tab()
+        # Map buttons to self for event handlers
+        self.arean_buttons = {}
+        for key, btn in arean_widgets.items():
+            self.arean_buttons[key] = btn
+            # Extract M code from button text (e.g., "M900" -> 900)
+            m_code = int(btn.text().replace('M', ''))
+            # Connect button to handler
+            btn.clicked.connect(lambda checked, code=m_code: self.on_arean_button_clicked(code))
+        self.tab_widget.addTab(arean_tab, "📍 Area Navigation")
+        
+        # Tab 4: Modbus Status - Use component
         status_tab, status_widgets = create_status_tab()
         # Map widgets to self for event handlers
         self.modbus_connection_lamp = status_widgets['modbus_connection_lamp']
@@ -826,24 +846,28 @@ class BottleDetectionGUI(QWidget):
         self.m401_text = status_widgets['m401_text']
         self.tab_widget.addTab(status_tab, "🔌 สถานะ Modbus")
         
-        # Tab 4: OCR Test - Use component
+        # Tab 5: OCR Test - Use component
         ocr_test_tab, ocr_test_widgets = create_ocr_test_tab()
         # Map widgets to self for event handlers
         self.ocr_test_splitter = ocr_test_widgets['ocr_test_splitter']
         self.btn_select_ocr_image = ocr_test_widgets['btn_select_ocr_image']
         self.btn_process_ocr = ocr_test_widgets['btn_process_ocr']
         self.btn_process_ocr_enhanced = ocr_test_widgets['btn_process_ocr_enhanced']
+        self.btn_process_ocr_easyocr = ocr_test_widgets['btn_process_ocr_easyocr']
+        self.btn_process_ocr_tesseract = ocr_test_widgets['btn_process_ocr_tesseract']
         self.ocr_status_label = ocr_test_widgets['ocr_status_label']
         self.ocr_image_label = ocr_test_widgets['ocr_image_label']
         self.ocr_results_text = ocr_test_widgets['ocr_results_text']
         self.ocr_progress_bar = ocr_test_widgets['ocr_progress_bar']
-        # Connect event handlers (will be implemented later)
-        # self.btn_select_ocr_image.clicked.connect(self.select_ocr_image_file)
-        # self.btn_process_ocr.clicked.connect(self.process_ocr_test)
-        # self.btn_process_ocr_enhanced.clicked.connect(self.process_ocr_test_enhanced)
+        # Connect event handlers
+        self.btn_select_ocr_image.clicked.connect(self.select_ocr_test_image)
+        self.btn_process_ocr.clicked.connect(self.process_ocr_test)
+        self.btn_process_ocr_enhanced.clicked.connect(self.process_ocr_test_enhanced)
+        self.btn_process_ocr_easyocr.clicked.connect(self.process_ocr_easyocr)
+        self.btn_process_ocr_tesseract.clicked.connect(self.process_ocr_tesseract)
         self.tab_widget.addTab(ocr_test_tab, "🔤 ทดสอบ OCR")
         
-        # Tab 5: History - Use component
+        # Tab 6: History - Use component
         history_tab, history_widgets = create_history_tab()
         # Map widgets to self for event handlers
         self.history_scroll = history_widgets['history_scroll']
@@ -878,7 +902,7 @@ class BottleDetectionGUI(QWidget):
         self.robot_test_handlers.update_value_description()
         self.tab_widget.addTab(robot_test_tab, "🔧 ทดสอบ Register D")
         
-        # Tab 7: Settings - Use component (will be added when admin logs in)
+        # Tab 8: Settings - Use component (will be added when admin logs in)
         settings_tab, settings_widgets = create_settings_tab()
         self.settings_tab_widget = settings_tab
         # Map widgets to self for event handlers
@@ -886,11 +910,33 @@ class BottleDetectionGUI(QWidget):
         self.shrink_x_spinbox = settings_widgets['shrink_x_spinbox']
         self.shrink_y_spinbox = settings_widgets['shrink_y_spinbox']
         self.max_height_ratio_spinbox = settings_widgets['max_height_ratio_spinbox']
+        # Image enhancement settings
+        self.brightness_spinbox = settings_widgets['brightness_spinbox']
+        self.contrast_spinbox = settings_widgets['contrast_spinbox']
+        self.gamma_spinbox = settings_widgets['gamma_spinbox']
+        # Taste-specific enhancement settings
+        self.m100_brightness_spinbox = settings_widgets['m100_brightness_spinbox']
+        self.m100_contrast_spinbox = settings_widgets['m100_contrast_spinbox']
+        self.m110_brightness_spinbox = settings_widgets['m110_brightness_spinbox']
+        self.m110_contrast_spinbox = settings_widgets['m110_contrast_spinbox']
+        self.m120_brightness_spinbox = settings_widgets['m120_brightness_spinbox']
+        self.m120_contrast_spinbox = settings_widgets['m120_contrast_spinbox']
         # Connect event handlers
         self.padding_spinbox.valueChanged.connect(self.on_crop_settings_changed)
         self.shrink_x_spinbox.valueChanged.connect(self.on_crop_settings_changed)
         self.shrink_y_spinbox.valueChanged.connect(self.on_crop_settings_changed)
         self.max_height_ratio_spinbox.valueChanged.connect(self.on_crop_settings_changed)
+        # Connect image enhancement handlers
+        self.brightness_spinbox.valueChanged.connect(self.on_image_enhancement_changed)
+        self.contrast_spinbox.valueChanged.connect(self.on_image_enhancement_changed)
+        self.gamma_spinbox.valueChanged.connect(self.on_image_enhancement_changed)
+        # Connect taste-specific enhancement handlers
+        self.m100_brightness_spinbox.valueChanged.connect(self.on_taste_enhancement_changed)
+        self.m100_contrast_spinbox.valueChanged.connect(self.on_taste_enhancement_changed)
+        self.m110_brightness_spinbox.valueChanged.connect(self.on_taste_enhancement_changed)
+        self.m110_contrast_spinbox.valueChanged.connect(self.on_taste_enhancement_changed)
+        self.m120_brightness_spinbox.valueChanged.connect(self.on_taste_enhancement_changed)
+        self.m120_contrast_spinbox.valueChanged.connect(self.on_taste_enhancement_changed)
         # Settings tab will be added/removed dynamically based on admin login
         
         layout.addWidget(self.tab_widget)
@@ -1826,6 +1872,98 @@ class BottleDetectionGUI(QWidget):
             self.tab_widget.removeTab(self.settings_tab_index)
             self.settings_tab_index = -1
         print("✅ LOGOUT: Admin logged out - Settings tab disabled")
+    
+    def on_arean_button_clicked(self, m_code):
+        """Handle area navigation button click"""
+        try:
+            print(f"📍 AREAN: กดปุ่ม M{m_code}")
+            
+            if not hasattr(self, 'modbus_thread') or self.modbus_thread is None:
+                QMessageBox.warning(self, "ข้อผิดพลาด", "Modbus thread ยังไม่ได้เริ่มต้น")
+                return
+            
+            # ส่งคำสั่ง Modbus ตาม M code (ใช้ write_coil)
+            success = self.modbus_thread.write_coil(m_code, True)
+            
+            if success:
+                self.status_label.setText(f'✅ ส่งคำสั่ง M{m_code} สำเร็จ')
+                self.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+                print(f"✅ AREAN: ส่งคำสั่ง M{m_code} สำเร็จ")
+            else:
+                self.status_label.setText(f'❌ ไม่สามารถส่งคำสั่ง M{m_code} ได้')
+                self.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                print(f"❌ AREAN: ไม่สามารถส่งคำสั่ง M{m_code} ได้")
+                QMessageBox.warning(self, "ข้อผิดพลาด", f"ไม่สามารถส่งคำสั่ง M{m_code} ได้")
+                
+        except Exception as e:
+            error_msg = f"เกิดข้อผิดพลาดในการส่งคำสั่ง M{m_code}: {str(e)}"
+            self.status_label.setText(f'❌ {error_msg}')
+            self.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            QMessageBox.critical(self, "ข้อผิดพลาด", error_msg)
+            print(f"❌ AREAN ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def on_image_enhancement_changed(self):
+        """Update image enhancement config when settings change"""
+        try:
+            from config import settings as config_settings
+            
+            # Get current values from spinboxes
+            brightness = self.brightness_spinbox.value()
+            contrast = self.contrast_spinbox.value()
+            gamma = self.gamma_spinbox.value()
+            
+            # Update config
+            config_settings.FADED_TEXT_CONFIG['IMAGE_ENHANCEMENT']['brightness'] = brightness
+            config_settings.FADED_TEXT_CONFIG['IMAGE_ENHANCEMENT']['contrast'] = contrast
+            config_settings.FADED_TEXT_CONFIG['IMAGE_ENHANCEMENT']['gamma'] = gamma
+            
+            print(f"✅ อัปเดต Image Enhancement: Brightness={brightness}, Contrast={contrast:.2f}, Gamma={gamma:.2f}")
+            
+        except Exception as e:
+            print(f"❌ Error updating image enhancement: {str(e)}")
+    
+    def on_taste_enhancement_changed(self):
+        """Update taste-specific enhancement config when settings change"""
+        try:
+            from config import settings as config_settings
+            
+            # Get current values from spinboxes
+            m100_brightness = self.m100_brightness_spinbox.value()
+            m100_contrast = self.m100_contrast_spinbox.value()
+            m110_brightness = self.m110_brightness_spinbox.value()
+            m110_contrast = self.m110_contrast_spinbox.value()
+            m120_brightness = self.m120_brightness_spinbox.value()
+            m120_contrast = self.m120_contrast_spinbox.value()
+            
+            # Update config
+            if 'TASTE_ENHANCEMENT_MAP' not in config_settings.FADED_TEXT_CONFIG:
+                config_settings.FADED_TEXT_CONFIG['TASTE_ENHANCEMENT_MAP'] = {}
+            
+            config_settings.FADED_TEXT_CONFIG['TASTE_ENHANCEMENT_MAP']['M100'] = {
+                'brightness': m100_brightness,
+                'contrast': m100_contrast,
+                'gamma': 1.0
+            }
+            config_settings.FADED_TEXT_CONFIG['TASTE_ENHANCEMENT_MAP']['M110'] = {
+                'brightness': m110_brightness,
+                'contrast': m110_contrast,
+                'gamma': 1.0
+            }
+            config_settings.FADED_TEXT_CONFIG['TASTE_ENHANCEMENT_MAP']['M120'] = {
+                'brightness': m120_brightness,
+                'contrast': m120_contrast,
+                'gamma': 1.0
+            }
+            
+            print(f"✅ อัปเดต Taste Enhancement:")
+            print(f"   M100: Brightness={m100_brightness}, Contrast={m100_contrast:.2f}")
+            print(f"   M110: Brightness={m110_brightness}, Contrast={m110_contrast:.2f}")
+            print(f"   M120: Brightness={m120_brightness}, Contrast={m120_contrast:.2f}")
+            
+        except Exception as e:
+            print(f"❌ Error updating taste enhancement: {str(e)}")
     
     def on_crop_settings_changed(self):
         """Handle crop settings change"""
@@ -3687,6 +3825,8 @@ class BottleDetectionGUI(QWidget):
                     # Enable process buttons
                     self.btn_process_ocr.setEnabled(True)
                     self.btn_process_ocr_enhanced.setEnabled(True)
+                    self.btn_process_ocr_easyocr.setEnabled(True)
+                    self.btn_process_ocr_tesseract.setEnabled(True)
                     
                     # Update status
                     self.ocr_status_label.setText(f'✅ เลือกภาพแล้ว: {os.path.basename(file_path)}')
@@ -4032,7 +4172,283 @@ class BottleDetectionGUI(QWidget):
             print(f"❌ Error enhancing image for numbers: {e}")
             return image
             
-            QMessageBox.critical(self, "ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการประมวลผล OCR: {str(e)}")
+    def process_ocr_easyocr(self):
+        """Process OCR using EasyOCR (English only)"""
+        if self.ocr_test_image is None:
+            QMessageBox.warning(self, "ข้อผิดพลาด", "กรุณาเลือกภาพก่อน")
+            return
+        
+        try:
+            print("📖 OCR TEST EASYOCR: Starting EasyOCR processing (English)...")
+            
+            # Update UI
+            self.btn_process_ocr_easyocr.setEnabled(False)
+            self.ocr_progress_bar.setVisible(True)
+            self.ocr_progress_bar.setValue(0)
+            self.ocr_status_label.setText('🔄 กำลังประมวลผล EasyOCR (EN)...')
+            self.ocr_status_label.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px;")
+            
+            # Clear previous results
+            self.ocr_results_text.clear()
+            
+            # Import EasyOCR
+            try:
+                import easyocr
+                import torch
+                CUDA_AVAILABLE = torch.cuda.is_available()
+            except ImportError:
+                result_text = "❌ ข้อผิดพลาด: EasyOCR ไม่ได้ติดตั้ง\n\n"
+                result_text += "กรุณาติดตั้งด้วยคำสั่ง: pip install easyocr"
+                self.ocr_results_text.setText(result_text)
+                self.btn_process_ocr_easyocr.setEnabled(True)
+                self.ocr_progress_bar.setVisible(False)
+                return
+            
+            self.ocr_progress_bar.setValue(20)
+            QtWidgets.QApplication.processEvents()
+            
+            # Initialize EasyOCR reader (English only)
+            print("📖 Initializing EasyOCR reader (English)...")
+            reader = easyocr.Reader(['en'], gpu=CUDA_AVAILABLE)
+            
+            self.ocr_progress_bar.setValue(40)
+            QtWidgets.QApplication.processEvents()
+            
+            # Perform OCR
+            print("📖 Performing OCR with EasyOCR...")
+            start_time = time.time()
+            results = reader.readtext(self.ocr_test_image)
+            processing_time = time.time() - start_time
+            
+            self.ocr_progress_bar.setValue(80)
+            QtWidgets.QApplication.processEvents()
+            
+            # Process results
+            if results:
+                recognized_texts = []
+                confidences = []
+                
+                for (bbox, text, confidence) in results:
+                    recognized_texts.append(text)
+                    confidences.append(confidence)
+                
+                full_text = ' '.join(recognized_texts)
+                avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+                
+                print(f"📖 EasyOCR completed successfully")
+                print(f"📖 Recognized text: '{full_text}'")
+                print(f"📖 Average confidence: {avg_confidence:.3f}")
+                
+                # Format results
+                result_text = f"📖 ผลลัพธ์ EasyOCR (English)\n"
+                result_text += f"📊 สถานะ: สำเร็จ\n"
+                result_text += f"📁 ไฟล์: {os.path.basename(self.ocr_test_image_path)}\n"
+                result_text += f"📏 ขนาดภาพ: {self.ocr_test_image.shape[1]}x{self.ocr_test_image.shape[0]}\n\n"
+                
+                result_text += "📝 ข้อความที่อ่านได้:\n"
+                result_text += "=" * 50 + "\n"
+                result_text += f"'{full_text}'\n\n"
+                
+                result_text += "📊 สถิติ:\n"
+                result_text += "=" * 50 + "\n"
+                result_text += f"ความเชื่อมั่นเฉลี่ย: {avg_confidence:.3f}\n"
+                result_text += f"จำนวนข้อความที่พบ: {len(results)}\n"
+                result_text += f"เวลาประมวลผล: {processing_time:.2f} วินาที\n"
+                result_text += f"ใช้ GPU: {'ใช่' if CUDA_AVAILABLE else 'ไม่'}\n\n"
+                
+                result_text += "📋 รายละเอียดแต่ละข้อความ:\n"
+                result_text += "=" * 50 + "\n"
+                for i, (bbox, text, confidence) in enumerate(results, 1):
+                    result_text += f"{i}. '{text}' (ความเชื่อมั่น: {confidence:.3f})\n"
+                
+            else:
+                result_text = f"❌ ไม่พบข้อความในภาพ\n\n"
+                result_text += f"📁 ไฟล์: {os.path.basename(self.ocr_test_image_path)}\n"
+                result_text += f"📏 ขนาดภาพ: {self.ocr_test_image.shape[1]}x{self.ocr_test_image.shape[0]}\n"
+                result_text += f"เวลาประมวลผล: {processing_time:.2f} วินาที\n"
+                print("📖 EasyOCR: No text detected")
+            
+            # Display results
+            self.ocr_results_text.setText(result_text)
+            
+            self.ocr_progress_bar.setValue(100)
+            QtWidgets.QApplication.processEvents()
+            
+            # Update UI
+            self.btn_process_ocr_easyocr.setEnabled(True)
+            self.ocr_progress_bar.setVisible(False)
+            self.ocr_status_label.setText('✅ ประมวลผล EasyOCR เสร็จสิ้น')
+            self.ocr_status_label.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px;")
+            
+            print("📖 OCR TEST EASYOCR: Processing completed")
+            
+        except Exception as e:
+            print(f"❌ Error in process_ocr_easyocr: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Reset UI
+            self.btn_process_ocr_easyocr.setEnabled(True)
+            self.ocr_progress_bar.setVisible(False)
+            self.ocr_status_label.setText('❌ เกิดข้อผิดพลาดในการประมวลผล EasyOCR')
+            self.ocr_status_label.setStyleSheet("color: #e74c3c; padding: 5px; font-size: 11px;")
+            
+            # Show error in results
+            error_text = f"❌ ข้อผิดพลาดในการประมวลผล EasyOCR\n\n"
+            error_text += f"รายละเอียด: {str(e)}\n\n"
+            error_text += f"📁 ไฟล์: {os.path.basename(self.ocr_test_image_path) if self.ocr_test_image_path else 'ไม่ระบุ'}\n"
+            self.ocr_results_text.setText(error_text)
+    
+    def process_ocr_tesseract(self):
+        """Process OCR using Tesseract OCR (English only)"""
+        if self.ocr_test_image is None:
+            QMessageBox.warning(self, "ข้อผิดพลาด", "กรุณาเลือกภาพก่อน")
+            return
+        
+        try:
+            print("🔍 OCR TEST TESSERACT: Starting Tesseract OCR processing (English)...")
+            
+            # Update UI
+            self.btn_process_ocr_tesseract.setEnabled(False)
+            self.ocr_progress_bar.setVisible(True)
+            self.ocr_progress_bar.setValue(0)
+            self.ocr_status_label.setText('🔄 กำลังประมวลผล Tesseract OCR (EN)...')
+            self.ocr_status_label.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px;")
+            
+            # Clear previous results
+            self.ocr_results_text.clear()
+            
+            # Import pytesseract
+            try:
+                import pytesseract
+            except ImportError:
+                result_text = "❌ ข้อผิดพลาด: pytesseract ไม่ได้ติดตั้ง\n\n"
+                result_text += "กรุณาติดตั้งด้วยคำสั่ง: pip install pytesseract\n"
+                result_text += "และติดตั้ง Tesseract OCR:\n"
+                result_text += "- Ubuntu/Debian: sudo apt-get install tesseract-ocr\n"
+                result_text += "- Windows: ดาวน์โหลดจาก https://github.com/UB-Mannheim/tesseract/wiki"
+                self.ocr_results_text.setText(result_text)
+                self.btn_process_ocr_tesseract.setEnabled(True)
+                self.ocr_progress_bar.setVisible(False)
+                return
+            
+            self.ocr_progress_bar.setValue(20)
+            QtWidgets.QApplication.processEvents()
+            
+            # Preprocess image for better OCR results
+            print("🔍 Preprocessing image for Tesseract OCR...")
+            if len(self.ocr_test_image.shape) == 3:
+                gray = cuda_cvtColor(self.ocr_test_image, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = self.ocr_test_image.copy()
+            
+            # Apply thresholding for better text recognition
+            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            
+            self.ocr_progress_bar.setValue(40)
+            QtWidgets.QApplication.processEvents()
+            
+            # Perform OCR with English language
+            print("🔍 Performing OCR with Tesseract (English)...")
+            start_time = time.time()
+            
+            # Get detailed data including confidence scores
+            ocr_data = pytesseract.image_to_data(thresh, lang='eng', output_type=pytesseract.Output.DICT)
+            full_text = pytesseract.image_to_string(thresh, lang='eng')
+            processing_time = time.time() - start_time
+            
+            self.ocr_progress_bar.setValue(80)
+            QtWidgets.QApplication.processEvents()
+            
+            # Process results
+            if full_text.strip():
+                # Extract confidence scores
+                confidences = []
+                texts = []
+                for i in range(len(ocr_data['text'])):
+                    if int(ocr_data['conf'][i]) > 0:
+                        texts.append(ocr_data['text'][i])
+                        confidences.append(int(ocr_data['conf'][i]))
+                
+                avg_confidence = sum(confidences) / len(confidences) / 100.0 if confidences else 0.0
+                word_count = len([t for t in texts if t.strip()])
+                
+                print(f"🔍 Tesseract OCR completed successfully")
+                print(f"🔍 Recognized text: '{full_text.strip()}'")
+                print(f"🔍 Average confidence: {avg_confidence:.3f}")
+                
+                # Format results
+                result_text = f"🔍 ผลลัพธ์ Tesseract OCR (English)\n"
+                result_text += f"📊 สถานะ: สำเร็จ\n"
+                result_text += f"📁 ไฟล์: {os.path.basename(self.ocr_test_image_path)}\n"
+                result_text += f"📏 ขนาดภาพ: {self.ocr_test_image.shape[1]}x{self.ocr_test_image.shape[0]}\n\n"
+                
+                result_text += "📝 ข้อความที่อ่านได้:\n"
+                result_text += "=" * 50 + "\n"
+                result_text += f"'{full_text.strip()}'\n\n"
+                
+                result_text += "📊 สถิติ:\n"
+                result_text += "=" * 50 + "\n"
+                result_text += f"ความเชื่อมั่นเฉลี่ย: {avg_confidence:.3f}\n"
+                result_text += f"จำนวนคำที่พบ: {word_count}\n"
+                result_text += f"จำนวนตัวอักษร: {len(full_text.strip())}\n"
+                result_text += f"เวลาประมวลผล: {processing_time:.2f} วินาที\n\n"
+                
+                # Show word-level details if available
+                if texts:
+                    result_text += "📋 รายละเอียดคำที่พบ:\n"
+                    result_text += "=" * 50 + "\n"
+                    word_idx = 0
+                    for i in range(len(ocr_data['text'])):
+                        if int(ocr_data['conf'][i]) > 0 and ocr_data['text'][i].strip():
+                            word_idx += 1
+                            conf = int(ocr_data['conf'][i]) / 100.0
+                            result_text += f"{word_idx}. '{ocr_data['text'][i]}' (ความเชื่อมั่น: {conf:.3f})\n"
+                            if word_idx >= 20:  # Limit to first 20 words
+                                result_text += "... (แสดงเฉพาะ 20 คำแรก)\n"
+                                break
+                
+            else:
+                result_text = f"❌ ไม่พบข้อความในภาพ\n\n"
+                result_text += f"📁 ไฟล์: {os.path.basename(self.ocr_test_image_path)}\n"
+                result_text += f"📏 ขนาดภาพ: {self.ocr_test_image.shape[1]}x{self.ocr_test_image.shape[0]}\n"
+                result_text += f"เวลาประมวลผล: {processing_time:.2f} วินาที\n"
+                print("🔍 Tesseract OCR: No text detected")
+            
+            # Display results
+            self.ocr_results_text.setText(result_text)
+            
+            self.ocr_progress_bar.setValue(100)
+            QtWidgets.QApplication.processEvents()
+            
+            # Update UI
+            self.btn_process_ocr_tesseract.setEnabled(True)
+            self.ocr_progress_bar.setVisible(False)
+            self.ocr_status_label.setText('✅ ประมวลผล Tesseract OCR เสร็จสิ้น')
+            self.ocr_status_label.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px;")
+            
+            print("🔍 OCR TEST TESSERACT: Processing completed")
+            
+        except Exception as e:
+            print(f"❌ Error in process_ocr_tesseract: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Reset UI
+            self.btn_process_ocr_tesseract.setEnabled(True)
+            self.ocr_progress_bar.setVisible(False)
+            self.ocr_status_label.setText('❌ เกิดข้อผิดพลาดในการประมวลผล Tesseract OCR')
+            self.ocr_status_label.setStyleSheet("color: #e74c3c; padding: 5px; font-size: 11px;")
+            
+            # Show error in results
+            error_text = f"❌ ข้อผิดพลาดในการประมวลผล Tesseract OCR\n\n"
+            error_text += f"รายละเอียด: {str(e)}\n\n"
+            error_text += f"📁 ไฟล์: {os.path.basename(self.ocr_test_image_path) if self.ocr_test_image_path else 'ไม่ระบุ'}\n"
+            if "tesseract" in str(e).lower() or "not found" in str(e).lower():
+                error_text += "\n💡 หมายเหตุ: ตรวจสอบว่าได้ติดตั้ง Tesseract OCR แล้ว\n"
+                error_text += "   Ubuntu/Debian: sudo apt-get install tesseract-ocr\n"
+                error_text += "   Windows: ดาวน์โหลดจาก https://github.com/UB-Mannheim/tesseract/wiki"
+            self.ocr_results_text.setText(error_text)
     
     def on_capture_limit_changed(self, value):
         """อัปเดตจำนวนรอบเมื่อเปลี่ยนค่าในช่อง"""

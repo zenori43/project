@@ -81,7 +81,7 @@ _ = validate_model_paths()
 # =============================================================================
 FADED_TEXT_CONFIG = {
     'MIN_AREA': -1,           # เกณฑ์ตัด noise ของ component
-    'AREA_THRESH': -1,      # เกณฑ์ตัดสิน faded/normal จาก total_area
+    'AREA_THRESH': 3000,      # เกณฑ์ตัดสิน faded/normal จาก total_area (ถ้า total_area < 3000 = fade)
     'CIRCLE_FALLBACK_MARGIN': 6,
     'HOUGH_CIRCLES_PARAMS': {
         'dp': 1.2,
@@ -98,7 +98,34 @@ FADED_TEXT_CONFIG = {
     'GAUSSIAN_BLUR_PARAMS': {
         'kernel_size': (9, 9),
         'sigma': 2
-    }
+    },
+    # Image enhancement parameters (from cap_fade_detector)
+    # ค่า default (ใช้เมื่อไม่ทราบรส)
+    'IMAGE_ENHANCEMENT': {
+        'brightness': 20,     # เพิ่มแสงพื้นหลัง (ปรับเป็น 20 เพื่อให้ตัวอักษรสีดำชัดขึ้น)
+        'contrast': 1.57,    # ความคมชัด (ปรับแล้วเพื่อตรวจจับตัวอักษรสีดำได้ดีขึ้น)
+        'gamma': 1.0         # Gamma correction
+    },
+    # Mapping จาก bottle_type (รส) -> brightness/contrast
+    # รสแต่ละรสต้องการค่า brightness/contrast ที่แตกต่างกัน
+    'TASTE_ENHANCEMENT_MAP': {
+        'M100': {  # รสดั้งเดิม
+            'brightness': 16,
+            'contrast': 1.7,
+            'gamma': 1.0
+        },
+        'M110': {  # รสน้ำตาลน้อย (สีฟ้า)
+            'brightness': 16,
+            'contrast': 2.7,
+            'gamma': 1.0
+        },
+        'M120': {  # รสผสมแมงลัก
+            'brightness': 16,
+            'contrast': 2.7,
+            'gamma': 1.0
+        }
+    },
+    'USE_ADAPTIVE_THRESHOLD': True  # ใช้ Adaptive Threshold แทน Canny (เหมาะกับตัวอักษรสีดำ)
 }
 
 # =============================================================================

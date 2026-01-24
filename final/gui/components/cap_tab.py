@@ -174,22 +174,24 @@ def create_cap_tab():
     cap_control_group = QGroupBox("ตัวเลือกการทำงานฝา")
     cap_control_layout = QHBoxLayout()
     
-    # Sentech capture button
-    btn_sentech_capture = QPushButton('📸 ถ่ายภาพจาก Sentech')
-    btn_sentech_capture.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #8e44ad; color: white; border-radius: 5px; }")
-    cap_control_layout.addWidget(btn_sentech_capture)
+    # Process cap button (ต้องประมวลผลฉลากก่อน)
+    btn_process_cap = QPushButton('🔍 ประมวลผลฝา')
+    btn_process_cap.setEnabled(False)  # Disabled by default, enabled when bottle_type is available
+    btn_process_cap.setVisible(True)
+    btn_process_cap.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #95a5a6; color: white; border-radius: 5px; }")
+    btn_process_cap.setToolTip("⚠️ ต้องประมวลผลฉลากก่อน (เพื่อให้ได้รส/bottle_type)")
+    cap_control_layout.addWidget(btn_process_cap)
+    
+    # Save Sentech image button
+    btn_save_sentech_image = QPushButton('💾 บันทึกรูปภาพฝา')
+    btn_save_sentech_image.setEnabled(False)
+    btn_save_sentech_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #9b59b6; color: white; border-radius: 5px; }")
+    cap_control_layout.addWidget(btn_save_sentech_image)
     
     # Select image file button for cap detection
     btn_select_cap_image = QPushButton('📁 เลือกไฟล์ภาพฝา')
     btn_select_cap_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #3498db; color: white; border-radius: 5px; }")
     cap_control_layout.addWidget(btn_select_cap_image)
-    
-    # Process cap button
-    btn_process_cap = QPushButton('🔍 ประมวลผลฝา')
-    btn_process_cap.setEnabled(True)
-    btn_process_cap.setVisible(True)
-    btn_process_cap.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #95a5a6; color: white; border-radius: 5px; }")
-    cap_control_layout.addWidget(btn_process_cap)
     
     cap_control_group.setLayout(cap_control_layout)
     cap_layout.addWidget(cap_control_group)
@@ -230,7 +232,7 @@ Step 4: อ่านข้อความด้วย OCR
         'cap_results_container': cap_results_container,
         'cap_results_layout': cap_results_container_layout,
         'cap_detection_text': cap_detection_text,
-        'btn_sentech_capture': btn_sentech_capture,
+        'btn_save_sentech_image': btn_save_sentech_image,
         'btn_select_cap_image': btn_select_cap_image,
         'btn_process_cap': btn_process_cap
     }
