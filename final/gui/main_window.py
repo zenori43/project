@@ -20,8 +20,9 @@ from PyQt5.QtWidgets import (
     QDateTimeEdit, QDialog
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtGui import QImage, QPixmap, QWheelEvent
 import cv2
+import numpy as np
 import os
 import time
 from typing import List, Dict
@@ -111,6 +112,93 @@ from gui.handlers.cap_handlers import CapDetectionHandlers
 from gui.handlers.robot_test_handlers import RobotTestHandlers
 from gui.handlers.status_handlers import StatusHandlers
 from gui.handlers.modbus_handlers import ModbusHandlers
+
+
+class ImageZoomDialog(QDialog):
+    """Popup window for zooming images"""
+    def __init__(self, image, title="Image Viewer", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setModal(False)
+        self.resize(800, 600)
+        
+        # Store original image
+        if isinstance(image, np.ndarray):
+            # Convert numpy array to QPixmap
+            if len(image.shape) == 2:  # Grayscale
+                rgb_img = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            else:  # BGR
+                rgb_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            h, w, c = rgb_img.shape
+            bytes_per_line = c * w
+            qimg = QImage(rgb_img.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            self.original_pixmap = QPixmap.fromImage(qimg)
+        else:
+            self.original_pixmap = image
+        
+        # Zoom factor
+        self.zoom_factor = 1.0
+        
+        # Setup UI
+        layout = QVBoxLayout(self)
+        
+        # Image label with scroll area
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setAlignment(Qt.AlignCenter)
+        
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setScaledContents(False)
+        self.update_image()
+        
+        self.scroll_area.setWidget(self.image_label)
+        layout.addWidget(self.scroll_area)
+        
+        # Info label
+        info_label = QLabel("Double-click to reset zoom | Mouse wheel to zoom")
+        info_label.setStyleSheet("color: #7f8c8d; padding: 5px;")
+        info_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(info_label)
+        
+        # Enable mouse tracking for zoom
+        self.image_label.setMouseTracking(True)
+        self.scroll_area.wheelEvent = self.wheel_event
+    
+    def wheel_event(self, event: QWheelEvent):
+        """Handle mouse wheel for zooming"""
+        delta = event.angleDelta().y()
+        if delta > 0:
+            self.zoom_factor *= 1.1  # Zoom in
+        else:
+            self.zoom_factor *= 0.9  # Zoom out
+        
+        # Limit zoom range
+        self.zoom_factor = max(0.1, min(10.0, self.zoom_factor))
+        self.update_image()
+        event.accept()
+    
+    def mouseDoubleClickEvent(self, event):
+        """Reset zoom on double-click"""
+        self.zoom_factor = 1.0
+        self.update_image()
+        event.accept()
+    
+    def update_image(self):
+        """Update displayed image with current zoom factor"""
+        if self.zoom_factor == 1.0:
+            scaled_pixmap = self.original_pixmap
+        else:
+            new_width = int(self.original_pixmap.width() * self.zoom_factor)
+            new_height = int(self.original_pixmap.height() * self.zoom_factor)
+            scaled_pixmap = self.original_pixmap.scaled(
+                new_width, new_height, 
+                Qt.KeepAspectRatio, 
+                Qt.SmoothTransformation
+            )
+        
+        self.image_label.setPixmap(scaled_pixmap)
+        self.image_label.resize(scaled_pixmap.size())
 
 
 class BottleDetectionGUI(QWidget):
@@ -773,10 +861,12 @@ class BottleDetectionGUI(QWidget):
         self.cap_detection_text = cap_widgets['cap_detection_text']
         self.btn_save_sentech_image = cap_widgets['btn_save_sentech_image']
         self.btn_select_cap_image = cap_widgets['btn_select_cap_image']
+        self.btn_select_multiple_cap_images = cap_widgets['btn_select_multiple_cap_images']
         self.btn_process_cap = cap_widgets['btn_process_cap']
         # Connect event handlers
         self.btn_save_sentech_image.clicked.connect(self.cap_handlers.save_sentech_image)
         self.btn_select_cap_image.clicked.connect(self.cap_handlers.select_cap_image_file)
+        self.btn_select_multiple_cap_images.clicked.connect(self.cap_handlers.select_multiple_cap_images)
         self.btn_process_cap.clicked.connect(self.cap_handlers.process_cap_detection)
         self.tab_widget.addTab(cap_tab, "🔍 ตรวจจับฝา")
         
@@ -1238,9 +1328,10 @@ class BottleDetectionGUI(QWidget):
             bottle_type = bottle_result.get('bottle_type', 'Unknown')
             ocr_text = bottle_result.get('combined_ocr_text', '')
             
-            # Extract expiry date from cap result
+            # Extract expiry date and faded status from cap result
             expiry_date = None
             cap_image = None
+            faded_status = None
             
             if cap_result:
                 # Try to get OCR results from different possible locations
@@ -1389,6 +1480,24 @@ class BottleDetectionGUI(QWidget):
                         cap_image = self.current_sentech_image
                 
                 print(f"✅ HISTORY: Cap image found: {cap_image is not None}")
+                
+                # Extract faded status and area from cap result
+                total_area = None
+                num_chars = None
+                if 'cap_processing_results' in cap_result and len(cap_result['cap_processing_results']) > 0:
+                    first_cap = cap_result['cap_processing_results'][0]
+                    if 'faded_text_result' in first_cap:
+                        faded_text_result = first_cap['faded_text_result']
+                        faded_status = faded_text_result.get('status', None)
+                        total_area = faded_text_result.get('total_area', None)
+                        num_chars = faded_text_result.get('num_chars', None)
+                        print(f"✅ HISTORY: Faded status: {faded_status}, total_area: {total_area}, num_chars: {num_chars}")
+                elif 'faded_text_result' in cap_result:
+                    faded_text_result = cap_result['faded_text_result']
+                    faded_status = faded_text_result.get('status', None)
+                    total_area = faded_text_result.get('total_area', None)
+                    num_chars = faded_text_result.get('num_chars', None)
+                    print(f"✅ HISTORY: Faded status: {faded_status}, total_area: {total_area}, num_chars: {num_chars}")
             
             # Get bottle image if available
             if bottle_image is None and self.current_image is not None:
@@ -1425,7 +1534,10 @@ class BottleDetectionGUI(QWidget):
                 'cap_image': cap_img_copy,
                 'bottle_type': bottle_type,
                 'expiry_date': expiry_date,
-                'ocr_text': ocr_text
+                'ocr_text': ocr_text,
+                'faded_status': faded_status,
+                'total_area': total_area,
+                'num_chars': num_chars
             }
             
             # Add to history list
@@ -1439,7 +1551,11 @@ class BottleDetectionGUI(QWidget):
                     bottle_type=bottle_type,
                     expiry_date=expiry_date or "ไม่พบ",
                     timestamp=timestamp,
-                    ocr_text=ocr_text
+                    ocr_text=ocr_text,
+                    faded_status=faded_status,
+                    total_area=total_area,
+                    num_chars=num_chars,
+                    gui_instance=self
                 )
                 
                 # Hide empty label if visible
@@ -2447,6 +2563,16 @@ class BottleDetectionGUI(QWidget):
     # Modbus operation methods delegated to modbus_handlers
     # Use self.modbus_handlers.on_bottle_type_after_cap_validation() instead
     
+    def show_image_zoom_popup(self, image, title="Image Viewer"):
+        """Show image in zoomable popup window"""
+        try:
+            dialog = ImageZoomDialog(image, title, self)
+            dialog.exec_()
+        except Exception as e:
+            print(f"❌ Error showing image zoom popup: {e}")
+            import traceback
+            traceback.print_exc()
+    
     def display_cap_detection_results(self, result):
         """Display cap detection results with step-by-step images"""
         try:
@@ -2506,6 +2632,10 @@ class BottleDetectionGUI(QWidget):
                     original_label = QLabel()
                     original_label.setPixmap(pixmap)
                     original_label.setAlignment(Qt.AlignCenter)
+                    original_label.setCursor(Qt.PointingHandCursor)
+                    # Store original image for zoom popup
+                    orig_img = result.get('image')
+                    original_label.mouseDoubleClickEvent = lambda e, img=orig_img: self.show_image_zoom_popup(img, "Original Image") if img is not None else None
                     original_layout.addWidget(original_label)
                     # print("🔍 DEBUG: Added original image to layout")  # Reduced spam
                 else:
@@ -2553,6 +2683,10 @@ class BottleDetectionGUI(QWidget):
                     processed_label = QLabel()
                     processed_label.setPixmap(pixmap)
                     processed_label.setAlignment(Qt.AlignCenter)
+                    processed_label.setCursor(Qt.PointingHandCursor)
+                    # Store original processed image for zoom popup
+                    proc_img = result.get('processed_image')
+                    processed_label.mouseDoubleClickEvent = lambda e, img=proc_img: self.show_image_zoom_popup(img, "Processed Image") if img is not None else None
                     processed_layout.addWidget(processed_label)
                     # print("🔍 DEBUG: Added processed image to layout")  # Reduced spam
                 else:
@@ -2566,12 +2700,11 @@ class BottleDetectionGUI(QWidget):
                 pass
             
             # Display cap detection results
-            if result.get('cropped_images'):
-                # Check if we have full pipeline results for caps
-                if result.get('cap_processing_results'):
-                    print(f"🔍 DEBUG: Found {len(result['cap_processing_results'])} cap processing results")
-                    # Display full pipeline results for each cap
-                    for cap_index, cap_result in enumerate(result['cap_processing_results']):
+            # Display cap_processing_results (แสดงผลแม้ว่าจะมี error: 'faded_text_detected')
+            if result.get('cap_processing_results'):
+                print(f"🔍 DEBUG: Found {len(result['cap_processing_results'])} cap processing results")
+                # Display full pipeline results for each cap
+                for cap_index, cap_result in enumerate(result['cap_processing_results']):
                         print(f"🔍 DEBUG: Cap {cap_index+1} result keys: {list(cap_result.keys())}")
                         print(f"🔍 DEBUG: Cap {cap_index+1} has line_detection_result: {'line_detection_result' in cap_result}")
                         print(f"🔍 DEBUG: Cap {cap_index+1} has ocr_results: {'ocr_results' in cap_result}")
@@ -2624,6 +2757,10 @@ class BottleDetectionGUI(QWidget):
                             crop_label = QLabel()
                             crop_label.setPixmap(pixmap)
                             crop_label.setAlignment(Qt.AlignCenter)
+                            crop_label.setCursor(Qt.PointingHandCursor)
+                            # Store original crop image for zoom popup
+                            crop_img = cap_result.get('original_crop')
+                            crop_label.mouseDoubleClickEvent = lambda e, img=crop_img, idx=cap_index: self.show_image_zoom_popup(img, f"Cap {idx+1} - Original Crop") if img is not None else None
                             crop_layout.addWidget(crop_label)
                         
                         self.cap_results_layout.addWidget(crop_container)
@@ -2718,10 +2855,15 @@ class BottleDetectionGUI(QWidget):
                                         img_title.setAlignment(Qt.AlignCenter)
                                         img_layout.addWidget(img_title)
                                         
-                                        # Image
+                                        # Image with double-click to zoom
                                         img_label = QLabel()
                                         img_label.setPixmap(pixmap)
                                         img_label.setAlignment(Qt.AlignCenter)
+                                        img_label.setCursor(Qt.PointingHandCursor)  # Show hand cursor
+                                        # Store original image for zoom popup
+                                        original_img = debug_images[img_name]
+                                        # Add double-click event
+                                        img_label.mouseDoubleClickEvent = lambda e, img=original_img, name=img_name: self.show_image_zoom_popup(img, name)
                                         img_layout.addWidget(img_label)
                                         
                                         debug_images_layout.addWidget(img_container)

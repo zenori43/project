@@ -81,7 +81,7 @@ _ = validate_model_paths()
 # =============================================================================
 FADED_TEXT_CONFIG = {
     'MIN_AREA': -1,           # เกณฑ์ตัด noise ของ component
-    'AREA_THRESH': 3000,      # เกณฑ์ตัดสิน faded/normal จาก total_area (ถ้า total_area < 3000 = fade)
+    'AREA_THRESH': 1500,      # เกณฑ์ตัดสิน faded/normal จาก total_area (ถ้า total_area < 1500 = fade)
     'CIRCLE_FALLBACK_MARGIN': 6,
     'HOUGH_CIRCLES_PARAMS': {
         'dp': 1.2,
@@ -99,11 +99,11 @@ FADED_TEXT_CONFIG = {
         'kernel_size': (9, 9),
         'sigma': 2
     },
-    # Image enhancement parameters (from cap_fade_detector)
-    # ค่า default (ใช้เมื่อไม่ทราบรส)
+    # Image enhancement parameters (from brightness analysis)
+    # ใช้ค่าที่วิเคราะห์ได้จาก cap_brightness_analyzer (brightness: 33)
     'IMAGE_ENHANCEMENT': {
-        'brightness': 20,     # เพิ่มแสงพื้นหลัง (ปรับเป็น 20 เพื่อให้ตัวอักษรสีดำชัดขึ้น)
-        'contrast': 1.57,    # ความคมชัด (ปรับแล้วเพื่อตรวจจับตัวอักษรสีดำได้ดีขึ้น)
+        'brightness': 33,     # ค่ากลางที่วิเคราะห์ได้ (เพื่อให้ Mean intensity ≈ 128)
+        'contrast': 1.8,      # ความคมชัด (ปรับตาม Contrast Ratio ที่วิเคราะห์ได้)
         'gamma': 1.0         # Gamma correction
     },
     # Mapping จาก bottle_type (รส) -> brightness/contrast
@@ -125,7 +125,9 @@ FADED_TEXT_CONFIG = {
             'gamma': 1.0
         }
     },
-    'USE_ADAPTIVE_THRESHOLD': True  # ใช้ Adaptive Threshold แทน Canny (เหมาะกับตัวอักษรสีดำ)
+    'USE_ADAPTIVE_THRESHOLD': True,  # ใช้ Adaptive Threshold แทน Canny (เหมาะกับตัวอักษรสีดำ)
+    'USE_EDGES_FOR_ADAPTIVE': False,  # ถ้า True: ใช้ edges มาทำ Adaptive Threshold, ถ้า False: ใช้ roi_masked (วิธีเดิม)
+    'USE_EDGES_DIRECTLY': True  # ถ้า True: ใช้ edges โดยตรงมาทำ text_edges (ไม่ผ่าน Adaptive Threshold) - แนะนำ
 }
 
 # =============================================================================

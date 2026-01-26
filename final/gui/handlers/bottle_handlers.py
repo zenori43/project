@@ -98,6 +98,10 @@ class BottleDetectionHandlers:
                     print("⚠️ CAPTURE BOTH: cap_handlers ยังไม่มี - ข้ามการแสดงภาพ Sentech")
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {sentech_image.shape[1]}x{sentech_image.shape[0]}")
                 self.gui.btn_save_sentech_image.setEnabled(True)
+                # Enable process cap button when Sentech image is available (ไม่ต้องรอ bottle_type)
+                if hasattr(self.gui, 'btn_process_cap'):
+                    self.gui.btn_process_cap.setEnabled(True)
+                    print("✅ CAPTURE BOTH: เปิดใช้งานปุ่มประมวลผลฝา (มีภาพจาก Sentech)")
                 print("✅ CAPTURE BOTH: Sentech image captured and displayed")
             else:
                 print("⚠️ CAPTURE BOTH: ไม่สามารถถ่ายภาพจาก Sentech ได้")
@@ -733,10 +737,8 @@ class BottleDetectionHandlers:
                 self.gui.status_handlers.update_performance_stats(successful_detections=self.gui.successful_detections_count)
                 self.handle_bottle_type_detection(result['bottle_type'], result['combined_ocr_text'])
                 
-                # เปิดใช้งานปุ่มประมวลผลฝาหลังจากได้ bottle_type แล้ว
-                if hasattr(self.gui, 'btn_process_cap'):
-                    self.gui.btn_process_cap.setEnabled(True)
-                    print(f"✅ BOTTLE PROCESS: เปิดใช้งานปุ่มประมวลผลฝา (bottle_type = {result['bottle_type']})")
+                # ไม่ต้องเปิดใช้งานปุ่มประมวลผลฝาแล้ว - จะเปิดเมื่อมีภาพจาก Sentech
+                # (ใช้ค่ากลางที่วิเคราะห์ได้โดยตรง ไม่ต้องรอ bottle_type)
             else:
                 print("❌ PROCESS COMPLETE: No bottle type or OCR text found")
                 print(f"❌ PROCESS COMPLETE: bottle_type: {result.get('bottle_type')}")

@@ -89,7 +89,7 @@ def create_history_tab():
     return history_tab, widgets_dict
 
 
-def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, timestamp, ocr_text=""):
+def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, timestamp, ocr_text="", faded_status=None, total_area=None, num_chars=None, gui_instance=None):
     """
     สร้าง history item widget สำหรับแสดงประวัติแต่ละรายการ
     
@@ -100,6 +100,10 @@ def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, times
         expiry_date: str - วันหมดอายุ
         timestamp: str - เวลาที่ประมวลผล
         ocr_text: str - ข้อความ OCR
+        faded_status: str - สถานะจาง ('faded', 'normal', 'unknown', None)
+        total_area: int - พื้นที่รวมของตัวอักษรที่อ่านได้
+        num_chars: int - จำนวนตัวอักษรที่ตรวจจับได้
+        gui_instance: BottleDetectionGUI instance - สำหรับเรียก show_image_zoom_popup
     
     Returns:
         QFrame: History item widget
@@ -220,6 +224,23 @@ def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, times
         bottle_img_title.setStyleSheet("color: #34495e; font-size: 10px; font-weight: bold;")
         bottle_img_title.setAlignment(Qt.AlignCenter)
         images_layout.addWidget(bottle_img_title)
+        
+        # Add double-click event for zoom popup
+        if gui_instance is not None and bottle_image is not None:
+            bottle_img_label.setCursor(Qt.PointingHandCursor)
+            # Enable mouse tracking and events
+            bottle_img_label.setMouseTracking(True)
+            # Store original image for zoom popup
+            orig_bottle_img = bottle_image.copy() if hasattr(bottle_image, 'copy') else bottle_image
+            # Create function with proper closure
+            def bottle_double_click(event):
+                try:
+                    if orig_bottle_img is not None and gui_instance is not None:
+                        gui_instance.show_image_zoom_popup(orig_bottle_img, "ภาพขวด")
+                except Exception as e:
+                    print(f"❌ Error showing bottle image popup: {e}")
+            bottle_img_label.mouseDoubleClickEvent = bottle_double_click
+        
         images_layout.addWidget(bottle_img_label)
     
     # Cap image
@@ -260,6 +281,23 @@ def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, times
         cap_img_title.setStyleSheet("color: #34495e; font-size: 10px; font-weight: bold;")
         cap_img_title.setAlignment(Qt.AlignCenter)
         images_layout.addWidget(cap_img_title)
+        
+        # Add double-click event for zoom popup
+        if gui_instance is not None and cap_image is not None:
+            cap_img_label.setCursor(Qt.PointingHandCursor)
+            # Enable mouse tracking and events
+            cap_img_label.setMouseTracking(True)
+            # Store original image for zoom popup
+            orig_cap_img = cap_image.copy() if hasattr(cap_image, 'copy') else cap_image
+            # Create function with proper closure
+            def cap_double_click(event):
+                try:
+                    if orig_cap_img is not None and gui_instance is not None:
+                        gui_instance.show_image_zoom_popup(orig_cap_img, "ภาพฝา")
+                except Exception as e:
+                    print(f"❌ Error showing cap image popup: {e}")
+            cap_img_label.mouseDoubleClickEvent = cap_double_click
+        
         images_layout.addWidget(cap_img_label)
     
     content_layout.addLayout(images_layout)
@@ -272,6 +310,29 @@ def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, times
     type_info = QLabel(f"<b>รสชาติ:</b> {bottle_type}")
     type_info.setStyleSheet("color: #2c3e50; font-size: 14px; padding: 5px;")
     info_layout.addWidget(type_info)
+    
+    # Faded status (สถานะจาง/ไม่จาง) และ Area
+    if faded_status is not None:
+        if faded_status == 'faded':
+            status_text = "⚠️ <b>สถานะ:</b> <span style='color: #e74c3c;'>ข้อความจาง</span>"
+            status_color = "#e74c3c"
+        elif faded_status == 'normal':
+            status_text = "✅ <b>สถานะ:</b> <span style='color: #27ae60;'>ข้อความไม่จาง</span>"
+            status_color = "#27ae60"
+        else:
+            status_text = "❓ <b>สถานะ:</b> <span style='color: #95a5a6;'>ไม่ทราบ</span>"
+            status_color = "#95a5a6"
+        
+        # เพิ่มข้อมูล area และ num_chars
+        area_info_text = status_text
+        if total_area is not None:
+            area_info_text += f"<br>📊 <b>Area:</b> <span style='color: {status_color};'>{total_area}</span>"
+        if num_chars is not None:
+            area_info_text += f" | <b>ตัวอักษร:</b> <span style='color: {status_color};'>{num_chars}</span>"
+        
+        faded_info = QLabel(area_info_text)
+        faded_info.setStyleSheet("color: #2c3e50; font-size: 14px; padding: 5px; font-weight: bold;")
+        info_layout.addWidget(faded_info)
     
     # Expiry date (แสดงบรรทัดที่ 1-3 ที่อ่านได้)
     if expiry_date:

@@ -174,12 +174,12 @@ def create_cap_tab():
     cap_control_group = QGroupBox("ตัวเลือกการทำงานฝา")
     cap_control_layout = QHBoxLayout()
     
-    # Process cap button (ต้องประมวลผลฉลากก่อน)
+    # Process cap button (ใช้ค่ากลางที่วิเคราะห์ได้โดยตรง)
     btn_process_cap = QPushButton('🔍 ประมวลผลฝา')
-    btn_process_cap.setEnabled(False)  # Disabled by default, enabled when bottle_type is available
+    btn_process_cap.setEnabled(False)  # Disabled by default, enabled when image is available
     btn_process_cap.setVisible(True)
     btn_process_cap.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #95a5a6; color: white; border-radius: 5px; }")
-    btn_process_cap.setToolTip("⚠️ ต้องประมวลผลฉลากก่อน (เพื่อให้ได้รส/bottle_type)")
+    btn_process_cap.setToolTip("ประมวลผลฝา (ใช้ค่ากลางที่วิเคราะห์ได้ - brightness: 33)")
     cap_control_layout.addWidget(btn_process_cap)
     
     # Save Sentech image button
@@ -192,6 +192,12 @@ def create_cap_tab():
     btn_select_cap_image = QPushButton('📁 เลือกไฟล์ภาพฝา')
     btn_select_cap_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #3498db; color: white; border-radius: 5px; }")
     cap_control_layout.addWidget(btn_select_cap_image)
+    
+    # Select multiple images button for batch processing
+    btn_select_multiple_cap_images = QPushButton('📁 เลือกหลายไฟล์ภาพฝา')
+    btn_select_multiple_cap_images.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #16a085; color: white; border-radius: 5px; }")
+    btn_select_multiple_cap_images.setToolTip("เลือกหลายไฟล์เพื่อประมวลผลและบันทึกลงประวัติ")
+    cap_control_layout.addWidget(btn_select_multiple_cap_images)
     
     cap_control_group.setLayout(cap_control_layout)
     cap_layout.addWidget(cap_control_group)
@@ -234,6 +240,7 @@ Step 4: อ่านข้อความด้วย OCR
         'cap_detection_text': cap_detection_text,
         'btn_save_sentech_image': btn_save_sentech_image,
         'btn_select_cap_image': btn_select_cap_image,
+        'btn_select_multiple_cap_images': btn_select_multiple_cap_images,
         'btn_process_cap': btn_process_cap
     }
     

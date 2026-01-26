@@ -274,19 +274,23 @@ class CapDetectionThread(QThread):
                     # Step 2a.5: Detect faded text in the cropped cap BEFORE CRAFT rotation
                     self.status_updated.emit(f"กำลังตรวจสอบรอยจางในฝาที่ {bottommost_index + 1}...")
                     print(f"🔄 CAP DETECTION THREAD: Step 2a.5 - ตรวจสอบรอยจางในฝาที่ {bottommost_index + 1} (ก่อน CRAFT)")
-                    print(f"🏷️ CAP DETECTION THREAD: ใช้ bottle_type = {self.bottle_type} สำหรับการปรับ brightness/contrast")
+                    print(f"🔍 CAP DETECTION THREAD: ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) สำหรับการปรับภาพ")
                     faded_text_result = detect_faded_text_in_cap(
                         bottommost_cap, 
                         yolo_model=None,  # ไม่ใช้ YOLO model ใหม่ ใช้รูปที่ crop แล้วโดยตรง
                         show_debug=True,  # เปิด debug mode เพื่อแสดงภาพใน UI
-                        bottle_type=self.bottle_type  # ส่ง bottle_type เพื่อใช้ค่าที่เหมาะสม
+                        bottle_type=None  # ไม่ใช้แล้ว - ใช้ threshold เดียวกันสำหรับทุกรส
                     )
                     cap_result['faded_text_result'] = faded_text_result
                     print(f"🔄 CAP DETECTION THREAD: ตรวจสอบรอยจางฝาที่ {bottommost_index + 1} สำเร็จ - สถานะ: {faded_text_result['status']}")
+                    print(f"📊 CAP DETECTION THREAD: total_area = {faded_text_result.get('total_area', 0)}, num_chars = {faded_text_result.get('num_chars', 0)}")
                     
-                    # หยุดประมวลผลเมื่อเจอข้อความจาง
+                    # เก็บผลลัพธ์ไว้ก่อน (แม้จะเป็น faded) เพื่อแสดงภาพและค่า area
+                    all_cap_results.append(cap_result)
+                    
+                    # หยุดประมวลผลเมื่อเจอข้อความจาง แต่ยังแสดงผลลัพธ์
                     if faded_text_result.get('status') == 'faded':
-                        print("❌ CAP DETECTION THREAD: ตรวจพบข้อความจาง - หยุดประมวลผล")
+                        print("❌ CAP DETECTION THREAD: ตรวจพบข้อความจาง - หยุดประมวลผล (แต่จะแสดงภาพและค่า area)")
                         print("🚨 CAP DETECTION THREAD: ส่งสัญญาณ M140 (ฝาไม่ผ่าน)")
                         print("🚀 CAP DETECTION THREAD: ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)")
                         
@@ -299,14 +303,21 @@ class CapDetectionThread(QThread):
                             self.modbus_thread.on_m600()
                             print("✅ M600 ส่งสัญญาณเรียบร้อย")
                         
-                        # สร้างผลลัพธ์ที่บ่งบอกว่าเป็นข้อความจาง
+                        # สร้างผลลัพธ์ที่บ่งบอกว่าเป็นข้อความจาง แต่มีข้อมูลครบถ้วนเพื่อแสดงผล
                         result = {
                             'error': 'faded_text_detected',
-                            'message': 'ตรวจพบข้อความจาง - หยุดประมวลผล',
+                            'message': f'ตรวจพบข้อความจาง - total_area: {faded_text_result.get("total_area", 0)}, num_chars: {faded_text_result.get("num_chars", 0)}',
                             'faded_text_result': faded_text_result,
-                            'cap_processing_results': [cap_result]
+                            'cap_processing_results': all_cap_results,  # ใช้ all_cap_results ที่มี cap_result แล้ว
+                            'image': self.image,  # เพิ่มภาพต้นฉบับ
+                            'image_shape': self.image.shape if self.image is not None else None
                         }
                         
+                        # Final progress update
+                        self.progress_updated.emit(100)
+                        self.status_updated.emit("ตรวจพบข้อความจาง - แสดงผลลัพธ์")
+                        
+                        print("🔄 CAP DETECTION THREAD: Emitting result with faded text (พร้อมแสดงภาพและค่า area)...")
                         self.result_ready.emit(result)
                         return
                     

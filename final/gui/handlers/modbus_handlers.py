@@ -226,11 +226,11 @@ class ModbusHandlers:
                     limit = self.gui.modbus_thread.capture_limit_count
                     print(f"📊 CAPTURE WITH LIMIT: ถ่ายแล้ว {current}/{limit} ครั้ง")
                     
-                    # ถ้าถ่ายครบจำนวนแล้ว ตั้ง flag รอหยุด (จะหยุดหลัง M401 ON 3 วินาที)
+                    # ถ้าถ่ายครบจำนวนแล้ว ตั้ง flag หยุดการถ่ายภาพต่อ
                     if current >= limit and not self.gui.modbus_thread.capture_limit_reached:
                         self.gui.modbus_thread.capture_limit_reached = True
-                        print(f"✅ CAPTURE WITH LIMIT: ถ่ายครบ {limit} ครั้งแล้ว - รอ M401 ON แล้วหยุดหลัง 3 วินาที")
-                        self.gui.status_label.setText(f'✅ ถ่ายครบ {limit} ครั้งแล้ว - รอ M401 ON แล้วหยุด')
+                        print(f"✅ CAPTURE WITH LIMIT: ถ่ายครบ {limit} ครั้งแล้ว - หยุดการถ่ายภาพต่อ (รอ M401 ON แล้วหยุดระบบหลัง 3 วินาที)")
+                        self.gui.status_label.setText(f'✅ ถ่ายครบ {limit} ครั้งแล้ว - หยุดการถ่ายภาพต่อ (รอ M401 ON แล้วหยุดระบบ)')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
             
         except Exception as e:

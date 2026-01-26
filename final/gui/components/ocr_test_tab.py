@@ -56,6 +56,18 @@ def create_ocr_test_tab():
     btn_process_ocr_enhanced.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #FF9800; color: white; }")
     ocr_controls_layout.addWidget(btn_process_ocr_enhanced)
     
+    # EasyOCR processing button
+    btn_process_ocr_easyocr = QPushButton('📖 ประมวลผล EasyOCR (EN)')
+    btn_process_ocr_easyocr.setEnabled(False)
+    btn_process_ocr_easyocr.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #9b59b6; color: white; }")
+    ocr_controls_layout.addWidget(btn_process_ocr_easyocr)
+    
+    # Tesseract OCR processing button
+    btn_process_ocr_tesseract = QPushButton('🔍 ประมวลผล Tesseract OCR (EN)')
+    btn_process_ocr_tesseract.setEnabled(False)
+    btn_process_ocr_tesseract.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #16a085; color: white; }")
+    ocr_controls_layout.addWidget(btn_process_ocr_tesseract)
+    
     # OCR status label
     ocr_status_label = QLabel('⏸️ เลือกภาพเพื่อเริ่มทดสอบ OCR')
     ocr_status_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
@@ -118,6 +130,8 @@ def create_ocr_test_tab():
         'btn_select_ocr_image': btn_select_ocr_image,
         'btn_process_ocr': btn_process_ocr,
         'btn_process_ocr_enhanced': btn_process_ocr_enhanced,
+        'btn_process_ocr_easyocr': btn_process_ocr_easyocr,
+        'btn_process_ocr_tesseract': btn_process_ocr_tesseract,
         'ocr_status_label': ocr_status_label,
         'ocr_image_label': ocr_image_label,
         'ocr_results_text': ocr_results_text,

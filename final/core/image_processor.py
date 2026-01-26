@@ -164,25 +164,17 @@ def enhance_cap_image_for_fade_detection(image, bottle_type=None):
     
     Args:
         image: numpy array image to enhance
-        bottle_type: str, bottle type (M100, M110, M120) to use appropriate enhancement values
-                     If None, uses default values from config
+        bottle_type: str, bottle type (M100, M110, M120) - ไม่ใช้แล้ว (เก็บไว้เพื่อ backward compatibility)
     """
     if image is None:
         return None
     
     enhanced = image.copy()
     
-    # ใช้ค่าจาก TASTE_ENHANCEMENT_MAP ถ้ามี bottle_type
-    if bottle_type and bottle_type in FADED_TEXT_CONFIG.get('TASTE_ENHANCEMENT_MAP', {}):
-        enhancement = FADED_TEXT_CONFIG['TASTE_ENHANCEMENT_MAP'][bottle_type]
-        print(f"🔍 ENHANCE IMAGE: ใช้ค่าสำหรับ {bottle_type}: brightness={enhancement.get('brightness')}, contrast={enhancement.get('contrast')}")
-    else:
-        # ใช้ค่า default
-        enhancement = FADED_TEXT_CONFIG.get('IMAGE_ENHANCEMENT', {})
-        if bottle_type:
-            print(f"⚠️ ENHANCE IMAGE: ไม่พบค่า enhancement สำหรับ {bottle_type} - ใช้ค่า default")
-        else:
-            print(f"🔍 ENHANCE IMAGE: ไม่ระบุ bottle_type - ใช้ค่า default")
+    # ใช้ค่า default จาก IMAGE_ENHANCEMENT โดยตรง (ไม่ต้องรอ bottle_type)
+    # ค่านี้มาจากการวิเคราะห์ค่ากลางจาก cap_brightness_analyzer
+    enhancement = FADED_TEXT_CONFIG.get('IMAGE_ENHANCEMENT', {})
+    print(f"🔍 ENHANCE IMAGE: ใช้ค่ากลางที่วิเคราะห์ได้ - brightness={enhancement.get('brightness')}, contrast={enhancement.get('contrast')}")
     
     # Apply brightness
     brightness = enhancement.get('brightness', 0)
@@ -213,7 +205,7 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
         cap_image: numpy array of the cropped cap image (from Step 2: Crop detected regions)
         yolo_model: YOLO model for cap detection (ไม่ใช้แล้ว - ใช้รูปที่ crop แล้วโดยตรง)
         show_debug: whether to show debug visualization
-        bottle_type: str, bottle type (M100, M110, M120) to use appropriate enhancement values
+        bottle_type: str, bottle type (M100, M110, M120) - ไม่ใช้แล้ว (เก็บไว้เพื่อ backward compatibility)
         
     Returns:
         dict: {
@@ -234,8 +226,8 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
             img = cuda_cvtColor(cap_image, cv2.COLOR_GRAY2BGR)
         
         # Enhance image before detection (เพิ่มแสงและ contrast เพื่อตรวจจับตัวอักษรสีดำได้ดีขึ้น)
-        # ใช้ค่า brightness/contrast ตาม bottle_type ที่ระบุ
-        img = enhance_cap_image_for_fade_detection(img, bottle_type=bottle_type)
+        # ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) โดยตรง ไม่ต้องรอ bottle_type
+        img = enhance_cap_image_for_fade_detection(img, bottle_type=None)
         
         # Initialize result
         result = {
@@ -285,21 +277,96 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
             r = min(w, h)//2 - FADED_TEXT_CONFIG['CIRCLE_FALLBACK_MARGIN']
         
         cv2.circle(mask_circle, (int(cx), int(cy)), int(r), 255, -1)
-        cv2.circle(circle_edges, (int(cx), int(cy)), int(r), 255, 2)
+        # เพิ่มความหนาของ circle_edges เพื่อลบเส้นวงกลมให้สมบูรณ์ (จาก 2 เป็น 5)
+        cv2.circle(circle_edges, (int(cx), int(cy)), int(r), 255, 5)  # เพิ่มความหนาเพื่อลบเส้นวงกลมให้ดีขึ้น
         cv2.circle(roi_show, (int(cx), int(cy)), int(r), (0,255,0), 2)
         
         # Mask ROI
         roi_masked = cv2.bitwise_and(gray, gray, mask=mask_circle)
         
-        # Use Adaptive Threshold if enabled (เหมาะกับตัวอักษรสีดำบนพื้นหลังสีอ่อน)
+        # ตัวเลือกวิธีการสร้าง text_edges
+        use_edges_directly = FADED_TEXT_CONFIG.get('USE_EDGES_DIRECTLY', False)  # ใช้ edges โดยตรงมาทำ text_edges
         use_adaptive = FADED_TEXT_CONFIG.get('USE_ADAPTIVE_THRESHOLD', False)
+        use_edges_for_adaptive = FADED_TEXT_CONFIG.get('USE_EDGES_FOR_ADAPTIVE', False)  # ใช้ edges มาทำ Adaptive Threshold
         
-        if use_adaptive:
-            # Use adaptive threshold instead of Canny (better for black text on light background)
-            adaptive_thresh = cv2.adaptiveThreshold(
-                roi_masked, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                cv2.THRESH_BINARY_INV, 11, 2
-            )
+        # สร้าง edges ก่อน (ใช้สำหรับทุกกรณี)
+        edges = cv2.Canny(roi_masked, 
+                         FADED_TEXT_CONFIG['CANNY_PARAMS']['low_threshold'], 
+                         FADED_TEXT_CONFIG['CANNY_PARAMS']['high_threshold'])
+        
+        # ลบเส้นวงกลมออกจาก edges (เพื่อแสดงใน debug images)
+        # วิธีที่ 1: ใช้ bitwise_and (วิธีเดิม)
+        edges_no_circle = cv2.bitwise_and(edges, cv2.bitwise_not(circle_edges))
+        
+        # วิธีที่ 2: ใช้ HoughCircles เพื่อหาเส้นวงกลมใน edges แล้วลบ (เพิ่มเติม)
+        # หาเส้นวงกลมใน edges เพื่อลบให้สมบูรณ์
+        circles_in_edges = cv2.HoughCircles(
+            edges, cv2.HOUGH_GRADIENT, 
+            dp=1, minDist=int(r*2), 
+            param1=50, param2=20,
+            minRadius=int(r*0.9), maxRadius=int(r*1.1)
+        )
+        
+        if circles_in_edges is not None:
+            circles_in_edges = np.uint16(np.around(circles_in_edges))
+            for circle in circles_in_edges[0, :]:
+                cx_edge, cy_edge, r_edge = circle
+                # ลบเส้นวงกลมที่พบใน edges (ใช้ความหนา 5 เพื่อให้แน่ใจว่าลบหมด)
+                cv2.circle(edges_no_circle, (int(cx_edge), int(cy_edge)), int(r_edge), 0, 5)
+        
+        # วิธีที่ 3: ใช้ distance transform เพื่อลบเส้นที่อยู่ใกล้ขอบวงกลม (เพิ่มเติม)
+        # สร้าง mask สำหรับส่วนกลาง (ลดเส้นที่อยู่ใกล้ขอบวงกลม)
+        h, w = edges_no_circle.shape
+        center_mask = np.zeros((h, w), dtype=np.uint8)
+        # สร้างวงกลมที่เล็กกว่าเล็กน้อยเพื่อลบเส้นที่อยู่ใกล้ขอบ
+        cv2.circle(center_mask, (int(cx), int(cy)), int(r * 0.95), 255, -1)  # 95% ของรัศมี
+        
+        # ใช้ mask เพื่อลดเส้นที่อยู่ใกล้ขอบ (อาจเป็นเส้นวงกลม)
+        # แต่ไม่ลบทั้งหมด - เก็บเฉพาะส่วนที่อยู่ภายในวงกลม 95%
+        edges_no_circle = cv2.bitwise_and(edges_no_circle, center_mask)
+        
+        if use_edges_directly:
+            # ใช้ edges โดยตรงมาทำ text_edges (ไม่ผ่าน Adaptive Threshold)
+            print("🔍 ใช้ Edges โดยตรงมาทำ Text Edges")
+            
+            # เริ่มจาก edges ที่ลบเส้นวงกลมแล้ว
+            text_edges = edges_no_circle.copy()
+            
+            # ใช้ morphological operations เพื่อขยาย edges ให้เป็นพื้นที่ (เหมือน Adaptive Threshold)
+            # Dilation เพื่อขยาย edges ให้เป็นพื้นที่ (ลดการขยายลงมาก - ใช้ kernel เล็กและ iterations น้อย)
+            kernel_dilate = np.ones((1, 1), np.uint8)  # kernel ขนาด 1x1 (ไม่ขยายเลย)
+            # ไม่ใช้ dilation หรือใช้แค่ closing เพื่อเชื่อมต่อ edges โดยไม่ขยายมาก
+            # text_edges = cv2.dilate(text_edges, kernel_dilate, iterations=0)  # ไม่ขยายเลย
+            # ใช้ closing แทน dilation เพื่อเชื่อมต่อ edges โดยไม่ขยายมาก
+            kernel_close = np.ones((2, 2), np.uint8)
+            text_edges = cv2.morphologyEx(text_edges, cv2.MORPH_CLOSE, kernel_close)  # ปิดช่องว่างเล็กๆ โดยไม่ขยายมาก
+            
+            # Apply morphological operations to clean up
+            kernel = np.ones((2, 2), np.uint8)
+            text_edges = cv2.morphologyEx(text_edges, cv2.MORPH_CLOSE, kernel)  # ปิดช่องว่าง
+            text_edges = cv2.morphologyEx(text_edges, cv2.MORPH_OPEN, kernel)  # ลบจุดเล็กๆ
+            
+        elif use_adaptive:
+            if use_edges_for_adaptive:
+                # ใช้ edges มาทำ Adaptive Threshold
+                print("🔍 ใช้ Edges มาทำ Adaptive Threshold")
+                
+                # Dilation edges เพื่อสร้างพื้นที่
+                kernel_dilate = np.ones((3, 3), np.uint8)
+                edges_dilated = cv2.dilate(edges, kernel_dilate, iterations=2)  # ขยาย edges ให้เป็นพื้นที่
+                
+                # ใช้ edges_dilated มาทำ Adaptive Threshold
+                adaptive_thresh = cv2.adaptiveThreshold(
+                    edges_dilated, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                    cv2.THRESH_BINARY, 11, 2  # ไม่ต้อง INV เพราะ edges_dilated เป็นขาวบนดำ
+                )
+            else:
+                # ใช้ roi_masked มาทำ Adaptive Threshold (วิธีเดิม)
+                print("🔍 ใช้ roi_masked มาทำ Adaptive Threshold (วิธีเดิม)")
+                adaptive_thresh = cv2.adaptiveThreshold(
+                    roi_masked, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                    cv2.THRESH_BINARY_INV, 11, 2
+                )
             
             # Apply morphological operations to clean up
             kernel = np.ones((2, 2), np.uint8)
@@ -308,24 +375,17 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
             
             # ลบเส้นวงกลม
             text_edges = cv2.bitwise_and(text_edges, cv2.bitwise_not(circle_edges))
-            
-            # For debug, also create edges from Canny for comparison
-            edges = cv2.Canny(roi_masked, 
-                             FADED_TEXT_CONFIG['CANNY_PARAMS']['low_threshold'], 
-                             FADED_TEXT_CONFIG['CANNY_PARAMS']['high_threshold'])
         else:
-            # Use Canny edge detection (original method)
-            edges = cv2.Canny(roi_masked, 
-                             FADED_TEXT_CONFIG['CANNY_PARAMS']['low_threshold'], 
-                             FADED_TEXT_CONFIG['CANNY_PARAMS']['high_threshold'])
+            # Use Canny edge detection (original method) - ใช้ edges โดยตรง
+            print("🔍 ใช้ Edges โดยตรง (Canny) - ไม่ผ่าน Adaptive Threshold")
             
             # ลบเส้นวงกลม
-            text_edges = cv2.bitwise_and(edges, cv2.bitwise_not(circle_edges))
+            text_edges = edges_no_circle.copy()
         
         # กรอง noise และจุดรอบๆ (ไม่สนใจจุดเล็กๆ รอบๆ) - เหมือนใน cap_fade_detector
         # ใช้ morphological operations เพื่อลบจุดเล็กๆ
         kernel_small = np.ones((2, 2), np.uint8)
-        # ลบจุดเล็กๆ ด้วย opening
+        # ลบจุดเล็กๆ ด้วย opening (ทำแค่ครั้งเดียวเพื่อไม่ให้ตัวอักษรหาย)
         text_edges_cleaned = cv2.morphologyEx(text_edges, cv2.MORPH_OPEN, kernel_small)
         # ปิดช่องว่างเล็กๆ ในตัวอักษรด้วย closing
         kernel_close = np.ones((3, 3), np.uint8)
@@ -350,7 +410,7 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
             areas_all = stat_fg[:, cv2.CC_STAT_AREA]
             min_area = FADED_TEXT_CONFIG['MIN_AREA']
             if min_area <= 0:
-                min_area = 15  # Default minimum area (เพิ่มขึ้นเพื่อกรองจุดเล็กๆ)
+                min_area = 20  # เพิ่มจาก 15 เป็น 20 (ไม่มากเกินไปเพื่อไม่ให้ตัวอักษรหาย)
             
             # กรองตามขนาด (ลบจุดเล็กๆ)
             keep_mask = areas_all > min_area
@@ -382,6 +442,24 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
                     # ลบ component ที่ aspect ratio ผิดปกติมาก (อาจเป็น noise)
                     if aspect_ratio > 10:  # ถ้ายาวมากเกินไป อาจเป็นเส้น noise
                         keep_mask[i-1] = False
+                    
+                    # กรองตามความหนาแน่นของ pixels (density) - ตัวอักษรมักมีความหนาแน่นสูง
+                    # แต่ใช้ threshold ต่ำเพื่อไม่ให้ตัวอักษรหาย
+                    bbox_area = width * height
+                    if bbox_area > 0:
+                        density = areas_all[i-1] / bbox_area
+                        # ลบ component ที่มีความหนาแน่นต่ำมากๆ เท่านั้น (อาจเป็น noise ที่กระจายมาก)
+                        # ใช้ threshold ต่ำ (0.15) เพื่อไม่ให้ตัวอักษรหาย
+                        if density < 0.15 and areas_all[i-1] < 100:  # กรองเฉพาะ noise ที่เล็กและกระจาย
+                            keep_mask[i-1] = False
+                    
+                    # กรองตามขนาด - ตัวอักษรมักมีขนาดที่เหมาะสม (ไม่เล็กเกินไป ไม่ใหญ่เกินไป)
+                    # ใช้ threshold สูงขึ้นเพื่อไม่ให้ตัวอักษรหาย
+                    max_char_size = min(w, h) * 0.5  # เพิ่มจาก 30% เป็น 50% ของขนาดภาพ
+                    if max(width, height) > max_char_size:
+                        # ตรวจสอบว่าเป็น noise จริงๆ หรือไม่ (ขนาดใหญ่แต่ area น้อย = noise)
+                        if areas_all[i-1] < max_char_size * 2:  # ถ้า area น้อยกว่าขนาดที่ควรจะเป็น
+                            keep_mask[i-1] = False  # ลบ component ที่ใหญ่เกินไปแต่ area น้อย (อาจเป็น noise)
             
             areas_keep = areas_all[keep_mask]
             num_chars = int(keep_mask.sum())
@@ -392,17 +470,11 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
         # ใช้ text_edges_cleaned สำหรับการวิเคราะห์ต่อไป
         text_edges = text_edges_cleaned
         
-        # Determine status
-        # ใช้เกณฑ์เฉพาะสำหรับสีฟ้า (M110 - น้ำตาลน้อย)
-        if bottle_type == "M110":
-            area_thresh = 2000  # เกณฑ์เฉพาะสำหรับสีฟ้า: < 2000 = จาง, >= 2000 = ปกติ
-            print(f"🔵 M110 (สีฟ้า): ใช้เกณฑ์เฉพาะ area_thresh = {area_thresh}")
-        else:
-            # ใช้เกณฑ์ปกติสำหรับรสอื่นๆ
-            area_thresh = FADED_TEXT_CONFIG['AREA_THRESH']
-            if area_thresh <= 0:
-                area_thresh = 3000  # Default threshold
-            print(f"🔍 {bottle_type if bottle_type else 'Default'}: ใช้เกณฑ์ area_thresh = {area_thresh}")
+        # Determine status - ใช้ threshold เดียวกันสำหรับทุกรส
+        area_thresh = FADED_TEXT_CONFIG['AREA_THRESH']
+        if area_thresh <= 0:
+            area_thresh = 3000  # Default threshold
+        print(f"🔍 ใช้เกณฑ์ area_thresh = {area_thresh} สำหรับทุกรส")
         
         status = "faded" if total_area < area_thresh else "normal"
         
@@ -418,7 +490,7 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
                 'gray': gray,
                 'mask_circle': mask_circle,
                 'roi_masked': roi_masked,
-                'edges': edges,
+                'edges': edges_no_circle,  # แสดง edges ที่ลบเส้นวงกลมออกแล้ว
                 'text_edges': text_edges  # แสดง text_edges ที่ทำความสะอาดแล้ว (กรอง noise แล้ว)
             }
             # Add enhanced image if available

@@ -76,6 +76,242 @@ class CapDetectionHandlers:
             QMessageBox.critical(self.gui, "ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการเลือกไฟล์ฝา:\n{str(e)}")
             print(f"❌ CAP IMAGE SELECTION ERROR: {str(e)}")
     
+    def select_multiple_cap_images(self):
+        """Select multiple image files for batch cap detection processing"""
+        try:
+            # Open file dialog to select multiple images
+            file_paths, _ = QFileDialog.getOpenFileNames(
+                self.gui,
+                "เลือกหลายไฟล์ภาพสำหรับการตรวจจับฝา",
+                "",
+                "Image Files (*.png *.jpg *.jpeg *.bmp *.tiff *.tif);;All Files (*)"
+            )
+            
+            if not file_paths:
+                return
+            
+            print(f"📁 BATCH CAP PROCESSING: Selected {len(file_paths)} files")
+            
+            # Confirm batch processing
+            reply = QMessageBox.question(
+                self.gui,
+                "ยืนยันการประมวลผลหลายภาพ",
+                f"คุณต้องการประมวลผล {len(file_paths)} ภาพและบันทึกลงประวัติหรือไม่?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply != QMessageBox.Yes:
+                return
+            
+            # Setup progress bar for batch processing
+            if hasattr(self.gui, 'cap_progress_bar'):
+                self.gui.cap_progress_bar.setVisible(True)
+                self.gui.cap_progress_bar.setValue(0)
+                self.gui.cap_progress_bar.setMaximum(len(file_paths))
+                self.gui.cap_progress_bar.setFormat("กำลังเริ่มต้น... (0%)")
+            
+            # Process each image
+            self.gui.status_label.setText(f'🔄 กำลังประมวลผล {len(file_paths)} ภาพ...')
+            self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+            QtWidgets.QApplication.processEvents()
+            
+            if not all([self.gui.cap_detector, self.gui.craft_detector, self.gui.rotation_model, self.gui.line_detector, self.gui.ocr_model]):
+                QMessageBox.warning(self.gui, "ข้อผิดพลาด", "โมเดลตรวจจับฝายังไม่ได้โหลดเสร็จ")
+                if hasattr(self.gui, 'cap_progress_bar'):
+                    self.gui.cap_progress_bar.setVisible(False)
+                return
+            
+            success_count = 0
+            error_count = 0
+            faded_files = []  # เก็บรายชื่อไฟล์ที่จาง
+            
+            for idx, file_path in enumerate(file_paths, 1):
+                try:
+                    # Update progress bar
+                    progress_percent = int((idx - 1) / len(file_paths) * 100)
+                    if hasattr(self.gui, 'cap_progress_bar'):
+                        self.gui.cap_progress_bar.setValue(idx - 1)
+                        self.gui.cap_progress_bar.setFormat(f"ภาพ {idx-1}/{len(file_paths)} เสร็จแล้ว ({progress_percent}%)")
+                    
+                    print(f"📁 BATCH [{idx}/{len(file_paths)}]: Processing {file_path}")
+                    
+                    # Update status with current image name
+                    file_name = os.path.basename(file_path)
+                    if len(file_name) > 40:
+                        file_name = file_name[:37] + "..."
+                    self.gui.status_label.setText(f'🔄 กำลังประมวลผลภาพ {idx}/{len(file_paths)}: {file_name}')
+                    QtWidgets.QApplication.processEvents()
+                    
+                    # Load image
+                    image = cv2.imread(file_path)
+                    if image is None:
+                        print(f"❌ BATCH [{idx}/{len(file_paths)}]: Failed to load {file_path}")
+                        error_count += 1
+                        # Update progress even on error
+                        if hasattr(self.gui, 'cap_progress_bar'):
+                            self.gui.cap_progress_bar.setValue(idx)
+                            self.gui.cap_progress_bar.setFormat(f"ภาพ {idx}/{len(file_paths)} เสร็จแล้ว (มีข้อผิดพลาด)")
+                        continue
+                    
+                    # Process cap detection
+                    result = self.process_cap_detection_sync(image, file_path)
+                    
+                    # Check if result is valid (success or faded text detected)
+                    is_faded_text = result and "error" in result and result.get("error") == "faded_text_detected"
+                    is_success = result and "error" not in result
+                    
+                    if is_success or is_faded_text:
+                        # Create a dummy bottle result for history (since we're only processing caps)
+                        bottle_result = {
+                            'image': None,
+                            'bottle_type': 'Batch Processing' if is_success else 'Faded Text Detected',
+                            'combined_ocr_text': f'Batch: {os.path.basename(file_path)}'
+                        }
+                        
+                        # Add to history (บันทึกทั้ง success และ faded text)
+                        if hasattr(self.gui, 'add_to_history'):
+                            self.gui.add_to_history(bottle_result, result)
+                            if is_faded_text:
+                                # เก็บชื่อไฟล์ที่จาง
+                                file_name = os.path.basename(file_path)
+                                faded_files.append(file_name)
+                                print(f"⚠️ BATCH [{idx}/{len(file_paths)}]: Added faded text result to history - {file_name}")
+                                # นับ faded text เป็น success (เพราะเป็นผลลัพธ์ที่ถูกต้อง แค่เป็นข้อความจาง)
+                                success_count += 1
+                            else:
+                                print(f"✅ BATCH [{idx}/{len(file_paths)}]: Added to history")
+                                success_count += 1
+                    else:
+                        print(f"❌ BATCH [{idx}/{len(file_paths)}]: Processing failed - {result.get('error', 'Unknown error') if result else 'No result'}")
+                        error_count += 1
+                    
+                    # Update progress bar after processing
+                    final_progress = int(idx / len(file_paths) * 100)
+                    if hasattr(self.gui, 'cap_progress_bar'):
+                        self.gui.cap_progress_bar.setValue(idx)
+                        if idx < len(file_paths):
+                            self.gui.cap_progress_bar.setFormat(f"ภาพ {idx}/{len(file_paths)} เสร็จแล้ว ({final_progress}%)")
+                        else:
+                            self.gui.cap_progress_bar.setFormat(f"เสร็จสิ้นทั้งหมด {len(file_paths)} ภาพ (100%)")
+                    
+                    # Small delay to allow GUI update
+                    QtWidgets.QApplication.processEvents()
+                    
+                except Exception as e:
+                    print(f"❌ BATCH [{idx}/{len(file_paths)}]: Error processing {file_path}: {e}")
+                    error_count += 1
+                    # Update progress even on error
+                    if hasattr(self.gui, 'cap_progress_bar'):
+                        self.gui.cap_progress_bar.setValue(idx)
+                        self.gui.cap_progress_bar.setFormat(f"ภาพ {idx}/{len(file_paths)} เสร็จแล้ว (มีข้อผิดพลาด)")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Hide progress bar
+            if hasattr(self.gui, 'cap_progress_bar'):
+                self.gui.cap_progress_bar.setVisible(False)
+            
+            # Show completion message
+            self.gui.status_label.setText(f'✅ ประมวลผลเสร็จสิ้น: สำเร็จ {success_count}/{len(file_paths)}, ผิดพลาด {error_count}')
+            self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            
+            # สร้างข้อความสรุปผล
+            summary_message = f"ประมวลผลเสร็จสิ้น:\n✅ สำเร็จ: {success_count} ภาพ\n❌ ผิดพลาด: {error_count} ภาพ"
+            
+            # เพิ่มรายชื่อภาพที่จาง
+            if faded_files:
+                summary_message += f"\n\n⚠️ ภาพที่จาง ({len(faded_files)} ภาพ):"
+                # แสดงสูงสุด 10 ภาพแรก (เพื่อไม่ให้ข้อความยาวเกินไป)
+                display_files = faded_files[:10]
+                for faded_file in display_files:
+                    summary_message += f"\n  • {faded_file}"
+                if len(faded_files) > 10:
+                    summary_message += f"\n  ... และอีก {len(faded_files) - 10} ภาพ"
+            
+            summary_message += "\n\nผลลัพธ์ถูกบันทึกลง tab ประวัติแล้ว"
+            
+            QMessageBox.information(
+                self.gui,
+                "ประมวลผลเสร็จสิ้น",
+                summary_message
+            )
+            print(f"✅ BATCH PROCESSING COMPLETE: Success: {success_count}, Errors: {error_count}, Faded: {len(faded_files)}")
+            if faded_files:
+                print(f"⚠️ FADED FILES: {faded_files}")
+            
+        except Exception as e:
+            self.gui.status_label.setText(f'❌ ข้อผิดพลาด: {str(e)}')
+            self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            QMessageBox.critical(self.gui, "ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการประมวลผลหลายภาพ:\n{str(e)}")
+            print(f"❌ BATCH CAP PROCESSING ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def process_cap_detection_sync(self, image, file_path=None):
+        """Process cap detection synchronously (for batch processing)"""
+        try:
+            if not all([self.gui.cap_detector, self.gui.craft_detector, self.gui.rotation_model, self.gui.line_detector, self.gui.ocr_model]):
+                return {'error': 'Models not loaded'}
+            
+            # Create processing thread
+            cap_thread = CapDetectionThread(
+                image,
+                self.gui.cap_detector,
+                self.gui.craft_detector,
+                self.gui.rotation_model,
+                self.gui.line_detector,
+                self.gui.ocr_model,
+                getattr(self.gui, 'faded_text_yolo_model', None),
+                bottle_type=None
+            )
+            
+            # Store result
+            result_container = {'result': None, 'completed': False}
+            
+            def on_result_ready(result):
+                result_container['result'] = result
+                result_container['completed'] = True
+            
+            def on_status_updated(status):
+                # Update status during processing (for batch mode, we can show sub-progress)
+                if hasattr(self.gui, 'status_label') and file_path:
+                    # Keep the batch progress message but add sub-status
+                    current_text = self.gui.status_label.text()
+                    if "กำลังประมวลผลภาพ" in current_text:
+                        # Extract image number from current text
+                        parts = current_text.split(": ")
+                        if len(parts) > 1:
+                            base_msg = parts[0]  # "🔄 กำลังประมวลผลภาพ X/Y"
+                            self.gui.status_label.setText(f"{base_msg}: {status}")
+                            QtWidgets.QApplication.processEvents()
+            
+            cap_thread.result_ready.connect(on_result_ready)
+            cap_thread.status_updated.connect(on_status_updated)
+            cap_thread.start()
+            
+            # Wait for completion (with timeout)
+            import time
+            timeout = 60  # 60 seconds timeout
+            start_time = time.time()
+            while not result_container['completed']:
+                QtWidgets.QApplication.processEvents()
+                if time.time() - start_time > timeout:
+                    print(f"⏱️ BATCH: Timeout waiting for result")
+                    cap_thread.terminate()
+                    return {'error': 'Timeout'}
+                time.sleep(0.1)
+            
+            cap_thread.wait(1000)  # Wait for thread to finish
+            
+            return result_container['result']
+            
+        except Exception as e:
+            print(f"❌ BATCH SYNC PROCESSING ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'error': str(e)}
+    
     def capture_sentech_image(self):
         """Capture image from Sentech camera using Harvesters"""
         if self.gui.sentech_camera is None:
@@ -656,21 +892,7 @@ class CapDetectionHandlers:
     
     def process_cap_detection(self):
         """Process cap detection on Sentech image or selected image file
-        ⚠️ ต้องประมวลผลฉลากก่อน (เพื่อให้ได้ bottle_type)"""
-        # ตรวจสอบว่ามี bottle_type หรือยัง (ต้องประมวลผลฉลากก่อน)
-        bottle_type = getattr(self.gui, 'current_bottle_type', None)
-        if bottle_type is None:
-            QMessageBox.warning(
-                self.gui, 
-                "⚠️ ต้องประมวลผลฉลากก่อน", 
-                "กรุณาประมวลผลฉลากก่อน (เพื่อให้ได้รส/bottle_type)\n\n"
-                "ขั้นตอน:\n"
-                "1. ถ่ายภาพจาก USB และ Sentech\n"
-                "2. กดปุ่ม 'ประมวลผล' ในแท็บ 'ตรวจจับขวด' เพื่อประมวลผลฉลาก\n"
-                "3. หลังจากได้ bottle_type แล้ว จึงจะสามารถประมวลผลฝาได้"
-            )
-            return
-        
+        ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) โดยตรง ไม่ต้องรอ bottle_type"""
         # Check for image from either Sentech camera or file selection
         image_to_process = None
         image_source = ""
@@ -693,7 +915,7 @@ class CapDetectionHandlers:
             return
         
         print(f"🔄 CAP PROCESS: Starting cap detection for image shape: {image_to_process.shape} (from {image_source})")
-        print(f"🏷️ CAP PROCESS: ใช้ bottle_type = {bottle_type} สำหรับการปรับ brightness/contrast")
+        print(f"🔍 CAP PROCESS: ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) สำหรับการปรับภาพ")
         
         # แสดงผล GUI สำหรับการประมวลผลฝา
         self.display_cap_processing_ui()
@@ -718,7 +940,7 @@ class CapDetectionHandlers:
             self.gui.line_detector,
             self.gui.ocr_model,
             getattr(self.gui, 'faded_text_yolo_model', None),
-            bottle_type=bottle_type  # ส่ง bottle_type เพื่อใช้ค่าที่เหมาะสม
+            bottle_type=None  # ไม่ใช้แล้ว - ใช้ค่ากลางที่วิเคราะห์ได้โดยตรง
         )
         self.gui.cap_processing_thread.result_ready.connect(self.on_cap_processing_complete)
         self.gui.cap_processing_thread.status_updated.connect(self.update_cap_progress)
@@ -903,20 +1125,47 @@ class CapDetectionHandlers:
             self.silent_mode = False
             return
         
-        # ตรวจสอบว่าเป็นข้อความจางหรือไม่
+        # ตรวจสอบว่าเป็นข้อความจางหรือไม่ - แสดงผลลัพธ์ก่อน (ภาพและค่า area)
         if "error" in result and result["error"] == "faded_text_detected":
-            print("❌ CAP PROCESS COMPLETE: ตรวจพบข้อความจาง - หยุดประมวลผล")
-            print(f"❌ CAP PROCESS COMPLETE: {result.get('message', 'Unknown error')}")
+            print("❌ CAP PROCESS COMPLETE: ตรวจพบข้อความจาง - แสดงผลลัพธ์ (ภาพและค่า area)")
+            
+            # เก็บผลลัพธ์ไว้
+            self.gui.current_cap_result = result
             
             # Update status tab
-            self.gui.status_handlers.update_cap_detection_status("ข้อความจาง - หยุดประมวลผล", False)
+            self.gui.status_handlers.update_cap_detection_status("ข้อความจาง - แสดงผลลัพธ์", False)
             
-            # Display cap detection results (แสดงผลลัพธ์ฝาที่เจอข้อความจาง)
+            # Display cap detection results (แสดงผลลัพธ์ฝาที่เจอข้อความจาง - รวมภาพและค่า area)
             self.display_cap_detection_results(result)
             
-            # Update status label
-            self.gui.status_label.setText('❌ ตรวจพบข้อความจาง - หยุดประมวลผล')
+            # แสดงค่า area และข้อมูลอื่นๆ
+            faded_text_result = result.get('faded_text_result', {})
+            total_area = faded_text_result.get('total_area', 0)
+            num_chars = faded_text_result.get('num_chars', 0)
+            status = faded_text_result.get('status', 'unknown')
+            
+            # Update status label with area information
+            self.gui.status_label.setText(f'❌ ตรวจพบข้อความจาง - total_area: {total_area}, num_chars: {num_chars}')
             self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            
+            print(f"📊 CAP PROCESS COMPLETE: แสดงผลลัพธ์ข้อความจาง - total_area: {total_area}, num_chars: {num_chars}, status: {status}")
+            
+            # บันทึกลงประวัติแม้ว่าจะเป็น faded text (เพราะเป็นผลลัพธ์ที่ถูกต้อง)
+            if hasattr(self.gui, 'add_to_history'):
+                # ตรวจสอบว่ามี bottle result หรือไม่
+                if hasattr(self.gui, 'current_result') and self.gui.current_result:
+                    bottle_result = self.gui.current_result
+                else:
+                    # สร้าง dummy bottle result สำหรับกรณี batch processing หรือไม่มี bottle result
+                    bottle_result = {
+                        'image': None,
+                        'bottle_type': 'Faded Text Detected',
+                        'combined_ocr_text': f'Faded Text - total_area: {total_area}, num_chars: {num_chars}'
+                    }
+                
+                # บันทึกลงประวัติ
+                print("📋 CAP PROCESS COMPLETE: Adding faded text result to history")
+                self.gui.add_to_history(bottle_result, result)
             
             return
         
