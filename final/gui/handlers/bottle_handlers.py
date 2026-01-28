@@ -81,8 +81,15 @@ class BottleDetectionHandlers:
                 self.gui.current_image = usb_image
                 self.display_image(usb_image)
                 self.gui.image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
+                if hasattr(self.gui, 'home_bottle_image_info_label'):
+                    self.gui.home_bottle_image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
                 self.gui.btn_save_image.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
+                if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                    self.gui.btn_save_bottle_image_tab.setEnabled(True)
                 print("✅ CAPTURE BOTH: USB image captured and displayed")
             else:
                 print("❌ CAPTURE BOTH: ไม่สามารถถ่ายภาพจาก USB ได้")
@@ -153,7 +160,12 @@ class BottleDetectionHandlers:
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
-                self.gui.btn_save_image.setEnabled(True)  # Enable save button when image is captured
+                self.gui.btn_save_image.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
+                if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                    self.gui.btn_save_bottle_image_tab.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
             else:
@@ -189,6 +201,11 @@ class BottleDetectionHandlers:
                     self.gui.image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
                     self.gui.btn_process.setEnabled(True)
                     self.gui.btn_save_image.setEnabled(True)  # Enable save button when image is loaded
+                    # Also update tab buttons if they exist
+                    if hasattr(self.gui, 'btn_process_bottle_tab'):
+                        self.gui.btn_process_bottle_tab.setEnabled(True)
+                    if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                        self.gui.btn_save_bottle_image_tab.setEnabled(True)
                     self.gui.status_label.setText('✅ โหลดภาพสำเร็จ - พร้อมประมวลผล')
                     self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                     print(f"✅ IMAGE SELECTION: Successfully loaded image with shape: {image.shape}")
@@ -308,6 +325,9 @@ class BottleDetectionHandlers:
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
                 self.gui.btn_process.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
                 self.gui.status_label.setText('✅ ถ่ายภาพอัตโนมัติสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
@@ -368,6 +388,9 @@ class BottleDetectionHandlers:
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
                 self.gui.btn_process.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
                 self.gui.status_label.setText('✅ ถ่ายภาพจากคิวสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
@@ -491,6 +514,22 @@ class BottleDetectionHandlers:
                 qimg = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                 pixmap = QtGui.QPixmap.fromImage(qimg)
                 self.gui.image_label.setPixmap(pixmap)
+                
+                # Update Home tab bottle image
+                if hasattr(self.gui, 'home_bottle_image_label'):
+                    # Scale pixmap to fit label while maintaining aspect ratio
+                    label_size = self.gui.home_bottle_image_label.size()
+                    if label_size.width() > 0 and label_size.height() > 0:
+                        scale_w = label_size.width() / pixmap.width()
+                        scale_h = label_size.height() / pixmap.height()
+                        scale = min(scale_w, scale_h)
+                        scaled_pixmap = pixmap.scaled(
+                            int(pixmap.width() * scale), 
+                            int(pixmap.height() * scale), 
+                            Qt.KeepAspectRatio, 
+                            Qt.SmoothTransformation
+                        )
+                        self.gui.home_bottle_image_label.setPixmap(scaled_pixmap)
             else:
                 self.gui.image_label.setText("ไม่สามารถโหลดภาพได้")
 
@@ -507,6 +546,13 @@ class BottleDetectionHandlers:
             if widget:
                 widget.setParent(None)
         
+        # Clear Home tab crops too
+        if hasattr(self.gui, 'home_bottle_crops_layout'):
+            for i in reversed(range(self.gui.home_bottle_crops_layout.count())):
+                widget = self.gui.home_bottle_crops_layout.itemAt(i).widget()
+                if widget:
+                    widget.setParent(None)
+        
         print("✅ DISPLAY CROPPED IMAGES: Cleared existing crops")
         
         if not type_crops:
@@ -515,6 +561,13 @@ class BottleDetectionHandlers:
             placeholder_label.setAlignment(Qt.AlignCenter)
             placeholder_label.setStyleSheet("color: #7f8c8d; padding: 20px;")
             self.gui.crops_layout.addWidget(placeholder_label)
+            
+            # Also show placeholder in Home tab
+            if hasattr(self.gui, 'home_bottle_crops_layout'):
+                home_placeholder = QLabel("ไม่มีภาพที่ครอป")
+                home_placeholder.setAlignment(Qt.AlignCenter)
+                home_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
+                self.gui.home_bottle_crops_layout.addWidget(home_placeholder)
             return
         
         # Display each cropped image
@@ -553,6 +606,25 @@ class BottleDetectionHandlers:
                 crop_label.setPixmap(pixmap)
                 crop_label.setAlignment(Qt.AlignCenter)
                 crop_layout.addWidget(crop_label)
+                
+                # Also add to Home tab crops
+                if hasattr(self.gui, 'home_bottle_crops_layout'):
+                    home_crop_label = QLabel()
+                    home_crop_label.setPixmap(pixmap)
+                    home_crop_label.setAlignment(Qt.AlignCenter)
+                    home_crop_container = QWidget()
+                    home_crop_container.setStyleSheet("border: 1px solid #e67e22; margin: 5px; padding: 5px; background-color: white;")
+                    home_crop_container_layout = QVBoxLayout(home_crop_container)
+                    home_crop_title = QLabel(f"Type Region {i+1}")
+                    home_crop_title.setStyleSheet("font-weight: bold; color: #e67e22; font-size: 11px;")
+                    home_crop_title.setAlignment(Qt.AlignCenter)
+                    home_crop_container_layout.addWidget(home_crop_title)
+                    home_crop_container_layout.addWidget(home_crop_label)
+                    if 'ocr_text' in crop:
+                        home_ocr_label = QLabel(f"OCR: {crop['ocr_text']}")
+                        home_ocr_label.setStyleSheet("color: #7f8c8d; font-size: 10px;")
+                        home_crop_container_layout.addWidget(home_ocr_label)
+                    self.gui.home_bottle_crops_layout.addWidget(home_crop_container)
                 
                 # Add confidence info
                 confidence_label = QLabel(f"Detection Confidence: {crop['confidence']:.3f}")
@@ -638,6 +710,9 @@ class BottleDetectionHandlers:
         
         # Disable process button and enable stop button
         self.gui.btn_process.setEnabled(False)
+        # Also update tab buttons if they exist
+        if hasattr(self.gui, 'btn_process_bottle_tab'):
+            self.gui.btn_process_bottle_tab.setEnabled(False)
         self.gui.btn_stop_processing.setEnabled(True)
         
         self.gui.processing_thread = BottleDetectionThread(self.gui.current_image, selected_tastes=self.gui.selected_tastes)
@@ -659,6 +734,9 @@ class BottleDetectionHandlers:
         
         # Reset button states
         self.gui.btn_process.setEnabled(True)
+        # Also update tab buttons if they exist
+        if hasattr(self.gui, 'btn_process_bottle_tab'):
+            self.gui.btn_process_bottle_tab.setEnabled(True)
         self.gui.btn_stop_processing.setEnabled(False)
         
         # Check if silent mode - store result in queue instead of displaying
@@ -1014,6 +1092,10 @@ class BottleDetectionHandlers:
                     detail_text += "❌ ไม่พบคำว่า 'เดิม', '2%', หรือ 'ลัก'\n"
             
         self.gui.results_text.setText(detail_text)
+        
+        # Update Home tab results too
+        if hasattr(self.gui, 'home_bottle_results_text'):
+            self.gui.home_bottle_results_text.setText(detail_text)
         print("✅ DISPLAY SINGLE RESULTS: Results text set")
         
         # Force GUI update
@@ -1083,6 +1165,11 @@ class BottleDetectionHandlers:
             # Reset button states
             self.gui.btn_process.setEnabled(False)
             self.gui.btn_save_image.setEnabled(False)  # Disable save button when image is cleared
+            # Also update tab buttons if they exist
+            if hasattr(self.gui, 'btn_process_bottle_tab'):
+                self.gui.btn_process_bottle_tab.setEnabled(False)
+            if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                self.gui.btn_save_bottle_image_tab.setEnabled(False)
             self.gui.btn_process_cap.setEnabled(False)
             self.gui.btn_stop_processing.setEnabled(False)
             

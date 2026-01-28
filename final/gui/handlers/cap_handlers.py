@@ -58,6 +58,8 @@ class CapDetectionHandlers:
                     self.gui.current_rotation_angle = 0  # Reset rotation angle
                     self.display_sentech_image(image)
                     self.gui.sentech_image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
+                    if hasattr(self.gui, 'home_cap_image_info_label'):
+                        self.gui.home_cap_image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
                     self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                     self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is loaded
                     # Manual rotation buttons removed
@@ -350,6 +352,8 @@ class CapDetectionHandlers:
                 self.gui.current_sentech_image = captured_image
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
+                if hasattr(self.gui, 'home_cap_image_info_label'):
+                    self.gui.home_cap_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                 self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech สำเร็จ - พร้อมประมวลผลฝา')
@@ -366,6 +370,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
@@ -388,6 +394,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
@@ -472,6 +480,8 @@ class CapDetectionHandlers:
                 self.gui.current_sentech_image = captured_image
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
+                if hasattr(self.gui, 'home_cap_image_info_label'):
+                    self.gui.home_cap_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                 self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพอัตโนมัติจาก Sentech สำเร็จ - พร้อมประมวลผลฝา')
@@ -502,6 +512,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} | เวลา: {capture_time} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} | เวลา: {capture_time} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
@@ -531,6 +543,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
@@ -612,6 +626,8 @@ class CapDetectionHandlers:
                 self.gui.current_sentech_image = captured_image
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
+                if hasattr(self.gui, 'home_cap_image_info_label'):
+                    self.gui.home_cap_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                 self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech จากคิวสำเร็จ - พร้อมประมวลผลฝา')
@@ -671,6 +687,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
@@ -882,6 +900,21 @@ class CapDetectionHandlers:
                 )
                 self.gui.sentech_image_label.setPixmap(scaled_pixmap)
                 
+                # Update Home tab cap image too
+                if hasattr(self.gui, 'home_cap_image_label'):
+                    label_size = self.gui.home_cap_image_label.size()
+                    if label_size.width() > 0 and label_size.height() > 0:
+                        scale_w = label_size.width() / pixmap.width()
+                        scale_h = label_size.height() / pixmap.height()
+                        scale = min(scale_w, scale_h)
+                        home_scaled_pixmap = pixmap.scaled(
+                            int(pixmap.width() * scale), 
+                            int(pixmap.height() * scale), 
+                            Qt.KeepAspectRatio, 
+                            Qt.SmoothTransformation
+                        )
+                        self.gui.home_cap_image_label.setPixmap(home_scaled_pixmap)
+                
                 print(f"✅ Image displayed successfully: {rgb_image.shape} -> scaled to {scaled_pixmap.size().width()}x{scaled_pixmap.size().height()} (full image visible)")
             else:
                 self.gui.sentech_image_label.setText("ไม่สามารถโหลดภาพได้")
@@ -1015,6 +1048,8 @@ class CapDetectionHandlers:
             # Update cap detection text
             if hasattr(self.gui, 'cap_detection_text') and self.gui.cap_detection_text:
                 self.gui.cap_detection_text.setText("🔄 กำลังประมวลผลฝา... กรุณารอสักครู่")
+                if hasattr(self.gui, 'home_cap_detection_text'):
+                    self.gui.home_cap_detection_text.setText("🔄 กำลังประมวลผลฝา... กรุณารอสักครู่")
                 self.gui.cap_detection_text.setStyleSheet("""
                     QTextEdit {
                         background-color: #fef9e7;
@@ -1068,8 +1103,12 @@ class CapDetectionHandlers:
             if hasattr(self.gui, 'cap_detection_text') and self.gui.cap_detection_text:
                 if self.gui.current_bottle_type in ["M100", "M110", "M120"]:
                     self.gui.cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.gui.current_bottle_type}")
+                    if hasattr(self.gui, 'home_cap_detection_text'):
+                        self.gui.home_cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.gui.current_bottle_type}")
                 else:
                     self.gui.cap_detection_text.setText("✅ การประมวลผลฝาเสร็จสิ้น")
+                    if hasattr(self.gui, 'home_cap_detection_text'):
+                        self.gui.home_cap_detection_text.setText("✅ การประมวลผลฝาเสร็จสิ้น")
                 self.gui.cap_detection_text.setStyleSheet("""
                     QTextEdit {
                         background-color: #d5f4e6;
