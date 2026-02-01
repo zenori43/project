@@ -45,24 +45,53 @@ except ImportError:
 
 # Add deep-text-recognition-benchmark path
 # Get path from config if available, otherwise use default
+DEEP_OCR_MODULES_AVAILABLE = False
+CTCLabelConverter = None
+AttnLabelConverter = None
+Model = None
+RawDataset = None
+AlignCollate = None
+NormalizePAD = None
+ResizeNormalize = None
+
 try:
     from config.settings import DEEP_TEXT_RECOGNITION_DIR
     deep_text_recognition_path = DEEP_TEXT_RECOGNITION_DIR
 except ImportError:
-    # Fallback to old path if config not available
-    deep_text_recognition_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/deep-text-recognition-benchmark"
+    # Fallback: try to find deep-text-recognition-benchmark in common locations
+    import platform
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    deep_text_recognition_path = os.path.join(project_root, "external", "deep-text-recognition-benchmark")
+    
+    # If not found, try Linux default path
+    if not os.path.exists(deep_text_recognition_path):
+        if platform.system() == 'Linux':
+            deep_text_recognition_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/deep-text-recognition-benchmark"
+        else:
+            # Windows: try relative path
+            deep_text_recognition_path = os.path.join(project_root, "external", "deep-text-recognition-benchmark")
 
-if deep_text_recognition_path not in sys.path and os.path.exists(deep_text_recognition_path):
-    sys.path.insert(0, deep_text_recognition_path)
-
-try:
-    from utils import CTCLabelConverter, AttnLabelConverter
-    from model import Model
-    from dataset import RawDataset, AlignCollate, NormalizePAD, ResizeNormalize
-except ImportError as e:
-    print(f"Error importing deep-text-recognition modules: {e}")
-    print("Please make sure deep-text-recognition-benchmark is properly installed at /home/nvidia/Desktop/final_boss/backupsdcard/deep-text-recognition-benchmark")
-    sys.exit(1)
+# Add deep-text-recognition path to sys.path if it exists
+if os.path.exists(deep_text_recognition_path):
+    if deep_text_recognition_path not in sys.path:
+        sys.path.insert(0, deep_text_recognition_path)
+    
+    try:
+        from utils import CTCLabelConverter, AttnLabelConverter
+        from model import Model
+        from dataset import RawDataset, AlignCollate, NormalizePAD, ResizeNormalize
+        DEEP_OCR_MODULES_AVAILABLE = True
+        print("✅ Deep-text-recognition modules imported successfully")
+    except ImportError as e:
+        print(f"⚠️ Warning: Error importing deep-text-recognition modules: {e}")
+        print(f"   Deep-text-recognition path: {deep_text_recognition_path}")
+        print("   Some OCR features will be disabled")
+        print("   Please make sure deep-text-recognition-benchmark is properly installed")
+        # Don't exit - allow program to continue without deep OCR
+else:
+    print(f"⚠️ Warning: deep-text-recognition-benchmark directory not found at: {deep_text_recognition_path}")
+    print("   Some OCR features will be disabled")
+    print("   Please install deep-text-recognition-benchmark in the external/ directory")
 
 # Suppress warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -81,6 +110,9 @@ class DeepOCRModel:
             model_path: Path to trained model (.pth file)
             cuda: Use CUDA if available
         """
+        if not DEEP_OCR_MODULES_AVAILABLE:
+            raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
+        
         self.model = None
         self.converter = None
         # Keep CUDA for Deep OCR (as requested)
@@ -220,6 +252,9 @@ class DeepOCRModel:
             return self.settings['character']
     
     def load_model(self, model_path: str) -> bool:
+        """Load OCR model from path"""
+        if not DEEP_OCR_MODULES_AVAILABLE:
+            raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
         """
         Load OCR model from path
         
@@ -845,6 +880,9 @@ _global_ocr_model = None
 
 def get_global_ocr_model() -> DeepOCRModel:
     """Get global OCR model instance"""
+    if not DEEP_OCR_MODULES_AVAILABLE:
+        raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
+    
     global _global_ocr_model
     if _global_ocr_model is None:
         _global_ocr_model = DeepOCRModel()
@@ -861,6 +899,9 @@ def initialize_ocr_model(model_path: str, cuda: bool = True) -> DeepOCRModel:
     Returns:
         DeepOCRModel instance
     """
+    if not DEEP_OCR_MODULES_AVAILABLE:
+        raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
+    
     global _global_ocr_model
     _global_ocr_model = DeepOCRModel(model_path, cuda)
     return _global_ocr_model
@@ -875,6 +916,9 @@ def recognize_text_from_path(image_path: str) -> Dict:
     Returns:
         OCR result dictionary
     """
+    if not DEEP_OCR_MODULES_AVAILABLE:
+        raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
+    
     ocr_model = get_global_ocr_model()
     if ocr_model.model is None:
         raise ValueError("Global OCR model not initialized. Call initialize_ocr_model() first.")
@@ -891,6 +935,9 @@ def recognize_text_from_array(image_array: np.ndarray) -> Dict:
     Returns:
         OCR result dictionary
     """
+    if not DEEP_OCR_MODULES_AVAILABLE:
+        raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
+    
     ocr_model = get_global_ocr_model()
     if ocr_model.model is None:
         raise ValueError("Global OCR model not initialized. Call initialize_ocr_model() first.")
@@ -907,6 +954,9 @@ def recognize_text_from_craft_lines(craft_result: Dict) -> Dict:
     Returns:
         OCR result dictionary
     """
+    if not DEEP_OCR_MODULES_AVAILABLE:
+        raise ImportError("Deep-text-recognition modules are not available. Please install deep-text-recognition-benchmark.")
+    
     ocr_model = get_global_ocr_model()
     if ocr_model.model is None:
         raise ValueError("Global OCR model not initialized. Call initialize_ocr_model() first.")
