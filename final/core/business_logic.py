@@ -13,6 +13,7 @@ except ImportError:
 
 import cv2
 import os
+import tempfile
 import time
 import sys
 from typing import List, Dict
@@ -60,16 +61,18 @@ class CapDetectionThread(QThread):
         self.modbus_thread = None  # Will be set by GUI if needed
         
     def run(self):
+        temp_path = None
         try:
             print("🔄 CAP DETECTION THREAD: Starting processing...")
             print(f"🔄 CAP DETECTION THREAD: Image shape: {self.image.shape}")
             self.status_updated.emit("กำลังประมวลผลฝา...")
             self.progress_updated.emit(5)
             
-            # Save temporary image for processing
-            temp_path = "temp_sentech_image.jpg"
+            # บันทึกเป็น BMP (lossless) ในไฟล์ชั่วคราวที่ไม่ซ้ำกัน เพื่อหลีกเลี่ยง race เมื่อมีหลาย thread
+            fd, temp_path = tempfile.mkstemp(suffix='.bmp')
+            os.close(fd)
             cv2.imwrite(temp_path, self.image)
-            print("🔄 CAP DETECTION THREAD: Saved temp image")
+            print("🔄 CAP DETECTION THREAD: Saved temp image (BMP, lossless)")
             self.progress_updated.emit(10)
             
             # Step 1: Detect caps
@@ -288,20 +291,10 @@ class CapDetectionThread(QThread):
                     # เก็บผลลัพธ์ไว้ก่อน (แม้จะเป็น faded) เพื่อแสดงภาพและค่า area
                     all_cap_results.append(cap_result)
                     
-                    # หยุดประมวลผลเมื่อเจอข้อความจาง แต่ยังแสดงผลลัพธ์
+                    # หยุดประมวลผลเมื่อเจอข้อความจาง แต่ยังแสดงผลลัพธ์ (ไม่ส่ง M140/M600 ที่นี่ — รอส่งตอนแสดงผลในคิว)
                     if faded_text_result.get('status') == 'faded':
                         print("❌ CAP DETECTION THREAD: ตรวจพบข้อความจาง - หยุดประมวลผล (แต่จะแสดงภาพและค่า area)")
-                        print("🚨 CAP DETECTION THREAD: ส่งสัญญาณ M140 (ฝาไม่ผ่าน)")
-                        print("🚀 CAP DETECTION THREAD: ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)")
-                        
-                        # ส่งสัญญาณ M140 (ฝาไม่ผ่าน)
-                        if hasattr(self, 'modbus_thread') and self.modbus_thread:
-                            self.modbus_thread.on_m140()
-                            print("✅ M140 ส่งสัญญาณเรียบร้อย")
-                            
-                            # ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)
-                            self.modbus_thread.on_m600()
-                            print("✅ M600 ส่งสัญญาณเรียบร้อย")
+                        print("ℹ️ CAP DETECTION THREAD: M140/M600 จะส่งเมื่อถึงขั้นส่งผล (หลังประมวลผลเสร็จ)")
                         
                         # สร้างผลลัพธ์ที่บ่งบอกว่าเป็นข้อความจาง แต่มีข้อมูลครบถ้วนเพื่อแสดงผล
                         result = {
@@ -361,13 +354,6 @@ class CapDetectionThread(QThread):
                 result['cap_processing_results'] = all_cap_results
                 self.progress_updated.emit(90)
             
-            # Clean up temp file
-            try:
-                os.remove(temp_path)
-                print("🔄 CAP DETECTION THREAD: ลบไฟล์ชั่วคราวแล้ว")
-            except:
-                pass
-            
             # Final progress update
             self.progress_updated.emit(100)
             self.status_updated.emit("ประมวลผลเสร็จสิ้น")
@@ -383,6 +369,13 @@ class CapDetectionThread(QThread):
                 'image_shape': self.image.shape if self.image is not None else None
             }
             self.result_ready.emit(error_result)
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                    print("🔄 CAP DETECTION THREAD: ลบไฟล์ชั่วคราวแล้ว")
+                except Exception:
+                    pass
 
 class ModbusThread(QThread):
     """Thread for Modbus communication"""
@@ -677,20 +670,7 @@ class ModbusThread(QThread):
                             print("✅ RESET M600 = 0")
                             self.modbus_status.emit("✅ RESET M600 = 0")
                             
-                            # Reset D7009 เพื่อเตรียมรับค่าใหม่
-                            try:
-                                reset_d7009 = self.write_register(7009, 0)
-                                if reset_d7009:
-                                    print("✅ RESET D7009 = 0 (พร้อมรับค่าใหม่)")
-                                    self.modbus_status.emit("✅ RESET D7009 = 0 (พร้อมรับค่าใหม่)")
-                                else:
-                                    print("⚠️ ไม่สามารถ RESET D7009 = 0 ได้")
-                                    self.modbus_status.emit("⚠️ ไม่สามารถ RESET D7009 = 0 ได้")
-                            except Exception as e:
-                                print(f"❌ RESET D7009 Error: {e}")
-                                self.modbus_status.emit(f"❌ RESET D7009 Error: {e}")
-                            
-                            # RESET M100, M110, M120, M130
+                            # RESET M100, M110, M120, M130, M140 (ไม่ใช้ D7009 แล้ว ใช้ coil M แทน)
                             self.modbus_client.write_coil(100, False, unit=1)
                             print("✅ RESET M100 = 0")
                             self.modbus_status.emit("✅ RESET M100 = 0")
@@ -1090,13 +1070,29 @@ class ModbusThread(QThread):
         """RESET M81"""
         return self.write_coil(81, False)
     
+    def on_m100(self):
+        """ON M100 (เดิม - ฝาผ่าน)"""
+        return self.write_coil(100, True)
+
+    def on_m110(self):
+        """ON M110 (2% - ฝาผ่าน)"""
+        return self.write_coil(110, True)
+
+    def on_m120(self):
+        """ON M120 (ลัก - ฝาผ่าน)"""
+        return self.write_coil(120, True)
+
+    def on_m130(self):
+        """ON M130 (angle3)"""
+        return self.write_coil(130, True)
+
     def on_m140(self):
-        """ส่งค่า 50 ไป D7009 (ฝาไม่ผ่าน - ไม่ตรงกับฟอร์ม)"""
-        success = self.write_register(7009, 50)
+        """ON M140 (ฝาไม่ผ่าน) — เปิด coil M140 เท่านั้น"""
+        success = self.write_coil(140, True)
         if success:
-            print("✅ ON M140: D7009 = 50 (ฝาไม่ผ่าน - ไม่ตรงกับฟอร์ม)")
+            print("✅ ON M140: Coil M140 = ON (ฝาไม่ผ่าน)")
         else:
-            print("❌ ON M140: ไม่สามารถเขียน D7009 = 50 ได้")
+            print("❌ ON M140: ไม่สามารถเปิด Coil M140 ได้")
         return success
     
     def reset_m140(self):
@@ -1187,6 +1183,14 @@ class ModbusThread(QThread):
     def reset_m505(self):
         """RESET M505"""
         return self.write_coil(505, False)
+    
+    def on_m76(self):
+        """ON M76 (ไฟ Bottle)"""
+        return self.write_coil(76, True)
+    
+    def reset_m76(self):
+        """RESET M76 (ปิดไฟ Bottle)"""
+        return self.write_coil(76, False)
     
     def on_m507(self):
         """ON M507 (กลับทาง Motor)"""
@@ -1287,10 +1291,10 @@ class BottleDetectionThread(QThread):
             self.status_updated.emit("กำลังประมวลผลภาพ...")
             self.progress_updated.emit(10)
         
-            # Save temporary image for processing
-            temp_path = "temp_camera_image.jpg"
+            # บันทึกเป็น BMP (lossless) เพื่อความละเอียดเต็มสำหรับการตรวจสอบ/ตรวจจับ
+            temp_path = "temp_camera_image.bmp"
             cv2.imwrite(temp_path, self.image)
-            print("🔄 BOTTLE DETECTION THREAD: Saved temp image")
+            print("🔄 BOTTLE DETECTION THREAD: Saved temp image (BMP, lossless)")
             self.progress_updated.emit(20)
             
             # Process the image

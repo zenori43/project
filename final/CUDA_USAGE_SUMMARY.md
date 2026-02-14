@@ -114,3 +114,65 @@ else:
 4. แทนที่ `cv2.GaussianBlur()` → `cuda_gaussianBlur()`
 5. ทดสอบประสิทธิภาพ
 
+---
+
+## ⚠️ เคยใช้ CUDA ได้ แต่ตอนนี้ใช้ไม่ได้ — วิธีแก้
+
+สาเหตุส่วนใหญ่คือ ** environment ไม่ถูก set** ตอนรัน (รันจาก IDE / ดับเบิลคลิก python โดยไม่ผ่าน `run.sh`)
+
+### 1. รันผ่าน run.sh (แนะนำ)
+
+```bash
+cd /path/to/final
+./run.sh
+```
+
+หรือ debug mode:
+
+```bash
+./run.sh --debug
+```
+
+`run.sh` จะ set `CUDA_HOME`, `LD_LIBRARY_PATH`, `PYTHONPATH`, `PATH` ให้ PyTorch และ OpenCV เห็น CUDA
+
+### 2. รันจาก Cursor/IDE ให้ CUDA ทำงาน
+
+ต้องให้ shell ที่ใช้รันโปรแกรมมี env เดียวกับ `run.sh`:
+
+**วิธีที่ 1: เปิด terminal แล้ว source ก่อนรัน**
+
+```bash
+cd /path/to/final
+source set_cuda_env.sh   # สคริปต์ในโปรเจกต์ (สร้างไว้ให้แล้ว)
+python3 main.py
+```
+
+**วิธีที่ 2: ใน Cursor ใช้ terminal ที่เคย source แล้ว**
+
+- เปิด terminal ใน Cursor
+- รัน `source final/set_cuda_env.sh` (หรือ `cd final && source set_cuda_env.sh`)
+- จากนั้นรัน `python3 main.py` หรือกด Run ใน IDE (ถ้า IDE ใช้ shell เดียวกัน)
+
+### 3. ตรวจสอบว่า CUDA ถูก set หรือยัง
+
+```bash
+cd final
+source set_cuda_env.sh
+python3 test_cuda_complete.py
+```
+
+ถ้าเห็น `PyTorch CUDA available: True` และ/หรือ `OpenCV CUDA devices > 0` แปลว่าพร้อมใช้
+
+### 4. สิ่งที่ต้องมีบนเครื่อง (Jetson)
+
+| สิ่งที่ต้องมี | หมายเหตุ |
+|---------------|----------|
+| `CUDA_HOME` / `LD_LIBRARY_PATH` | ต้องชี้ไปที่ cuda-11.4 และ tegra (Jetson) |
+| PyTorch build รองรับ CUDA | ใช้เวอร์ชันที่ NVIDIA build สำหรับ Jetson |
+| OpenCV build with CUDA | มักอยู่ที่ `/usr/local/lib/python3.8/site-packages/` และต้องมีใน `PYTHONPATH` |
+
+ถ้ารันผ่าน `run.sh` แล้วยังใช้ CUDA ไม่ได้ ให้เช็ค:
+
+- `ls /usr/local/cuda-11.4/lib64/libcudart*` ว่ามีไฟล์
+- `python3 -c "import torch; print(torch.cuda.is_available())"` หลัง source env
+

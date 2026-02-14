@@ -474,6 +474,11 @@ class BottleDetectionGUI(QWidget):
         self.current_image = None
         self.current_result = None
         self.batch_results = []
+        self.capture_cycle_id = 0  # รหัสรอบถ่าย - กันผลเก่า overwrite ภาพใหม่
+        self.sentech_image_for_cycle = {}  # เก็บภาพ Sentech ต่อ cycle (ขวดใหม่มาแล้วประมวลผลได้ทันที แต่ค่อยสั่งผลทีละรอบ)
+        self.pending_display_queue = []  # คิว (bottle_result, cap_result) ส่งผลทีละรอบ
+        self.display_sending = False  # กำลังส่งผลลัพธ์อยู่
+        self.pending_bottle_for_cap = []  # bottle_result ที่รอผลฝา (FIFO)
         self.usb_camera = None
         self.sentech_camera = None
         self.modbus_thread = None
@@ -642,6 +647,20 @@ class BottleDetectionGUI(QWidget):
         self.btn_reset.released.connect(self.on_reset_released)
         self.btn_reset.setStyleSheet("QPushButton { padding: 8px 15px; font-size: 12px; background-color: #f39c12; color: white; border-radius: 5px; font-weight: bold; } QPushButton:hover { background-color: #e67e22; }")
         top_panel_layout.addWidget(self.btn_reset)
+        
+        # Toggle ไฟ Bottle (M76)
+        self.m76_light_on = False
+        self.btn_m76_light = QPushButton('💡 ไฟ Bottle (M76)')
+        self.btn_m76_light.setCheckable(True)
+        self.btn_m76_light.setChecked(False)
+        self.btn_m76_light.clicked.connect(self.toggle_m76_light)
+        self.btn_m76_light.setStyleSheet(
+            "QPushButton { padding: 8px 15px; font-size: 12px; background-color: #7f8c8d; color: white; border-radius: 5px; font-weight: bold; } "
+            "QPushButton:hover { background-color: #95a5a6; } "
+            "QPushButton:checked { background-color: #f1c40f; color: #2c3e50; } "
+            "QPushButton:checked:hover { background-color: #f7dc6f; }"
+        )
+        top_panel_layout.addWidget(self.btn_m76_light)
         
         top_panel_layout.addSpacing(20)
         
@@ -2713,18 +2732,18 @@ class BottleDetectionGUI(QWidget):
     def stop_processing(self):
         """Stop current processing"""
         try:
-            # Stop bottle detection thread
+            # Stop bottle detection thread (ไม่รอนาน เพื่อไม่ให้ GUI ค้าง)
             if hasattr(self, 'processing_thread') and self.processing_thread and self.processing_thread.isRunning():
                 print("🛑 Stopping bottle detection thread...")
                 self.processing_thread.terminate()
-                self.processing_thread.wait(1000)  # Wait up to 1 second
+                self.processing_thread.wait(200)  # รอสั้นๆ แล้วคืนการควบคุมให้ GUI
                 self.processing_thread = None
             
             # Stop cap detection thread
             if hasattr(self, 'cap_processing_thread') and self.cap_processing_thread and self.cap_processing_thread.isRunning():
                 print("🛑 Stopping cap detection thread...")
                 self.cap_processing_thread.terminate()
-                self.cap_processing_thread.wait(1000)  # Wait up to 1 second
+                self.cap_processing_thread.wait(200)  # รอสั้นๆ แล้วคืนการควบคุมให้ GUI
                 self.cap_processing_thread = None
             
             # Reset UI
@@ -2793,24 +2812,9 @@ class BottleDetectionGUI(QWidget):
                         faded_text_status = first_cap['faded_text_result'].get('status', 'unknown')
                         print(f"🔍 CAP VALIDATION: Faded text status: {faded_text_status}")
                         
-                        # หยุดประมวลผลและส่ง M140 เมื่อเจอข้อความจาง
+                        # ฝาจาง = ไม่ผ่าน (M140/M600 จะส่งที่ cap_handlers ตอนส่งผล)
                         if faded_text_status == 'faded':
-                            print("❌ CAP VALIDATION: ตรวจพบข้อความจาง - หยุดประมวลผล")
-                            print("🚨 CAP VALIDATION: เขียนค่า D7009 = 50 (ฝาไม่ผ่าน)")
-                            print("🚀 CAP VALIDATION: ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)")
-                            
-                            # เขียนค่า D7009 = 50 (ฝาไม่ผ่าน)
-                            if hasattr(self, 'modbus_thread') and self.modbus_thread:
-                                success = self.modbus_thread.write_register(7009, 50)
-                                if success:
-                                    print("✅ D7009 = 50 (ฝาไม่ผ่าน) - ส่งสัญญาณเรียบร้อย")
-                                else:
-                                    print("❌ ไม่สามารถเขียน D7009 = 50 ได้")
-                                
-                                # ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)
-                                self.modbus_thread.on_m600()
-                                print("✅ M600 ส่งสัญญาณเรียบร้อย")
-                            
+                            print("❌ CAP VALIDATION: ตรวจพบข้อความจาง (ฝาจาง) - return False")
                             return False
             
             # ตรวจสอบว่ามีข้อความที่อ่านได้หรือไม่
@@ -3119,11 +3123,15 @@ class BottleDetectionGUI(QWidget):
                         new_w, new_h = int(w * scale), int(h * scale)
                         original_image = cuda_resize(original_image, (new_w, new_h))
                     
-                    # Convert to RGB for Qt
-                    rgb_original = cuda_cvtColor(original_image, cv2.COLOR_BGR2RGB)
+                    # Convert to RGB for Qt (กล้อง Sentech เป็น Mono8 → grayscale)
+                    if len(original_image.shape) == 2:
+                        rgb_original = cuda_cvtColor(original_image, cv2.COLOR_GRAY2RGB)
+                    else:
+                        rgb_original = cuda_cvtColor(original_image, cv2.COLOR_BGR2RGB)
                     h, w, c = rgb_original.shape
                     bytes_per_line = c * w
-                    
+                    if not rgb_original.flags['C_CONTIGUOUS']:
+                        rgb_original = np.ascontiguousarray(rgb_original)
                     qimg = QtGui.QImage(rgb_original.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                     pixmap = QtGui.QPixmap.fromImage(qimg)
                     
@@ -3170,11 +3178,15 @@ class BottleDetectionGUI(QWidget):
                         new_w, new_h = int(w * scale), int(h * scale)
                         processed_image = cuda_resize(processed_image, (new_w, new_h))
                     
-                    # Convert to RGB for Qt
-                    rgb_processed = cuda_cvtColor(processed_image, cv2.COLOR_BGR2RGB)
+                    # Convert to RGB for Qt (processed อาจเป็น grayscale)
+                    if len(processed_image.shape) == 2:
+                        rgb_processed = cuda_cvtColor(processed_image, cv2.COLOR_GRAY2RGB)
+                    else:
+                        rgb_processed = cuda_cvtColor(processed_image, cv2.COLOR_BGR2RGB)
                     h, w, c = rgb_processed.shape
                     bytes_per_line = c * w
-                    
+                    if not rgb_processed.flags['C_CONTIGUOUS']:
+                        rgb_processed = np.ascontiguousarray(rgb_processed)
                     qimg = QtGui.QImage(rgb_processed.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                     pixmap = QtGui.QPixmap.fromImage(qimg)
                     
@@ -3203,10 +3215,11 @@ class BottleDetectionGUI(QWidget):
                 print(f"🔍 DEBUG: Found {len(result['cap_processing_results'])} cap processing results")
                 # Display full pipeline results for each cap
                 for cap_index, cap_result in enumerate(result['cap_processing_results']):
+                        ocr_results = None  # กำหนดไว้ก่อน เผื่อฝาจางไม่มี ocr_results
                         print(f"🔍 DEBUG: Cap {cap_index+1} result keys: {list(cap_result.keys())}")
                         print(f"🔍 DEBUG: Cap {cap_index+1} has line_detection_result: {'line_detection_result' in cap_result}")
                         print(f"🔍 DEBUG: Cap {cap_index+1} has ocr_results: {'ocr_results' in cap_result}")
-                        if 'ocr_results' in cap_result:
+                        if 'ocr_results' in cap_result and cap_result['ocr_results'] is not None:
                             print(f"🔍 DEBUG: Cap {cap_index+1} OCR results count: {len(cap_result['ocr_results'])}")
                         if 'line_detection_result' in cap_result:
                             line_result = cap_result['line_detection_result']
@@ -3244,11 +3257,15 @@ class BottleDetectionGUI(QWidget):
                                 new_w, new_h = int(w * scale), int(h * scale)
                                 original_crop = cuda_resize(original_crop, (new_w, new_h))
                             
-                            # Convert to RGB for Qt
-                            rgb_crop = cuda_cvtColor(original_crop, cv2.COLOR_BGR2RGB)
+                            # Convert to RGB for Qt (crop อาจเป็น grayscale)
+                            if len(original_crop.shape) == 2:
+                                rgb_crop = cuda_cvtColor(original_crop, cv2.COLOR_GRAY2RGB)
+                            else:
+                                rgb_crop = cuda_cvtColor(original_crop, cv2.COLOR_BGR2RGB)
                             h, w, c = rgb_crop.shape
                             bytes_per_line = c * w
-                            
+                            if not rgb_crop.flags['C_CONTIGUOUS']:
+                                rgb_crop = np.ascontiguousarray(rgb_crop)
                             qimg = QtGui.QImage(rgb_crop.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                             pixmap = QtGui.QPixmap.fromImage(qimg)
                             
@@ -3407,11 +3424,15 @@ class BottleDetectionGUI(QWidget):
                                     new_w, new_h = int(w * scale), int(h * scale)
                                     craft_image = cuda_resize(craft_image, (new_w, new_h))
                                 
-                                # Convert to RGB for Qt
-                                rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_BGR2RGB)
+                                # Convert to RGB for Qt (CRAFT output อาจเป็น grayscale)
+                                if len(craft_image.shape) == 2:
+                                    rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_GRAY2RGB)
+                                else:
+                                    rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_BGR2RGB)
                                 h, w, c = rgb_craft.shape
                                 bytes_per_line = c * w
-                                
+                                if not rgb_craft.flags['C_CONTIGUOUS']:
+                                    rgb_craft = np.ascontiguousarray(rgb_craft)
                                 qimg = QtGui.QImage(rgb_craft.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                                 pixmap = QtGui.QPixmap.fromImage(qimg)
                                 
@@ -3447,11 +3468,15 @@ class BottleDetectionGUI(QWidget):
                                     new_w, new_h = int(w * scale), int(h * scale)
                                     ai_image = cuda_resize(ai_image, (new_w, new_h))
                                 
-                                # Convert to RGB for Qt
-                                rgb_ai = cuda_cvtColor(ai_image, cv2.COLOR_BGR2RGB)
+                                # Convert to RGB for Qt (AI rotated อาจเป็น grayscale)
+                                if len(ai_image.shape) == 2:
+                                    rgb_ai = cuda_cvtColor(ai_image, cv2.COLOR_GRAY2RGB)
+                                else:
+                                    rgb_ai = cuda_cvtColor(ai_image, cv2.COLOR_BGR2RGB)
                                 h, w, c = rgb_ai.shape
                                 bytes_per_line = c * w
-                                
+                                if not rgb_ai.flags['C_CONTIGUOUS']:
+                                    rgb_ai = np.ascontiguousarray(rgb_ai)
                                 qimg = QtGui.QImage(rgb_ai.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                                 pixmap = QtGui.QPixmap.fromImage(qimg)
                                 
@@ -3515,11 +3540,15 @@ class BottleDetectionGUI(QWidget):
                                                 new_w, new_h = int(w * scale), int(h * scale)
                                                 line_image = cuda_resize(line_image, (new_w, new_h))
                                             
-                                            # Convert to RGB for Qt
-                                            rgb_line = cuda_cvtColor(line_image, cv2.COLOR_BGR2RGB)
+                                            # Convert to RGB for Qt (line crop มักเป็น grayscale)
+                                            if len(line_image.shape) == 2:
+                                                rgb_line = cuda_cvtColor(line_image, cv2.COLOR_GRAY2RGB)
+                                            else:
+                                                rgb_line = cuda_cvtColor(line_image, cv2.COLOR_BGR2RGB)
                                             h, w, c = rgb_line.shape
                                             bytes_per_line = c * w
-                                            
+                                            if not rgb_line.flags['C_CONTIGUOUS']:
+                                                rgb_line = np.ascontiguousarray(rgb_line)
                                             qimg = QtGui.QImage(rgb_line.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                                             pixmap = QtGui.QPixmap.fromImage(qimg)
                                             
@@ -3582,7 +3611,7 @@ class BottleDetectionGUI(QWidget):
                                             ocr_layout.addWidget(ocr_label)
                                     
                             # Show total recognized text if available
-                            if 'total_recognized_text' in ocr_results:
+                            if ocr_results is not None and 'total_recognized_text' in ocr_results:
                                 total_text = ocr_results['total_recognized_text']
                                 if total_text:
                                     total_label = QLabel(f"📝 ข้อความรวม: '{total_text}'")
@@ -3612,8 +3641,8 @@ class BottleDetectionGUI(QWidget):
                                 ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
                                 ocr_label.setWordWrap(True)
                                 ocr_layout.addWidget(ocr_label)
-                        else:
-                            # Handle list format (legacy)
+                        elif ocr_results is not None:
+                            # Handle list format (legacy) — กัน None ไม่ให้ iterate
                             for j, ocr_result in enumerate(ocr_results):
                                 # Check if ocr_result is a dictionary
                                 if isinstance(ocr_result, dict):
@@ -3650,11 +3679,15 @@ class BottleDetectionGUI(QWidget):
                                 new_w, new_h = int(w * scale), int(h * scale)
                                 crop = cuda_resize(crop, (new_w, new_h))
                             
-                            # Convert to RGB for Qt
-                            rgb_crop = cuda_cvtColor(crop, cv2.COLOR_BGR2RGB)
+                            # Convert to RGB for Qt (crop อาจเป็น grayscale)
+                            if len(crop.shape) == 2:
+                                rgb_crop = cuda_cvtColor(crop, cv2.COLOR_GRAY2RGB)
+                            else:
+                                rgb_crop = cuda_cvtColor(crop, cv2.COLOR_BGR2RGB)
                             h, w, c = rgb_crop.shape
                             bytes_per_line = c * w
-                            
+                            if not rgb_crop.flags['C_CONTIGUOUS']:
+                                rgb_crop = np.ascontiguousarray(rgb_crop)
                             qimg = QtGui.QImage(rgb_crop.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                             pixmap = QtGui.QPixmap.fromImage(qimg)
                             
@@ -3688,11 +3721,15 @@ class BottleDetectionGUI(QWidget):
                             new_w, new_h = int(w * scale), int(h * scale)
                             craft_image = cuda_resize(craft_image, (new_w, new_h))
                         
-                        # Convert to RGB for Qt
-                        rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_BGR2RGB)
+                        # Convert to RGB for Qt (อาจเป็น grayscale)
+                        if len(craft_image.shape) == 2:
+                            rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_GRAY2RGB)
+                        else:
+                            rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_BGR2RGB)
                         h, w, c = rgb_craft.shape
                         bytes_per_line = c * w
-                        
+                        if not rgb_craft.flags['C_CONTIGUOUS']:
+                            rgb_craft = np.ascontiguousarray(rgb_craft)
                         qimg = QtGui.QImage(rgb_craft.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                         pixmap = QtGui.QPixmap.fromImage(qimg)
                         
@@ -3725,11 +3762,15 @@ class BottleDetectionGUI(QWidget):
                             new_w, new_h = int(w * scale), int(h * scale)
                             ai_rotated_image = cuda_resize(ai_rotated_image, (new_w, new_h))
                         
-                        # Convert to RGB for Qt
-                        rgb_ai = cuda_cvtColor(ai_rotated_image, cv2.COLOR_BGR2RGB)
+                        # Convert to RGB for Qt (อาจเป็น grayscale)
+                        if len(ai_rotated_image.shape) == 2:
+                            rgb_ai = cuda_cvtColor(ai_rotated_image, cv2.COLOR_GRAY2RGB)
+                        else:
+                            rgb_ai = cuda_cvtColor(ai_rotated_image, cv2.COLOR_BGR2RGB)
                         h, w, c = rgb_ai.shape
                         bytes_per_line = c * w
-                        
+                        if not rgb_ai.flags['C_CONTIGUOUS']:
+                            rgb_ai = np.ascontiguousarray(rgb_ai)
                         qimg = QtGui.QImage(rgb_ai.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                         pixmap = QtGui.QPixmap.fromImage(qimg)
                         
@@ -3762,11 +3803,15 @@ class BottleDetectionGUI(QWidget):
                             new_w, new_h = int(w * scale), int(h * scale)
                             cropped_image = cuda_resize(cropped_image, (new_w, new_h))
                         
-                        # Convert to RGB for Qt
-                        rgb_cropped = cuda_cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
+                        # Convert to RGB for Qt (อาจเป็น grayscale)
+                        if len(cropped_image.shape) == 2:
+                            rgb_cropped = cuda_cvtColor(cropped_image, cv2.COLOR_GRAY2RGB)
+                        else:
+                            rgb_cropped = cuda_cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
                         h, w, c = rgb_cropped.shape
                         bytes_per_line = c * w
-                        
+                        if not rgb_cropped.flags['C_CONTIGUOUS']:
+                            rgb_cropped = np.ascontiguousarray(rgb_cropped)
                         qimg = QtGui.QImage(rgb_cropped.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                         pixmap = QtGui.QPixmap.fromImage(qimg)
                         
@@ -3796,6 +3841,7 @@ class BottleDetectionGUI(QWidget):
                 if result.get('cap_processing_results'):
                     cap_text += f"\n\n🔄 ประมวลผลฝาแต่ละใบผ่าน Pipeline เต็ม:"
                     for cap_result in result['cap_processing_results']:
+                        ocr_results = None  # กำหนดไว้ก่อน เผื่อฝาจางไม่มี ocr_results
                         cap_index = cap_result['cap_index'] + 1
                         cap_text += f"\n\n📋 ฝาที่ {cap_index}:"
                         
@@ -3844,12 +3890,12 @@ class BottleDetectionGUI(QWidget):
                                                     cap_text += f"\n    บรรทัด {line_index+1}: '{recognized_text}' (ความเชื่อมั่น: {confidence:.3f})"
                                             
                                             # Show total recognized text if available
-                                            if 'total_recognized_text' in ocr_results:
+                                            if ocr_results is not None and 'total_recognized_text' in ocr_results:
                                                 total_text = ocr_results['total_recognized_text']
                                                 if total_text:
                                                     cap_text += f"\n  📝 ข้อความรวม: '{total_text}'"
-                                        else:
-                                            # Handle list format (legacy)
+                                        elif ocr_results is not None:
+                                            # Handle list format (legacy) — กัน None
                                             cap_text += f"\n  📝 ข้อความที่อ่านได้: {len(ocr_results)} รายการ"
                                             for j, ocr_result in enumerate(ocr_results):
                                                 # Check if ocr_result is a dictionary
@@ -4672,11 +4718,15 @@ class BottleDetectionGUI(QWidget):
             else:
                 display_image = image
             
-            # Convert to RGB for Qt
-            rgb_image = cuda_cvtColor(display_image, cv2.COLOR_BGR2RGB)
+            # Convert to RGB for Qt (อาจเป็น grayscale)
+            if len(display_image.shape) == 2:
+                rgb_image = cuda_cvtColor(display_image, cv2.COLOR_GRAY2RGB)
+            else:
+                rgb_image = cuda_cvtColor(display_image, cv2.COLOR_BGR2RGB)
             h, w, c = rgb_image.shape
             bytes_per_line = c * w
-            
+            if not rgb_image.flags['C_CONTIGUOUS']:
+                rgb_image = np.ascontiguousarray(rgb_image)
             qimg = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
             pixmap = QtGui.QPixmap.fromImage(qimg)
             
@@ -5307,13 +5357,8 @@ class BottleDetectionGUI(QWidget):
                 self.status_handlers.update_coil_lamp("m701", True)
                 print("✅ STOP: M701 ON - ระบบหยุดทำงาน (รอ 1.5 วินาที)")
                 
-                # Reset D7009 = 0 เพื่อล้างผลการตรวจขวด/ฝา
-                reset_d7009 = self.modbus_thread.write_register(7009, 0)
-                if reset_d7009:
-                    print("✅ STOP: Reset D7009 = 0 (ล้างผลตรวจ)")
-                else:
-                    print("⚠️ STOP: ไม่สามารถ Reset D7009 = 0 ได้")
-                
+                # ล้างผลตรวจทำใน reset_to_initial_state (RESET M100–M140)
+
                 # อัปเดตสถานะหลัง 1.5 วินาที และ reset ทั้งหมด
                 QTimer.singleShot(1500, self.modbus_handlers.reset_to_initial_state)
             else:
@@ -5352,6 +5397,38 @@ class BottleDetectionGUI(QWidget):
                 print("❌ RESET: ไม่สามารถเขียน D5012 = 0 ได้")
         else:
             print("❌ RESET: Modbus thread ไม่พร้อมใช้งาน")
+    
+    def toggle_m76_light(self):
+        """Toggle ไฟ Bottle (M76) - เปิด/ปิด"""
+        if not self.modbus_thread:
+            self.status_label.setText('❌ Modbus ไม่พร้อม - ไม่สามารถสลับไฟ M76 ได้')
+            if hasattr(self, 'btn_m76_light') and self.btn_m76_light.isCheckable():
+                self.btn_m76_light.blockSignals(True)
+                self.btn_m76_light.setChecked(self.m76_light_on)
+                self.btn_m76_light.blockSignals(False)
+            return
+        if self.btn_m76_light.isChecked():
+            success = self.modbus_thread.on_m76()
+            if success:
+                self.m76_light_on = True
+                self.status_label.setText('💡 ไฟ Bottle (M76) เปิด')
+                print("✅ M76: ไฟ Bottle เปิด")
+            else:
+                self.btn_m76_light.blockSignals(True)
+                self.btn_m76_light.setChecked(False)
+                self.btn_m76_light.blockSignals(False)
+                self.status_label.setText('❌ ไม่สามารถเปิด M76 ได้')
+        else:
+            success = self.modbus_thread.reset_m76()
+            if success:
+                self.m76_light_on = False
+                self.status_label.setText('💡 ไฟ Bottle (M76) ปิด')
+                print("✅ M76: ไฟ Bottle ปิด")
+            else:
+                self.btn_m76_light.blockSignals(True)
+                self.btn_m76_light.setChecked(True)
+                self.btn_m76_light.blockSignals(False)
+                self.status_label.setText('❌ ไม่สามารถปิด M76 ได้')
     
     # Modbus operation methods delegated to modbus_handlers
     # Use self.modbus_handlers.reset_to_initial_state() instead
