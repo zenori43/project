@@ -5,6 +5,7 @@ Handles all events related to Modbus operations and signals
 """
 
 from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtWidgets import QLabel
 import cv2
 import os
 import datetime
@@ -74,12 +75,11 @@ class ModbusHandlers:
                         print(f"✅ DISPLAY: Cap validation passed - Sending Modbus signals")
                         self.on_bottle_type_after_cap_validation()
                     else:
-                        print(f"❌ DISPLAY: Cap validation failed - Writing D7009 = 50")
+                        print(f"❌ DISPLAY: Cap validation failed - ON M140")
                         if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
-                            # M140 → D7009 = 50
-                            m140_success = self.gui.modbus_thread.write_register(7009, 50)
+                            m140_success = self.gui.modbus_thread.on_m140()
                             if m140_success:
-                                print("🏷️ D7009 = 50 (ฝาไม่ผ่าน)")
+                                print("🏷️ M140 = ON (ฝาไม่ผ่าน)")
                                 m600_success = self.gui.modbus_thread.on_m600()
                                 if m600_success:
                                     self.gui.status_handlers.update_coil_lamp("m600", True)
@@ -125,16 +125,16 @@ class ModbusHandlers:
             return None, None
     
     def save_capture_image(self, image, prefix, folder_path):
-        """บันทึกภาพลงในโฟลเดอร์ที่กำหนด"""
+        """บันทึกภาพเป็น BMP (lossless) เพื่อความละเอียดเต็มสำหรับการตรวจสอบ"""
         try:
             if image is None:
                 return None
             
             now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{prefix}_{now}.png"
+            filename = f"{prefix}_{now}.bmp"
             filepath = os.path.join(folder_path, filename)
             cv2.imwrite(filepath, image)
-            print(f"💾 บันทึกภาพ: {filepath}")
+            print(f"💾 บันทึกภาพ (BMP): {filepath}")
             return filepath
         except Exception as e:
             print(f"❌ เกิดข้อผิดพลาดในการบันทึกภาพ: {e}")
@@ -331,23 +331,20 @@ class ModbusHandlers:
             traceback.print_exc()
     
     def on_bottle_type_after_cap_validation(self):
-        """Write bottle type value to D7009 หลังจากตรวจสอบฝาผ่านแล้ว"""
+        """ON M100/M110/M120 หลังจากตรวจสอบฝาผ่านแล้ว (ใช้ coil M แทน D7009)"""
         try:
-            print(f"🏷️ WRITE BOTTLE TYPE TO D7009 AFTER CAP VALIDATION: {self.gui.current_bottle_type}")
+            print(f"🏷️ ON BOTTLE TYPE AFTER CAP VALIDATION: {self.gui.current_bottle_type}")
             
             success = False
             if self.gui.current_bottle_type == "M100":
-                # M100 → D7009 = 10
-                success = self.gui.modbus_thread.write_register(7009, 10)
-                print("🏷️ D7009 = 10 (พบคำว่า 'เดิม' - ฝาผ่าน)")
+                success = self.gui.modbus_thread.on_m100()
+                print("🏷️ M100 = ON (พบคำว่า 'เดิม' - ฝาผ่าน)")
             elif self.gui.current_bottle_type == "M110":
-                # M110 → D7009 = 20
-                success = self.gui.modbus_thread.write_register(7009, 20)
-                print("🏷️ D7009 = 20 (พบคำว่า '2%' - ฝาผ่าน)")
+                success = self.gui.modbus_thread.on_m110()
+                print("🏷️ M110 = ON (พบคำว่า '2%' - ฝาผ่าน)")
             elif self.gui.current_bottle_type == "M120":
-                # M120 → D7009 = 30
-                success = self.gui.modbus_thread.write_register(7009, 30)
-                print("🏷️ D7009 = 30 (พบคำว่า 'ลัก' - ฝาผ่าน)")
+                success = self.gui.modbus_thread.on_m120()
+                print("🏷️ M120 = ON (พบคำว่า 'ลัก' - ฝาผ่าน)")
             
             if success:
                 # ON M600 หลังจาก ON M100/M110/M120
@@ -824,12 +821,45 @@ class ModbusHandlers:
                     widget = self.gui.cap_results_layout.itemAt(i).widget()
                     if widget:
                         widget.setParent(None)
-                self.gui.image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
             
             if hasattr(self.gui, 'sentech_image_label') and self.gui.sentech_image_label:
                 self.gui.sentech_image_label.clear()
                 self.gui.sentech_image_label.setText("📷 ไม่มีภาพ Sentech")
                 self.gui.sentech_image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
+            
+            # ล้างรูปและผลในหน้าหลัก (Home tab)
+            if hasattr(self.gui, 'home_bottle_image_label') and self.gui.home_bottle_image_label:
+                self.gui.home_bottle_image_label.clear()
+                self.gui.home_bottle_image_label.setText("ยังไม่มีภาพจากกล้อง USB")
+            if hasattr(self.gui, 'home_bottle_image_info_label') and self.gui.home_bottle_image_info_label:
+                self.gui.home_bottle_image_info_label.setText("ข้อมูลภาพ: -")
+            if hasattr(self.gui, 'home_bottle_crops_layout') and self.gui.home_bottle_crops_layout:
+                for i in reversed(range(self.gui.home_bottle_crops_layout.count())):
+                    widget = self.gui.home_bottle_crops_layout.itemAt(i).widget()
+                    if widget:
+                        widget.setParent(None)
+                home_ph = QLabel("ยังไม่มีภาพที่ครอป")
+                home_ph.setAlignment(Qt.AlignCenter)
+                home_ph.setStyleSheet("color: #7f8c8d; padding: 20px;")
+                self.gui.home_bottle_crops_layout.addWidget(home_ph)
+            if hasattr(self.gui, 'home_bottle_results_text') and self.gui.home_bottle_results_text:
+                self.gui.home_bottle_results_text.clear()
+            if hasattr(self.gui, 'home_cap_image_label') and self.gui.home_cap_image_label:
+                self.gui.home_cap_image_label.clear()
+                self.gui.home_cap_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+            if hasattr(self.gui, 'home_cap_image_info_label') and self.gui.home_cap_image_info_label:
+                self.gui.home_cap_image_info_label.setText("ข้อมูลภาพ: -")
+            if hasattr(self.gui, 'home_cap_results_layout') and self.gui.home_cap_results_layout:
+                for i in reversed(range(self.gui.home_cap_results_layout.count())):
+                    widget = self.gui.home_cap_results_layout.itemAt(i).widget()
+                    if widget:
+                        widget.setParent(None)
+                home_cap_ph = QLabel("ยังไม่มีผลการตรวจจับฝา")
+                home_cap_ph.setAlignment(Qt.AlignCenter)
+                home_cap_ph.setStyleSheet("color: #7f8c8d; padding: 20px;")
+                self.gui.home_cap_results_layout.addWidget(home_cap_ph)
+            if hasattr(self.gui, 'home_cap_detection_text') and self.gui.home_cap_detection_text:
+                self.gui.home_cap_detection_text.clear()
             
             print("✅ Current data cleared")
             

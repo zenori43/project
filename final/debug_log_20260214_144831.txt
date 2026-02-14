@@ -1,0 +1,1000 @@
+✅ HISTORY: Expiry date (lines 1-3): MFG18/01/26
+BBF05/02/22/22
+09:08S02
+✅ HISTORY: Combined 3 cropped lines into cap image
+✅ HISTORY: Cap image found: True
+✅ HISTORY: Faded status: normal, total_area: 1867, num_chars: 2
+✅ HISTORY: Added entry - M110 at 2026-02-14 14:47:00
+✅ พบฝาทั้งหมด: 1 ฝา
+   📍 ฝาที่ 1: ความเชื่อมั่น = 0.9583 (95.83%) | Class: bottle_cap | BBox: [1035, 600, 1226, 796]
+🔄 CAP DETECTION THREAD: Step 2 - ตัดภาพ
+🔄 CAP DETECTION THREAD: พบฝา 1 ฝา
+🔄 CAP DETECTION THREAD: ตรวจสอบตำแหน่งฝา 1 ฝา
+🔄 CAP DETECTION THREAD: ฝาที่ 1 - y_center: 698.0, ความเชื่อมั่น: 0.9583 (95.83%)
+🔄 CAP DETECTION THREAD: เลือกฝาที่ 1 (y_center: 698.0, ความเชื่อมั่น: 0.9583 (95.83%)) เป็นฝาล่างสุด
+✅ CAP DETECTION THREAD: เลือกฝาที่ 1 (ฝาล่างสุด) จาก 1 ฝา | ความเชื่อมั่น: 0.9583 (95.83%)
+🔄 CAP DETECTION THREAD: ประมวลผลฝาที่ 1 (ฝาล่างสุด) (ความเชื่อมั่น: 95.83%)
+🔄 CAP DETECTION THREAD: Step 2a - ปรับความคมชัดฝาที่ 1 ก่อน CRAFT✅ ON M100 = True
+✅ Cap image sharpness enhanced
+✅ CRAFT: Rotated image by -16.52 degrees
+🔄 CAP DETECTION THREAD: Step 2a.5 - ตรวจสอบรอยจางในฝาที่ 1 (ก่อน CRAFT)
+🔍 CAP DETECTION THREAD: ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) สำหรับการปรับภาพ
+🔍 ENHANCE IMAGE: ใช้ค่ากลางที่วิเคราะห์ได้ - brightness=33, contrast=1.8
+🔍 ใช้ Edges โดยตรงมาทำ Text Edges
+🔍 ใช้เกณฑ์ area_thresh = 1500 สำหรับทุกรส
+Faded text detection - Components: 2, Area: 1867, Status: normal
+🔄 CAP DETECTION THREAD: ตรวจสอบรอยจางฝาที่ 1 สำเร็จ - สถานะ: normal
+📊 CAP DETECTION THREAD: total_area = 1867, num_chars = 2
+🔄 CAP DETECTION THREAD: CRAFT หมุนฝาที่ 1 สำเร็จ
+✅ CACHE HIT: Found cached result for image hash 74b6a529...
+🔄 CAP DETECTION THREAD: Rotation ฝาที่ 1 สำเร็จ
+🔄 CAP DETECTION THREAD: ตรวจจับบรรทัดข้อความฝาที่ 1 สำเร็จ
+Input tensor shape: torch.Size([1, 1, 64, 200])
+Input tensor shape: torch.Size([1, 1, 64, 200])
+Input tensor shape: torch.Size([1, 1, 64, 200])
+🔄 CAP DETECTION THREAD: OCR ฝาที่ 1 สำเร็จ - อ่านได้ 6 รายการ
+🔄 CAP DETECTION THREAD: Emitting result...
+📋 CAP QUEUED: Added (bottle, cap) to display queue (size=1)
+📤 SENDING QUEUED RESULT: bottle_type=M110 (queue left=0)
+🔄 DISPLAY SINGLE RESULTS: Starting to display results
+🔄 DISPLAY SINGLE RESULTS: Summary: {'total_detections': 2, 'type_detections': 1, 'detected_labels': ['angle1', 'type'], 'has_type': True}
+🔄 DISPLAY SINGLE RESULTS: Detections: 2📉 M301 RESET: ON → OFF
+✅ DISPLAY SINGLE RESULTS: Results text set
+🔄 DISPLAY RESULT IMAGE: Image shape: (1080, 1920, 3)
+🔄 DISPLAY RESULT IMAGE: Resized to 400x225
+✅ DISPLAY RESULT IMAGE: Image displayed in label
+🔄 DISPLAY CROPPED IMAGES: Starting to display 1 crops
+✅ DISPLAY CROPPED IMAGES: Cleared existing crops
+✅ DISPLAY CROPPED IMAGES: Displayed 1 cropped images
+🔍 DEBUG: display_cap_detection_results called with result type: <class 'dict'>
+🔍 DEBUG: Found 2 cap processing results
+🔍 DEBUG: Cap 1 result keys: ['cap_index', 'original_crop', 'craft_result', 'faded_text_result', 'craft_rotated_image', 'rotated_image', 'combined_result', 'line_detection_result', 'ocr_results']
+🔍 DEBUG: Cap 1 has line_detection_result: True
+🔍 DEBUG: Cap 1 has ocr_results: True
+🔍 DEBUG: Cap 1 OCR results count: 6
+🔍 DEBUG: Cap 1 line detection result type: <class 'dict'>
+🔍 DEBUG: Cap 1 line detection keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Cap 1 has error: False
+🔍 DEBUG: Cap 1 cropped_lines count: 3
+🔍 DEBUG: Cap 1 first cropped_line type: <class 'dict'>
+🔍 DEBUG: Cap 1 first cropped_line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Cap 1 has line_detection_result
+🔍 DEBUG: Line detection result keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Number of cropped lines: 3
+🔍 DEBUG: Found 3 cropped lines
+🔍 DEBUG: First cropped line type: <class 'dict'>
+🔍 DEBUG: First cropped line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Processing line 1, shape: (16, 113, 3)
+🔍 DEBUG: Added line 1 to UI
+🔍 DEBUG: Processing line 2, shape: (16, 116, 3)
+🔍 DEBUG: Added line 2 to UI
+🔍 DEBUG: Processing line 3, shape: (16, 76, 3)
+🔍 DEBUG: Added line 3 to UI
+🔍 DEBUG: Cap 2 result keys: ['cap_index', 'original_crop', 'craft_result', 'faded_text_result', 'craft_rotated_image', 'rotated_image', 'combined_result', 'line_detection_result', 'ocr_results']
+🔍 DEBUG: Cap 2 has line_detection_result: True
+🔍 DEBUG: Cap 2 has ocr_results: True
+🔍 DEBUG: Cap 2 OCR results count: 6
+🔍 DEBUG: Cap 2 line detection result type: <class 'dict'>
+🔍 DEBUG: Cap 2 line detection keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Cap 2 has error: False
+🔍 DEBUG: Cap 2 cropped_lines count: 3
+🔍 DEBUG: Cap 2 first cropped_line type: <class 'dict'>
+🔍 DEBUG: Cap 2 first cropped_line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Cap 1 has line_detection_result
+🔍 DEBUG: Line detection result keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Number of cropped lines: 3
+🔍 DEBUG: Found 3 cropped lines
+🔍 DEBUG: First cropped line type: <class 'dict'>
+🔍 DEBUG: First cropped line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Processing line 1, shape: (16, 113, 3)
+🔍 DEBUG: Added line 1 to UI
+🔍 DEBUG: Processing line 2, shape: (16, 116, 3)
+🔍 DEBUG: Added line 2 to UI
+🔍 DEBUG: Processing line 3, shape: (16, 76, 3)
+🔍 DEBUG: Added line 3 to UI
+✅ CAP PROCESSING COMPLETE UI: Displayed complete state for cap detection
+🔍 CAP VALIDATION: Validating cap result for M110
+🔍 CAP VALIDATION: Faded text status: normal
+🔍 CAP VALIDATION: Using all values
+🔍 CAP VALIDATION: OCR text: '[{'line_index': 0, 'image': array([[[152, 152, 152],
+        [179, 179, 179],
+        [158, 158, 158],
+        ...,
+        [186, 186, 186],
+        [181, 181, 181],
+        [178, 178, 178]],
+       [[182, 182, 182],
+        [165, 165, 165],
+        [151, 151, 151],
+        ...,
+        [159, 159, 159],
+        [167, 167, 167],
+        [146, 146, 146]],
+       [[137, 137, 137],
+        [139, 139, 139],
+        [149, 149, 149],
+        ...,
+        [149, 149, 149],
+        [139, 139, 139],
+        [172, 172, 172]],
+       ...,
+       [[106, 106, 106],
+        [ 60,  60,  60],
+        [112, 112, 112],
+        ...,
+        [ 50,  50,  50],
+        [ 64,  64,  64],
+        [ 96,  96,  96]],
+       [[156, 156, 156],
+        [144, 144, 144],
+        [170, 170, 170],
+        ...,
+        [143, 143, 143],
+        [143, 143, 143],
+        [147, 147, 147]],
+       [[133, 133, 133],
+        [144, 144, 144],
+        [156, 156, 156],
+        ...,
+        [164, 164, 164],
+        [145, 145, 145],
+        [136, 136, 136]]], dtype=uint8), 'bbox': (56, 120, 169, 136), 'num_characters': 1, 'recognized_text': 'MFG18/01/26', 'confidence_score': 0.9938289523124695, 'error': None}, {'line_index': 1, 'image': array([[[133, 133, 133],
+        [106, 106, 106],
+        [ 60,  60,  60],
+        ...,
+        [ 96,  96,  96],
+        [131, 131, 131],
+        [159, 159, 159]],
+       [[170, 170, 170],
+        [156, 156, 156],
+        [144, 144, 144],
+        ...,
+        [147, 147, 147],
+        [141, 141, 141],
+        [139, 139, 139]],
+       [[151, 151, 151],
+        [133, 133, 133],
+        [144, 144, 144],
+        ...,
+        [136, 136, 136],
+        [115, 115, 115],
+        [135, 135, 135]],
+       ...,
+       [[140, 140, 140],
+        [104, 104, 104],
+        [ 79,  79,  79],
+        ...,
+        [119, 119, 119],
+        [131, 131, 131],
+        [160, 160, 160]],
+       [[164, 164, 164],
+        [167, 167, 167],
+        [133, 133, 133],
+        ...,
+        [174, 174, 174],
+        [169, 169, 169],
+        [153, 153, 153]],
+       [[166, 166, 166],
+        [167, 167, 167],
+        [144, 144, 144],
+        ...,
+        [159, 159, 159],
+        [177, 177, 177],
+        [148, 148, 148]]], dtype=uint8), 'bbox': (55, 133, 171, 149), 'num_characters': 1, 'recognized_text': 'BBF05/02/22/22', 'confidence_score': 0.4432552754878998, 'error': None}, {'line_index': 2, 'image': array([[[171, 171, 171],
+        [104, 104, 104],
+        [ 49,  49,  49],
+        ...,
+        [ 49,  49,  49],
+        [ 52,  52,  52],
+        [ 53,  53,  53]],
+       [[153, 153, 153],
+        [140, 140, 140],
+        [104, 104, 104],
+        ...,
+        [108, 108, 108],
+        [118, 118, 118],
+        [133, 133, 133]],
+       [[163, 163, 163],
+        [164, 164, 164],
+        [167, 167, 167],
+        ...,
+        [153, 153, 153],
+        [163, 163, 163],
+        [159, 159, 159]],
+       ...,
+       [[166, 166, 166],
+        [116, 116, 116],
+        [ 53,  53,  53],
+        ...,
+        [ 41,  41,  41],
+        [ 46,  46,  46],
+        [ 79,  79,  79]],
+       [[150, 150, 150],
+        [135, 135, 135],
+        [ 95,  95,  95],
+        ...,
+        [114, 114, 114],
+        [129, 129, 129],
+        [135, 135, 135]],
+       [[164, 164, 164],
+        [169, 169, 169],
+        [147, 147, 147],
+        ...,
+        [168, 168, 168],
+        [156, 156, 156],
+        [164, 164, 164]]], dtype=uint8), 'bbox': (54, 145, 130, 161), 'num_characters': 1, 'recognized_text': '09:08S02', 'confidence_score': 0.9928613901138306, 'error': None}] 3 {'image_path': None, 'original_image': array([[[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       ...,
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]]], dtype=uint8), 'lines': [[array([[     54.489,      122.52],
+       [     170.61,      120.61],
+       [     170.84,      134.64],
+       [     54.719,      136.55]], dtype=float32)], [array([[     53.186,      135.48],
+       [     171.95,      133.71],
+       [     172.14,      146.64],
+       [     53.379,      148.42]], dtype=float32)], [array([[     53.333,      146.67],
+       [     130.67,      146.67],
+       [     130.67,         160],
+       [     53.333,         160]], dtype=float32)]], 'total_lines': 3, 'total_text_regions': 3, 'text_boxes': array([[[     54.489,      122.52],
+        [     170.61,      120.61],
+        [     170.84,      134.64],
+        [     54.719,      136.55]],
+       [[     53.186,      135.48],
+        [     171.95,      133.71],
+        [     172.14,      146.64],
+        [     53.379,      148.42]],
+       [[     53.333,      146.67],
+        [     130.67,      146.67],
+        [     130.67,         160],
+        [     53.333,         160]]], dtype=float32), 'text_polys': array([array([[     54.489,      122.52],
+              [     170.61,      120.61],
+              [     170.84,      134.64],
+              [     54.719,      136.55]], dtype=float32), array([[     53.186,      135.48],
+                                                                  [     171.95,      133.71],
+                                                                  [     172.14,      146.64],
+                                                                  [     53.379,      148.42]], dtype=float32), array([[     53.333,      146.67],
+                                                                                                                      [     130.67,      146.67],
+                                                                                                                      [     130.67,         160],
+                                                                                                                      [     53.333,         160]], dtype=float32)], dtype=object), 'cropped_lines': [{'line_index': 0, 'image': array([[[152, 152, 152],
+        [179, 179, 179],
+        [158, 158, 158],
+        ...,
+        [186, 186, 186],
+        [181, 181, 181],
+        [178, 178, 178]],
+       [[182, 182, 182],
+        [165, 165, 165],
+        [151, 151, 151],
+        ...,
+        [159, 159, 159],
+        [167, 167, 167],
+        [146, 146, 146]],
+       [[137, 137, 137],
+        [139, 139, 139],
+        [149, 149, 149],
+        ...,
+        [149, 149, 149],
+        [139, 139, 139],
+        [172, 172, 172]],
+       ...,
+       [[106, 106, 106],
+        [ 60,  60,  60],
+        [112, 112, 112],
+        ...,
+        [ 50,  50,  50],
+        [ 64,  64,  64],
+        [ 96,  96,  96]],
+       [[156, 156, 156],
+        [144, 144, 144],
+        [170, 170, 170],
+        ...,
+        [143, 143, 143],
+        [143, 143, 143],
+        [147, 147, 147]],
+       [[133, 133, 133],
+        [144, 144, 144],
+        [156, 156, 156],
+        ...,
+        [164, 164, 164],
+        [145, 145, 145],
+        [136, 136, 136]]], dtype=uint8), 'bbox': (56, 120, 169, 136), 'num_characters': 1}, {'line_index': 1, 'image': array([[[133, 133, 133],
+        [106, 106, 106],
+        [ 60,  60,  60],
+        ...,
+        [ 96,  96,  96],
+        [131, 131, 131],
+        [159, 159, 159]],
+       [[170, 170, 170],
+        [156, 156, 156],
+        [144, 144, 144],
+        ...,
+        [147, 147, 147],
+        [141, 141, 141],
+        [139, 139, 139]],
+       [[151, 151, 151],
+        [133, 133, 133],
+        [144, 144, 144],
+        ...,
+        [136, 136, 136],
+        [115, 115, 115],
+        [135, 135, 135]],
+       ...,
+       [[140, 140, 140],
+        [104, 104, 104],
+        [ 79,  79,  79],
+        ...,
+        [119, 119, 119],
+        [131, 131, 131],
+        [160, 160, 160]],
+       [[164, 164, 164],
+        [167, 167, 167],
+        [133, 133, 133],
+        ...,
+        [174, 174, 174],
+        [169, 169, 169],
+        [153, 153, 153]],
+       [[166, 166, 166],
+        [167, 167, 167],
+        [144, 144, 144],
+        ...,
+        [159, 159, 159],
+        [177, 177, 177],
+        [148, 148, 148]]], dtype=uint8), 'bbox': (55, 133, 171, 149), 'num_characters': 1}, {'line_index': 2, 'image': array([[[171, 171, 171],
+        [104, 104, 104],
+        [ 49,  49,  49],
+        ...,
+        [ 49,  49,  49],
+        [ 52,  52,  52],
+        [ 53,  53,  53]],
+       [[153, 153, 153],
+        [140, 140, 140],
+        [104, 104, 104],
+        ...,
+        [108, 108, 108],
+        [118, 118, 118],
+        [133, 133, 133]],
+       [[163, 163, 163],
+        [164, 164, 164],
+        [167, 167, 167],
+        ...,
+        [153, 153, 153],
+        [163, 163, 163],
+        [159, 159, 159]],
+       ...,
+       [[166, 166, 166],
+        [116, 116, 116],
+        [ 53,  53,  53],
+        ...,
+        [ 41,  41,  41],
+        [ 46,  46,  46],
+        [ 79,  79,  79]],
+       [[150, 150, 150],
+        [135, 135, 135],
+        [ 95,  95,  95],
+        ...,
+        [114, 114, 114],
+        [129, 129, 129],
+        [135, 135, 135]],
+       [[164, 164, 164],
+        [169, 169, 169],
+        [147, 147, 147],
+        ...,
+        [168, 168, 168],
+        [156, 156, 156],
+        [164, 164, 164]]], dtype=uint8), 'bbox': (54, 145, 130, 161), 'num_characters': 1}], 'settings_used': {'text_threshold': 0.7, 'low_text': 0.4, 'link_threshold': 0.4, 'padding': 0, 'tolerance': 10, 'uniform_height': True, 'max_height_ratio': 0.08, 'shrink_x_percent': 0.02, 'shrink_y_percent': 0.1, 'horizontal_splitting': True, 'min_width': 65, 'min_height': 30, 'max_lines': 3}, 'timestamp': '2026-02-14 14:47:00.522000', 'rotation_info': {'rotation_angle': 180, 'verification_passed': False, 'total_rotations': 1}} 2026-02-14 14:47:02.696061'
+🔍 CAP VALIDATION: OCR results type: <class 'dict'>
+🔍 CAP VALIDATION: OCR results keys: ['line_results', 'total_lines', 'craft_result', 'timestamp', 'overall_confidence', 'total_recognized_text']
+🔍 CAP VALIDATION: Found 3 lines
+🔍 CAP VALIDATION: Total lines: 3
+🔍 DATE TIME VALIDATION: Checking format for text: '[{'line_index': 0, 'image': array([[[152, 152, 152...'
+🔍 DATE TIME VALIDATION: has_date=True, has_time=True, format_valid=True
+🔍 DATE TIME VALIDATION: Normal mode - no expiry filtering
+🏷️ ON BOTTLE TYPE AFTER CAP VALIDATION: M110
+✅ ON M110 = True
+🏷️ M110 = ON (พบคำว่า '2%' - ฝาผ่าน)
+⏳ ON M600 และรอ M401 ON เพื่อ reset ทั้งหมด...
+✅ ON M600 = True
+⏳ รอ M401 ON เพื่อ RESET M600, M100, M110, M120, M130, M140...
+✅ BOTTLE TYPE ON SUCCESS: M110 + M600
+✅ HISTORY: Line 1: MFG18/01/26
+✅ HISTORY: Line 2: BBF05/02/22/22
+✅ HISTORY: Line 3: 09:08S02
+✅ HISTORY: Expiry date (lines 1-3): MFG18/01/26
+BBF05/02/22/22
+09:08S02
+✅ HISTORY: Combined 3 cropped lines into cap image
+✅ HISTORY: Cap image found: True
+✅ HISTORY: Faded status: normal, total_area: 1867, num_chars: 2
+✅ HISTORY: Added entry - M110 at 2026-02-14 14:47:28
+✅ M401 ON มาถึงแล้ว! (คิว: 0)
+✅ RESET M600 = 0
+✅ RESET M100 = 0
+✅ RESET M110 = 0
+✅ RESET M120 = 0
+✅ RESET M130 = 0
+✅ RESET M140 = 0
+✅ RESET M720 = 0
+✅ RESET M721 = 0
+✅ RESET M722 = 0
+✅ RESET M730 = 0
+✅ RESET M731 = 0
+✅ RESET M732 = 0
+✅ RESET M733 = 0
+✅ RESET M734 = 0
+✅ RESET M735 = 0
+✅ RESET M740 = 0
+✅ RESET M741 = 0🔍 CAP VALIDATION: Using cap_processing_results
+✅ RESET M742 = 0
+📋 แสดงผลลัพธ์จากคิว (คิวเหลือ: 0)
+📋 RESULT READY TO DISPLAY - Showing results from queue and sending Modbus signals
+📋 DISPLAY: Displaying bottle results from queue
+📋 DISPLAY FROM QUEUE: Displaying bottle result from queue
+🔄 DISPLAY SINGLE RESULTS: Starting to display results
+🔄 DISPLAY SINGLE RESULTS: Summary: {'total_detections': 2, 'type_detections': 1, 'detected_labels': ['angle1', 'type'], 'has_type': True}
+🔄 DISPLAY SINGLE RESULTS: Detections: 2
+✅ DISPLAY SINGLE RESULTS: Results text set
+Debug panel shown
+Debug panel hidden
+Debug panel shown
+Debug panel hidden
+Debug panel shown
+🔄 DISPLAY RESULT IMAGE: Image shape: (1080, 1920, 3)
+🔄 DISPLAY RESULT IMAGE: Resized to 400x225
+✅ DISPLAY RESULT IMAGE: Image displayed in label
+🔄 DISPLAY CROPPED IMAGES: Starting to display 1 crops
+✅ DISPLAY CROPPED IMAGES: Cleared existing crops
+✅ DISPLAY CROPPED IMAGES: Displayed 1 cropped images
+✅ DISPLAY FROM QUEUE: Bottle result displayed
+🎯 DISPLAY: Bottle type detected: M110
+🎯 BOTTLE TYPE DETECTED: M110 (OCR: 'น้ำเต้าหู้ สูตรน้ำตาล 2%')
+⏳ ตรวจพบ: M110 - รอผลลัพธ์ฝาก่อน ON Modbus...
+🔄 AUTO CAP PROCESS: เริ่มประมวลผลฝา...
+✅ CAP PROCESSING UI: Displayed processing state for cap detection
+🔍 AUTO CAP PROCESS: Calling process_cap_detection()...
+🔄 CAP PROCESS: Starting cap detection for image shape: (2048, 2448) (from Sentech camera)
+🔍 CAP PROCESS: ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) สำหรับการปรับภาพ
+✅ CAP PROCESSING UI: Displayed processing state for cap detection
+🔄 CAP PROCESS: Starting cap detection thread...
+🔍 AUTO CAP PROCESS: Cap processing started (ผลจะแสดงเมื่อเสร็จ via signal)
+📋 DISPLAY: Displaying cap results from queue🔄 CAP DETECTION THREAD: Saved temp image
+📋 DISPLAY FROM QUEUE: Displaying cap result from queue
+🔍 DEBUG: display_cap_detection_results called with result type: <class 'dict'>
+🔍 DEBUG: Found 2 cap processing results
+🔍 DEBUG: Cap 1 result keys: ['cap_index', 'original_crop', 'craft_result', 'faded_text_result', 'craft_rotated_image']
+🔍 DEBUG: Cap 1 has line_detection_result: False
+🔍 DEBUG: Cap 1 has ocr_results: False
+❌ Error displaying cap detection results: local variable 'ocr_container' referenced before assignment
+✅ DISPLAY FROM QUEUE: Cap result displayed
+🔍 CAP VALIDATION: Validating cap result for M110
+❌ CAP VALIDATION: No OCR results found
+❌ DISPLAY: Cap validation failed - ON M140
+✅ ON M140 = True
+✅ ON M140: Coil M140 = ON (ฝาไม่ผ่าน)
+🏷️ M140 = ON (ฝาไม่ผ่าน)
+✅ ON M600 = True
+⏳ รอ M401 ON เพื่อ RESET M600, M100, M110, M120, M130, M140...
+✅ HISTORY: Cap image found: True
+✅ HISTORY: Faded status: normal, total_area: 1793, num_chars: 3
+✅ HISTORY: Added entry - M110 at 2026-02-14 14:47:34
+✅ DISPLAY: Results displayed and Modbus signals sent
+🔄 CAP DETECTION THREAD: Starting processing...
+🔄 CAP DETECTION THREAD: Image shape: (2048, 2448)
+🔄 CAP DETECTION THREAD: Step 1 - ตรวจจับฝา
+📐 Resized image for detection: 2448x2048 -> 1280x1070 (scale: 0.523)
+✅ พบฝาทั้งหมด: 1 ฝา
+   📍 ฝาที่ 1: ความเชื่อมั่น = 0.9583 (95.83%) | Class: bottle_cap | BBox: [1035, 600, 1226, 796]
+🔄 CAP DETECTION THREAD: Step 2 - ตัดภาพ
+🔄 CAP DETECTION THREAD: พบฝา 1 ฝา
+🔄 CAP DETECTION THREAD: ตรวจสอบตำแหน่งฝา 1 ฝา
+🔄 CAP DETECTION THREAD: ฝาที่ 1 - y_center: 698.0, ความเชื่อมั่น: 0.9583 (95.83%)
+🔄 CAP DETECTION THREAD: เลือกฝาที่ 1 (y_center: 698.0, ความเชื่อมั่น: 0.9583 (95.83%)) เป็นฝาล่างสุด
+✅ CAP DETECTION THREAD: เลือกฝาที่ 1 (ฝาล่างสุด) จาก 1 ฝา | ความเชื่อมั่น: 0.9583 (95.83%)
+🔄 CAP DETECTION THREAD: ประมวลผลฝาที่ 1 (ฝาล่างสุด) (ความเชื่อมั่น: 95.83%)
+🔄 CAP DETECTION THREAD: Step 2a - ปรับความคมชัดฝาที่ 1 ก่อน CRAFT
+🔧 Enhancing cap image sharpness...
+✅ Cap image sharpness enhanced
+✅ CRAFT: Rotated image by -16.52 degrees
+🔄 CAP DETECTION THREAD: Step 2a.5 - ตรวจสอบรอยจางในฝาที่ 1 (ก่อน CRAFT)
+🔍 CAP DETECTION THREAD: ใช้ค่ากลางที่วิเคราะห์ได้ (brightness: 33) สำหรับการปรับภาพ
+🔍 ENHANCE IMAGE: ใช้ค่ากลางที่วิเคราะห์ได้ - brightness=33, contrast=1.8
+🔍 ใช้ Edges โดยตรงมาทำ Text Edges
+🔍 ใช้เกณฑ์ area_thresh = 1500 สำหรับทุกรส
+Faded text detection - Components: 2, Area: 1867, Status: normal
+🔄 CAP DETECTION THREAD: ตรวจสอบรอยจางฝาที่ 1 สำเร็จ - สถานะ: normal
+📊 CAP DETECTION THREAD: total_area = 1867, num_chars = 2
+🔄 CAP DETECTION THREAD: CRAFT หมุนฝาที่ 1 สำเร็จ
+✅ CACHE HIT: Found cached result for image hash 74b6a529...
+🔄 CAP DETECTION THREAD: Rotation ฝาที่ 1 สำเร็จ
+🔄 CAP DETECTION THREAD: ตรวจจับบรรทัดข้อความฝาที่ 1 สำเร็จ
+Input tensor shape: torch.Size([1, 1, 64, 200])
+Input tensor shape: torch.Size([1, 1, 64, 200])
+Input tensor shape: torch.Size([1, 1, 64, 200])
+🔄 CAP DETECTION THREAD: OCR ฝาที่ 1 สำเร็จ - อ่านได้ 6 รายการ
+🔄 CAP DETECTION THREAD: ลบไฟล์ชั่วคราวแล้ว
+🔄 CAP DETECTION THREAD: Emitting result...
+✅ CAP PROCESS COMPLETE: No error in result
+✅ CAP PROCESS COMPLETE: Result keys: ['cap_result', 'processed_image', 'cropped_images', 'image', 'image_shape', 'cap_processing_results']
+ℹ️ CAP PROCESS COMPLETE: Skipping early validation - will validate after processing is complete
+🔍 DEBUG: display_cap_detection_results called with result type: <class 'dict'>✅ RESET M720 = 0
+🔍 DEBUG: Found 2 cap processing results
+🔍 DEBUG: Cap 1 result keys: ['cap_index', 'original_crop', 'craft_result', 'faded_text_result', 'craft_rotated_image', 'rotated_image', 'combined_result', 'line_detection_result', 'ocr_results']
+🔍 DEBUG: Cap 1 has line_detection_result: True
+🔍 DEBUG: Cap 1 has ocr_results: True
+🔍 DEBUG: Cap 1 OCR results count: 6
+🔍 DEBUG: Cap 1 line detection result type: <class 'dict'>
+🔍 DEBUG: Cap 1 line detection keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Cap 1 has error: False
+🔍 DEBUG: Cap 1 cropped_lines count: 3
+🔍 DEBUG: Cap 1 first cropped_line type: <class 'dict'>
+🔍 DEBUG: Cap 1 first cropped_line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Cap 1 has line_detection_result
+🔍 DEBUG: Line detection result keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Number of cropped lines: 3
+🔍 DEBUG: Found 3 cropped lines
+🔍 DEBUG: First cropped line type: <class 'dict'>
+🔍 DEBUG: First cropped line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Processing line 1, shape: (16, 113, 3)
+🔍 DEBUG: Added line 1 to UI
+🔍 DEBUG: Processing line 2, shape: (16, 116, 3)
+🔍 DEBUG: Added line 2 to UI
+🔍 DEBUG: Processing line 3, shape: (16, 76, 3)
+🔍 DEBUG: Added line 3 to UI
+🔍 DEBUG: Cap 2 result keys: ['cap_index', 'original_crop', 'craft_result', 'faded_text_result', 'craft_rotated_image', 'rotated_image', 'combined_result', 'line_detection_result', 'ocr_results']
+🔍 DEBUG: Cap 2 has line_detection_result: True
+🔍 DEBUG: Cap 2 has ocr_results: True
+🔍 DEBUG: Cap 2 OCR results count: 6
+🔍 DEBUG: Cap 2 line detection result type: <class 'dict'>
+🔍 DEBUG: Cap 2 line detection keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Cap 2 has error: False
+🔍 DEBUG: Cap 2 cropped_lines count: 3
+🔍 DEBUG: Cap 2 first cropped_line type: <class 'dict'>
+🔍 DEBUG: Cap 2 first cropped_line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Cap 1 has line_detection_result
+🔍 DEBUG: Line detection result keys: ['image_path', 'original_image', 'lines', 'total_lines', 'total_text_regions', 'text_boxes', 'text_polys', 'cropped_lines', 'settings_used', 'timestamp', 'rotation_info']
+🔍 DEBUG: Number of cropped lines: 3
+🔍 DEBUG: Found 3 cropped lines
+🔍 DEBUG: First cropped line type: <class 'dict'>
+🔍 DEBUG: First cropped line keys: ['line_index', 'image', 'bbox', 'num_characters']
+🔍 DEBUG: Processing line 1, shape: (16, 113, 3)
+🔍 DEBUG: Added line 1 to UI
+🔍 DEBUG: Processing line 2, shape: (16, 116, 3)
+🔍 DEBUG: Added line 2 to UI
+🔍 DEBUG: Processing line 3, shape: (16, 76, 3)
+🔍 DEBUG: Added line 3 to UI
+✅ CAP PROCESSING COMPLETE UI: Displayed complete state for cap detection
+🔍 CAP PROCESS COMPLETE: Bottle type is M110 - Validating cap result...
+🔍 CAP PROCESS COMPLETE: Result keys: ['cap_result', 'processed_image', 'cropped_images', 'image', 'image_shape', 'cap_processing_results']
+🔍 CAP VALIDATION: Validating cap result for M110
+🔍 CAP VALIDATION: Using cap_processing_results
+🔍 CAP VALIDATION: Faded text status: normal
+🔍 CAP VALIDATION: Using all values
+🔍 CAP VALIDATION: OCR text: '[{'line_index': 0, 'image': array([[[152, 152, 152],
+        [179, 179, 179],
+        [158, 158, 158],
+        ...,
+        [186, 186, 186],
+        [181, 181, 181],
+        [178, 178, 178]],
+       [[182, 182, 182],
+        [165, 165, 165],
+        [151, 151, 151],
+        ...,
+        [159, 159, 159],
+        [167, 167, 167],
+        [146, 146, 146]],
+       [[137, 137, 137],
+        [139, 139, 139],
+        [149, 149, 149],
+        ...,
+        [149, 149, 149],
+        [139, 139, 139],
+        [172, 172, 172]],
+       ...,
+       [[106, 106, 106],
+        [ 60,  60,  60],
+        [112, 112, 112],
+        ...,
+        [ 50,  50,  50],
+        [ 64,  64,  64],
+        [ 96,  96,  96]],
+       [[156, 156, 156],
+        [144, 144, 144],
+        [170, 170, 170],
+        ...,
+        [143, 143, 143],
+        [143, 143, 143],
+        [147, 147, 147]],
+       [[133, 133, 133],
+        [144, 144, 144],
+        [156, 156, 156],
+        ...,
+        [164, 164, 164],
+        [145, 145, 145],
+        [136, 136, 136]]], dtype=uint8), 'bbox': (56, 120, 169, 136), 'num_characters': 1, 'recognized_text': 'MFG18/01/26', 'confidence_score': 0.9938289523124695, 'error': None}, {'line_index': 1, 'image': array([[[133, 133, 133],
+        [106, 106, 106],
+        [ 60,  60,  60],
+        ...,
+        [ 96,  96,  96],
+        [131, 131, 131],
+        [159, 159, 159]],
+       [[170, 170, 170],
+        [156, 156, 156],
+        [144, 144, 144],
+        ...,
+        [147, 147, 147],
+        [141, 141, 141],
+        [139, 139, 139]],
+       [[151, 151, 151],
+        [133, 133, 133],
+        [144, 144, 144],
+        ...,
+        [136, 136, 136],
+        [115, 115, 115],
+        [135, 135, 135]],
+       ...,
+       [[140, 140, 140],
+        [104, 104, 104],
+        [ 79,  79,  79],
+        ...,
+        [119, 119, 119],
+        [131, 131, 131],
+        [160, 160, 160]],
+       [[164, 164, 164],
+        [167, 167, 167],
+        [133, 133, 133],
+        ...,
+        [174, 174, 174],
+        [169, 169, 169],
+        [153, 153, 153]],
+       [[166, 166, 166],
+        [167, 167, 167],
+        [144, 144, 144],
+        ...,
+        [159, 159, 159],
+        [177, 177, 177],
+        [148, 148, 148]]], dtype=uint8), 'bbox': (55, 133, 171, 149), 'num_characters': 1, 'recognized_text': 'BBF05/02/22/22', 'confidence_score': 0.4432552754878998, 'error': None}, {'line_index': 2, 'image': array([[[171, 171, 171],
+        [104, 104, 104],
+        [ 49,  49,  49],
+        ...,
+        [ 49,  49,  49],
+        [ 52,  52,  52],
+        [ 53,  53,  53]],
+       [[153, 153, 153],
+        [140, 140, 140],
+        [104, 104, 104],
+        ...,
+        [108, 108, 108],
+        [118, 118, 118],
+        [133, 133, 133]],
+       [[163, 163, 163],
+        [164, 164, 164],
+        [167, 167, 167],
+        ...,
+        [153, 153, 153],
+        [163, 163, 163],
+        [159, 159, 159]],
+       ...,
+       [[166, 166, 166],
+        [116, 116, 116],
+        [ 53,  53,  53],
+        ...,
+        [ 41,  41,  41],
+        [ 46,  46,  46],
+        [ 79,  79,  79]],
+       [[150, 150, 150],
+        [135, 135, 135],
+        [ 95,  95,  95],
+        ...,
+        [114, 114, 114],
+        [129, 129, 129],
+        [135, 135, 135]],
+       [[164, 164, 164],
+        [169, 169, 169],
+        [147, 147, 147],
+        ...,
+        [168, 168, 168],
+        [156, 156, 156],
+        [164, 164, 164]]], dtype=uint8), 'bbox': (54, 145, 130, 161), 'num_characters': 1, 'recognized_text': '09:08S02', 'confidence_score': 0.9928613901138306, 'error': None}] 3 {'image_path': None, 'original_image': array([[[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       ...,
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]],
+       [[0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        ...,
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]]], dtype=uint8), 'lines': [[array([[     54.489,      122.52],
+       [     170.61,      120.61],
+       [     170.84,      134.64],
+       [     54.719,      136.55]], dtype=float32)], [array([[     53.186,      135.48],
+       [     171.95,      133.71],
+       [     172.14,      146.64],
+       [     53.379,      148.42]], dtype=float32)], [array([[     53.333,      146.67],
+       [     130.67,      146.67],
+       [     130.67,         160],
+       [     53.333,         160]], dtype=float32)]], 'total_lines': 3, 'total_text_regions': 3, 'text_boxes': array([[[     54.489,      122.52],
+        [     170.61,      120.61],
+        [     170.84,      134.64],
+        [     54.719,      136.55]],
+       [[     53.186,      135.48],
+        [     171.95,      133.71],
+        [     172.14,      146.64],
+        [     53.379,      148.42]],
+       [[     53.333,      146.67],
+        [     130.67,      146.67],
+        [     130.67,         160],
+        [     53.333,         160]]], dtype=float32), 'text_polys': array([array([[     54.489,      122.52],
+              [     170.61,      120.61],
+              [     170.84,      134.64],
+              [     54.719,      136.55]], dtype=float32), array([[     53.186,      135.48],
+                                                                  [     171.95,      133.71],
+                                                                  [     172.14,      146.64],
+                                                                  [     53.379,      148.42]], dtype=float32), array([[     53.333,      146.67],
+                                                                                                                      [     130.67,      146.67],
+                                                                                                                      [     130.67,         160],
+                                                                                                                      [     53.333,         160]], dtype=float32)], dtype=object), 'cropped_lines': [{'line_index': 0, 'image': array([[[152, 152, 152],
+        [179, 179, 179],
+        [158, 158, 158],
+        ...,
+        [186, 186, 186],
+        [181, 181, 181],
+        [178, 178, 178]],
+       [[182, 182, 182],
+        [165, 165, 165],
+        [151, 151, 151],
+        ...,
+        [159, 159, 159],
+        [167, 167, 167],
+        [146, 146, 146]],
+       [[137, 137, 137],
+        [139, 139, 139],
+        [149, 149, 149],
+        ...,
+        [149, 149, 149],
+        [139, 139, 139],
+        [172, 172, 172]],
+       ...,
+       [[106, 106, 106],
+        [ 60,  60,  60],
+        [112, 112, 112],
+        ...,
+        [ 50,  50,  50],
+        [ 64,  64,  64],
+        [ 96,  96,  96]],
+       [[156, 156, 156],
+        [144, 144, 144],
+        [170, 170, 170],
+        ...,
+        [143, 143, 143],
+        [143, 143, 143],
+        [147, 147, 147]],
+       [[133, 133, 133],
+        [144, 144, 144],
+        [156, 156, 156],
+        ...,
+        [164, 164, 164],
+        [145, 145, 145],
+        [136, 136, 136]]], dtype=uint8), 'bbox': (56, 120, 169, 136), 'num_characters': 1}, {'line_index': 1, 'image': array([[[133, 133, 133],
+        [106, 106, 106],
+        [ 60,  60,  60],
+        ...,
+        [ 96,  96,  96],
+        [131, 131, 131],
+        [159, 159, 159]],
+       [[170, 170, 170],
+        [156, 156, 156],
+        [144, 144, 144],
+        ...,
+        [147, 147, 147],
+        [141, 141, 141],
+        [139, 139, 139]],
+       [[151, 151, 151],
+        [133, 133, 133],
+        [144, 144, 144],
+        ...,
+        [136, 136, 136],
+        [115, 115, 115],
+        [135, 135, 135]],
+       ...,
+       [[140, 140, 140],
+        [104, 104, 104],
+        [ 79,  79,  79],
+        ...,
+        [119, 119, 119],
+        [131, 131, 131],
+        [160, 160, 160]],
+       [[164, 164, 164],
+        [167, 167, 167],
+        [133, 133, 133],
+        ...,
+        [174, 174, 174],
+        [169, 169, 169],
+        [153, 153, 153]],
+       [[166, 166, 166],
+        [167, 167, 167],
+        [144, 144, 144],
+        ...,
+        [159, 159, 159],
+        [177, 177, 177],
+        [148, 148, 148]]], dtype=uint8), 'bbox': (55, 133, 171, 149), 'num_characters': 1}, {'line_index': 2, 'image': array([[[171, 171, 171],
+        [104, 104, 104],
+        [ 49,  49,  49],
+        ...,
+        [ 49,  49,  49],
+        [ 52,  52,  52],
+        [ 53,  53,  53]],
+       [[153, 153, 153],
+        [140, 140, 140],
+        [104, 104, 104],
+        ...,
+        [108, 108, 108],
+        [118, 118, 118],
+        [133, 133, 133]],
+       [[163, 163, 163],
+        [164, 164, 164],
+        [167, 167, 167],
+        ...,
+        [153, 153, 153],
+        [163, 163, 163],
+        [159, 159, 159]],
+       ...,
+       [[166, 166, 166],
+        [116, 116, 116],
+        [ 53,  53,  53],
+        ...,
+        [ 41,  41,  41],
+        [ 46,  46,  46],
+        [ 79,  79,  79]],
+       [[150, 150, 150],
+        [135, 135, 135],
+        [ 95,  95,  95],
+        ...,
+        [114, 114, 114],
+        [129, 129, 129],
+        [135, 135, 135]],
+       [[164, 164, 164],
+        [169, 169, 169],
+        [147, 147, 147],
+        ...,
+        [168, 168, 168],
+        [156, 156, 156],
+        [164, 164, 164]]], dtype=uint8), 'bbox': (54, 145, 130, 161), 'num_characters': 1}], 'settings_used': {'text_threshold': 0.7, 'low_text': 0.4, 'link_threshold': 0.4, 'padding': 0, 'tolerance': 10, 'uniform_height': True, 'max_height_ratio': 0.08, 'shrink_x_percent': 0.02, 'shrink_y_percent': 0.1, 'horizontal_splitting': True, 'min_width': 65, 'min_height': 30, 'max_lines': 3}, 'timestamp': '2026-02-14 14:47:38.625898', 'rotation_info': {'rotation_angle': 180, 'verification_passed': False, 'total_rotations': 1}} 2026-02-14 14:47:39.283480'
+🔍 CAP VALIDATION: OCR results type: <class 'dict'>
+🔍 CAP VALIDATION: OCR results keys: ['line_results', 'total_lines', 'craft_result', 'timestamp', 'overall_confidence', 'total_recognized_text']
+🔍 CAP VALIDATION: Found 3 lines
+🔍 CAP VALIDATION: Total lines: 3
+🔍 DATE TIME VALIDATION: Checking format for text: '[{'line_index': 0, 'image': array([[[152, 152, 152...'
+🔍 DATE TIME VALIDATION: has_date=True, has_time=True, format_valid=True
+🔍 DATE TIME VALIDATION: Normal mode - no expiry filtering
+🔍 CAP PROCESS COMPLETE: Validation result: True
+✅ CAP VALIDATION PASSED: Cap result is valid for M110 - Sending Modbus signals
+✅ CAP PROCESS COMPLETE: Calling on_bottle_type_after_cap_validation()
+✅ CAP PROCESS COMPLETE: Modbus thread is available - Sending signals
+🏷️ ON BOTTLE TYPE AFTER CAP VALIDATION: M110
+✅ ON M110 = True
+🏷️ M110 = ON (พบคำว่า '2%' - ฝาผ่าน)
+⏳ ON M600 และรอ M401 ON เพื่อ reset ทั้งหมด...
+✅ ON M600 = True
+⏳ รอ M401 ON เพื่อ RESET M600, M100, M110, M120, M130, M140...
+✅ BOTTLE TYPE ON SUCCESS: M110 + M600
+📋 CAP PROCESS COMPLETE: Adding to history with cap result
+✅ HISTORY: Line 1: MFG18/01/26
+✅ HISTORY: Line 2: BBF05/02/22/22
+✅ HISTORY: Line 3: 09:08S02
+✅ HISTORY: Expiry date (lines 1-3): MFG18/01/26
+BBF05/02/22/22
+09:08S02
+✅ HISTORY: Combined 3 cropped lines into cap image
+✅ HISTORY: Cap image found: True
+✅ HISTORY: Faded status: normal, total_area: 1867, num_chars: 2
+✅ HISTORY: Added entry - M110 at 2026-02-14 14:47:53
+✅ M401 ON มาถึงแล้ว! (คิว: 0)
+✅ RESET M600 = 0
+✅ RESET M100 = 0✅ CAP PROCESS COMPLETE: Cap detection finished
+✅ RESET M110 = 0
+✅ RESET M120 = 0
+✅ RESET M130 = 0
+✅ RESET M140 = 0
+✅ RESET M721 = 0
+✅ RESET M722 = 0
+✅ RESET M730 = 0
+✅ RESET M731 = 0
+✅ RESET M732 = 0
+✅ RESET M733 = 0
+✅ RESET M734 = 0
+✅ RESET M735 = 0
+✅ RESET M740 = 0
+✅ RESET M741 = 0
+✅ RESET M742 = 0
+✅ ไม่มีคิวถ่ายภาพ พร้อมรับ M301 ใหม่
+✅ M401 ON มาถึงแล้ว! (คิว: 0)
+✅ RESET M600 = 0
+✅ RESET M100 = 0
+✅ RESET M110 = 0
+✅ RESET M120 = 0
+✅ RESET M130 = 0
+✅ RESET M140 = 0
+✅ RESET M720 = 0
+✅ RESET M721 = 0
+✅ RESET M722 = 0
+✅ RESET M730 = 0
+✅ RESET M731 = 0
+✅ RESET M732 = 0
+✅ RESET M733 = 0
+✅ RESET M734 = 0
+✅ RESET M735 = 0
+✅ RESET M740 = 0
+✅ RESET M741 = 0
+✅ RESET M742 = 0
+✅ ไม่มีคิวถ่ายภาพ พร้อมรับ M301 ใหม่

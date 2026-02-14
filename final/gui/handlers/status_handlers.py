@@ -125,22 +125,40 @@ class StatusHandlers:
         # อัปเดตสีตามสถานะ
         if "สำเร็จ" in status or "เชื่อมต่อ" in status:
             self.gui.modbus_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self.gui, 'modbus_status_indicator'):
+                self.gui.modbus_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
         elif "ข้อผิดพลาด" in status or "ไม่สามารถ" in status:
             self.gui.modbus_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self.gui, 'modbus_status_indicator'):
+                self.gui.modbus_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
         elif "M511 ON" in status:
             self.gui.modbus_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self.gui, 'modbus_status_indicator'):
+                self.gui.modbus_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
             self.gui.status_label.setText('✅ โปรแกรมเริ่มทำงาน - รอสัญญาณ M301')
             self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
         elif "M511 OFF" in status:
             self.gui.modbus_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self.gui, 'modbus_status_indicator'):
+                self.gui.modbus_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
             self.gui.status_label.setText('⏸️ โปรแกรมหยุดทำงาน (รอ M511 เพื่อเริ่มการทำงาน)')
             self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
         elif "M513 ON" in status:
             self.gui.modbus_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self.gui, 'modbus_status_indicator'):
+                self.gui.modbus_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
             self.gui.status_label.setText('🛑 โปรแกรมหยุดการทำงาน')
             self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
         else:
             self.gui.modbus_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+            # Update Top Panel indicator (yellow/orange for waiting)
+            if hasattr(self.gui, 'modbus_status_indicator'):
+                self.gui.modbus_status_indicator.setStyleSheet("color: #f39c12; font-size: 16px; font-weight: bold;")
     
     def update_queue_status(self, queue_count):
         """Update queue status display"""

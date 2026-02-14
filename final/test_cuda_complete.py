@@ -6,6 +6,30 @@ Complete CUDA Test - ทดสอบ CUDA ทั้ง OpenCV และ PyTorch
 
 import sys
 import os
+
+# ถ้ารันจาก IDE/โดยตรง โดยที่ LD_LIBRARY_PATH ยังไม่มี path Jetson/CUDA
+# จะทำให้ PyTorch/OpenCV โหลดแล้วไม่เห็น GPU — ต้อง set env ก่อนเริ่ม process
+# จึง re-exec ตัวเองด้วย env จาก set_cuda_env.sh (เฉพาะ Linux)
+if sys.platform == "linux":
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_script = os.path.join(script_dir, "set_cuda_env.sh")
+    ld_path = os.environ.get("LD_LIBRARY_PATH", "")
+    if os.path.isfile(env_script) and "tegra" not in ld_path:
+        import subprocess
+        result = subprocess.run(
+            ["bash", "-c", "source " + repr(env_script) + " && env"],
+            capture_output=True,
+            text=True,
+            cwd=script_dir,
+        )
+        if result.returncode == 0:
+            new_env = os.environ.copy()
+            for line in result.stdout.splitlines():
+                if "=" in line:
+                    k, _, v = line.partition("=")
+                    new_env[k] = v
+            os.execve(sys.executable, [sys.executable, __file__] + sys.argv[1:], new_env)
+
 import time
 
 # Setup CUDA paths FIRST (like in main.py)

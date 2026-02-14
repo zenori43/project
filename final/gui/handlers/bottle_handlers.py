@@ -81,8 +81,15 @@ class BottleDetectionHandlers:
                 self.gui.current_image = usb_image
                 self.display_image(usb_image)
                 self.gui.image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
+                if hasattr(self.gui, 'home_bottle_image_info_label'):
+                    self.gui.home_bottle_image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
                 self.gui.btn_save_image.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
+                if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                    self.gui.btn_save_bottle_image_tab.setEnabled(True)
                 print("✅ CAPTURE BOTH: USB image captured and displayed")
             else:
                 print("❌ CAPTURE BOTH: ไม่สามารถถ่ายภาพจาก USB ได้")
@@ -153,7 +160,12 @@ class BottleDetectionHandlers:
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
-                self.gui.btn_save_image.setEnabled(True)  # Enable save button when image is captured
+                self.gui.btn_save_image.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
+                if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                    self.gui.btn_save_bottle_image_tab.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
             else:
@@ -189,6 +201,11 @@ class BottleDetectionHandlers:
                     self.gui.image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
                     self.gui.btn_process.setEnabled(True)
                     self.gui.btn_save_image.setEnabled(True)  # Enable save button when image is loaded
+                    # Also update tab buttons if they exist
+                    if hasattr(self.gui, 'btn_process_bottle_tab'):
+                        self.gui.btn_process_bottle_tab.setEnabled(True)
+                    if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                        self.gui.btn_save_bottle_image_tab.setEnabled(True)
                     self.gui.status_label.setText('✅ โหลดภาพสำเร็จ - พร้อมประมวลผล')
                     self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                     print(f"✅ IMAGE SELECTION: Successfully loaded image with shape: {image.shape}")
@@ -251,6 +268,30 @@ class BottleDetectionHandlers:
             import traceback
             traceback.print_exc()
     
+    def _clear_bottle_result_panels(self):
+        """ล้างผลและภาพครอปขวดบนหน้าหลัก/แท็บ เพื่อไม่ให้ค้างผลเก่า"""
+        try:
+            if hasattr(self.gui, 'home_bottle_crops_layout') and self.gui.home_bottle_crops_layout:
+                for i in reversed(range(self.gui.home_bottle_crops_layout.count())):
+                    w = self.gui.home_bottle_crops_layout.itemAt(i).widget()
+                    if w:
+                        w.setParent(None)
+                ph = QLabel("ยังไม่มีภาพที่ครอป")
+                ph.setAlignment(Qt.AlignCenter)
+                ph.setStyleSheet("color: #7f8c8d; padding: 20px;")
+                self.gui.home_bottle_crops_layout.addWidget(ph)
+            if hasattr(self.gui, 'home_bottle_results_text') and self.gui.home_bottle_results_text:
+                self.gui.home_bottle_results_text.clear()
+            if hasattr(self.gui, 'crops_layout') and self.gui.crops_layout:
+                for i in reversed(range(self.gui.crops_layout.count())):
+                    w = self.gui.crops_layout.itemAt(i).widget()
+                    if w:
+                        w.setParent(None)
+            if hasattr(self.gui, 'results_text') and self.gui.results_text:
+                self.gui.results_text.clear()
+        except Exception as e:
+            print(f"⚠️ _clear_bottle_result_panels: {e}")
+    
     def capture_image_auto(self):
         """Capture image automatically from Modbus trigger"""
         if self.gui.usb_camera is None:
@@ -258,6 +299,9 @@ class BottleDetectionHandlers:
             return
         
         try:
+            # รอบใหม่ — เพิ่ม cycle เพื่อไม่ให้ผลประมวลผลเก่า overwrite ภาพใหม่
+            self.gui.capture_cycle_id = getattr(self.gui, 'capture_cycle_id', 0) + 1
+            print(f"📸 AUTO CAPTURE: New cycle id = {self.gui.capture_cycle_id}")
             print("📸 AUTO CAPTURE: Starting image capture after M301 ON...")
             self.gui.status_label.setText('📸 กำลังถ่ายภาพอัตโนมัติ...')
             self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
@@ -305,9 +349,13 @@ class BottleDetectionHandlers:
                 print(f"🕐 Capture time: {capture_time}")
                 
                 self.gui.current_image = captured_image
+                self._clear_bottle_result_panels()  # ล้างผลเก่าเพื่อไม่ให้ภาพค้าง
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
                 self.gui.btn_process.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
                 self.gui.status_label.setText('✅ ถ่ายภาพอัตโนมัติสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
@@ -337,6 +385,8 @@ class BottleDetectionHandlers:
             return
         
         try:
+            self.gui.capture_cycle_id = getattr(self.gui, 'capture_cycle_id', 0) + 1
+            print(f"📸 QUEUE CAPTURE: New cycle id = {self.gui.capture_cycle_id}")
             print("📸 QUEUE CAPTURE: Starting image capture from queue...")
             self.gui.status_label.setText('📸 กำลังถ่ายภาพจากคิว...')
             self.gui.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
@@ -365,9 +415,13 @@ class BottleDetectionHandlers:
                 print(f"📸 QUEUE CAPTURE: Image shape: {captured_image.shape}")
                 
                 self.gui.current_image = captured_image
+                self._clear_bottle_result_panels()
                 self.display_image(captured_image)
                 self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
                 self.gui.btn_process.setEnabled(True)
+                # Also update tab buttons if they exist
+                if hasattr(self.gui, 'btn_process_bottle_tab'):
+                    self.gui.btn_process_bottle_tab.setEnabled(True)
                 self.gui.status_label.setText('✅ ถ่ายภาพจากคิวสำเร็จ - พร้อมประมวลผล')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
@@ -491,6 +545,22 @@ class BottleDetectionHandlers:
                 qimg = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
                 pixmap = QtGui.QPixmap.fromImage(qimg)
                 self.gui.image_label.setPixmap(pixmap)
+                
+                # Update Home tab bottle image
+                if hasattr(self.gui, 'home_bottle_image_label'):
+                    # Scale pixmap to fit label while maintaining aspect ratio
+                    label_size = self.gui.home_bottle_image_label.size()
+                    if label_size.width() > 0 and label_size.height() > 0:
+                        scale_w = label_size.width() / pixmap.width()
+                        scale_h = label_size.height() / pixmap.height()
+                        scale = min(scale_w, scale_h)
+                        scaled_pixmap = pixmap.scaled(
+                            int(pixmap.width() * scale), 
+                            int(pixmap.height() * scale), 
+                            Qt.KeepAspectRatio, 
+                            Qt.SmoothTransformation
+                        )
+                        self.gui.home_bottle_image_label.setPixmap(scaled_pixmap)
             else:
                 self.gui.image_label.setText("ไม่สามารถโหลดภาพได้")
 
@@ -507,6 +577,13 @@ class BottleDetectionHandlers:
             if widget:
                 widget.setParent(None)
         
+        # Clear Home tab crops too
+        if hasattr(self.gui, 'home_bottle_crops_layout'):
+            for i in reversed(range(self.gui.home_bottle_crops_layout.count())):
+                widget = self.gui.home_bottle_crops_layout.itemAt(i).widget()
+                if widget:
+                    widget.setParent(None)
+        
         print("✅ DISPLAY CROPPED IMAGES: Cleared existing crops")
         
         if not type_crops:
@@ -515,6 +592,13 @@ class BottleDetectionHandlers:
             placeholder_label.setAlignment(Qt.AlignCenter)
             placeholder_label.setStyleSheet("color: #7f8c8d; padding: 20px;")
             self.gui.crops_layout.addWidget(placeholder_label)
+            
+            # Also show placeholder in Home tab
+            if hasattr(self.gui, 'home_bottle_crops_layout'):
+                home_placeholder = QLabel("ไม่มีภาพที่ครอป")
+                home_placeholder.setAlignment(Qt.AlignCenter)
+                home_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
+                self.gui.home_bottle_crops_layout.addWidget(home_placeholder)
             return
         
         # Display each cropped image
@@ -553,6 +637,25 @@ class BottleDetectionHandlers:
                 crop_label.setPixmap(pixmap)
                 crop_label.setAlignment(Qt.AlignCenter)
                 crop_layout.addWidget(crop_label)
+                
+                # Also add to Home tab crops
+                if hasattr(self.gui, 'home_bottle_crops_layout'):
+                    home_crop_label = QLabel()
+                    home_crop_label.setPixmap(pixmap)
+                    home_crop_label.setAlignment(Qt.AlignCenter)
+                    home_crop_container = QWidget()
+                    home_crop_container.setStyleSheet("border: 1px solid #e67e22; margin: 5px; padding: 5px; background-color: white;")
+                    home_crop_container_layout = QVBoxLayout(home_crop_container)
+                    home_crop_title = QLabel(f"Type Region {i+1}")
+                    home_crop_title.setStyleSheet("font-weight: bold; color: #e67e22; font-size: 11px;")
+                    home_crop_title.setAlignment(Qt.AlignCenter)
+                    home_crop_container_layout.addWidget(home_crop_title)
+                    home_crop_container_layout.addWidget(home_crop_label)
+                    if 'ocr_text' in crop:
+                        home_ocr_label = QLabel(f"OCR: {crop['ocr_text']}")
+                        home_ocr_label.setStyleSheet("color: #7f8c8d; font-size: 10px;")
+                        home_crop_container_layout.addWidget(home_ocr_label)
+                    self.gui.home_bottle_crops_layout.addWidget(home_crop_container)
                 
                 # Add confidence info
                 confidence_label = QLabel(f"Detection Confidence: {crop['confidence']:.3f}")
@@ -638,8 +741,12 @@ class BottleDetectionHandlers:
         
         # Disable process button and enable stop button
         self.gui.btn_process.setEnabled(False)
+        # Also update tab buttons if they exist
+        if hasattr(self.gui, 'btn_process_bottle_tab'):
+            self.gui.btn_process_bottle_tab.setEnabled(False)
         self.gui.btn_stop_processing.setEnabled(True)
         
+        self.gui.bottle_processing_cycle_id = getattr(self.gui, 'capture_cycle_id', 0)
         self.gui.processing_thread = BottleDetectionThread(self.gui.current_image, selected_tastes=self.gui.selected_tastes)
         self.gui.processing_thread.result_ready.connect(self.on_processing_complete)
         self.gui.processing_thread.status_updated.connect(self.gui.status_label.setText)
@@ -659,7 +766,15 @@ class BottleDetectionHandlers:
         
         # Reset button states
         self.gui.btn_process.setEnabled(True)
+        # Also update tab buttons if they exist
+        if hasattr(self.gui, 'btn_process_bottle_tab'):
+            self.gui.btn_process_bottle_tab.setEnabled(True)
         self.gui.btn_stop_processing.setEnabled(False)
+        
+        # ข้ามการแสดงผลถ้าเป็นผลเก่า (ขวดใหม่ถ่ายไปแล้ว)
+        if getattr(self.gui, 'bottle_processing_cycle_id', -1) != getattr(self.gui, 'capture_cycle_id', 0):
+            print("⚠️ PROCESS COMPLETE: Stale bottle result (new capture already started), skipping display")
+            return
         
         # Check if silent mode - store result in queue instead of displaying
         if self.silent_mode:
@@ -692,6 +807,21 @@ class BottleDetectionHandlers:
             
             # Store result first
             self.gui.current_result = result
+            
+            # M100/M110/M120 + มีภาพ Sentech ของ cycle นี้ → ประมวลผลฝาทันที แต่ค่อยสั่งผลเมื่อถึงคิว (ไม่แสดงผลขวดก่อน)
+            cycle_id = getattr(self.gui, 'bottle_processing_cycle_id', -1)
+            sentech_for_cycle = getattr(self.gui, 'sentech_image_for_cycle', {}).get(cycle_id)
+            if (result.get('bottle_type') in ["M100", "M110", "M120"] and result.get('combined_ocr_text')
+                    and sentech_for_cycle is not None
+                    and hasattr(self.gui, 'cap_handlers') and self.gui.cap_handlers):
+                print(f"📋 PROCESS COMPLETE: {result['bottle_type']} - ใส่คิวประมวลผลฝา (จะสั่งผลเมื่อถึงคิว)")
+                if not hasattr(self.gui, 'last_bottle_result'):
+                    self.gui.last_bottle_result = None
+                self.gui.last_bottle_result = result
+                self.gui.successful_detections_count += 1
+                self.gui.status_handlers.update_performance_stats(successful_detections=self.gui.successful_detections_count)
+                self.gui.cap_handlers.process_cap_detection_with_image(sentech_for_cycle, result)
+                return
             
             # Display results in text area
             print("🔄 PROCESS COMPLETE: Displaying results in text area...")
@@ -781,30 +911,32 @@ class BottleDetectionHandlers:
                 # ตรวจจับได้อย่างอื่นนอกจาก angle3 - ส่งสัญญาณตามประเภทขวดและหยุดโหมดถ่ายภาพซ้ำ
                 print(f"✅ NON-ANGLE3 DETECTED: {bottle_type} - ON bottle type signal and M600")
                 
-                # ส่งสัญญาณตามประเภทขวด (เขียนค่าไป D7009)
+                # ส่งสัญญาณตามประเภทขวด (ON M100/M110/M120)
                 bottle_signal_success = False
-                d7009_value = None
                 if bottle_type == "M100":
-                    d7009_value = 10
-                elif bottle_type == "M110":
-                    d7009_value = 20
-                elif bottle_type == "M120":
-                    d7009_value = 30
-                
-                if d7009_value is not None:
-                    bottle_signal_success = self.gui.modbus_thread.write_register(7009, d7009_value)
+                    bottle_signal_success = self.gui.modbus_thread.on_m100()
                     if bottle_signal_success:
-                        print(f"🏷️ D7009 = {d7009_value} ({bottle_type} - non-angle3 detection)")
-                        # อัปเดต lamp ตามประเภทขวดเพื่อให้ UI เห็นสถานะ
-                        if bottle_type == "M100":
-                            self.gui.status_handlers.update_coil_lamp("m100", True)
-                            self.gui.status_handlers.update_bottle_type_status("M100")
-                        elif bottle_type == "M110":
-                            self.gui.status_handlers.update_coil_lamp("m110", True)
-                            self.gui.status_handlers.update_bottle_type_status("M110")
-                        elif bottle_type == "M120":
-                            self.gui.status_handlers.update_coil_lamp("m120", True)
-                            self.gui.status_handlers.update_bottle_type_status("M120")
+                        print(f"🏷️ M100 = ON ({bottle_type} - non-angle3 detection)")
+                elif bottle_type == "M110":
+                    bottle_signal_success = self.gui.modbus_thread.on_m110()
+                    if bottle_signal_success:
+                        print(f"🏷️ M110 = ON ({bottle_type} - non-angle3 detection)")
+                elif bottle_type == "M120":
+                    bottle_signal_success = self.gui.modbus_thread.on_m120()
+                    if bottle_signal_success:
+                        print(f"🏷️ M120 = ON ({bottle_type} - non-angle3 detection)")
+                
+                if bottle_signal_success:
+                    # อัปเดต lamp ตามประเภทขวดเพื่อให้ UI เห็นสถานะ
+                    if bottle_type == "M100":
+                        self.gui.status_handlers.update_coil_lamp("m100", True)
+                        self.gui.status_handlers.update_bottle_type_status("M100")
+                    elif bottle_type == "M110":
+                        self.gui.status_handlers.update_coil_lamp("m110", True)
+                        self.gui.status_handlers.update_bottle_type_status("M110")
+                    elif bottle_type == "M120":
+                        self.gui.status_handlers.update_coil_lamp("m120", True)
+                        self.gui.status_handlers.update_bottle_type_status("M120")
                 
                 # ส่ง M600
                 m600_success = self.gui.modbus_thread.on_m600()
@@ -840,12 +972,16 @@ class BottleDetectionHandlers:
                 elif ocr_text and "angle3 detected by YOLO (alone)" in ocr_text:
                     angle3_alone = True
                 
-                d7009_value = 40 if angle3_alone else 50
-                
-                # ส่งสัญญาณ M130, M850, M600 สำหรับ angle3
-                success = self.gui.modbus_thread.write_register(7009, d7009_value)
+                # ส่งสัญญาณ M130 หรือ M140, M850, M600 สำหรับ angle3
+                if angle3_alone:
+                    success = self.gui.modbus_thread.on_m130()
+                    if success:
+                        print(f"🏷️ M130 = ON (angle3 retry - {'OCR อ่านได้' if ocr_readable else 'OCR อ่านไม่ได้'})")
+                else:
+                    success = self.gui.modbus_thread.on_m140()
+                    if success:
+                        print(f"🏷️ M140 = ON (angle3 retry - ไม่ใช่ angle3 จริง)")
                 if success:
-                    print(f"🏷️ D7009 = {d7009_value} (angle3 retry - {'OCR อ่านได้' if ocr_readable else 'OCR อ่านไม่ได้'})")
                     
                     # ON M850 สำหรับ M130
                     m850_success = self.gui.modbus_thread.on_m850()
@@ -874,8 +1010,8 @@ class BottleDetectionHandlers:
                         self.gui.status_label.setText('❌ ไม่สามารถ ON M600 ได้ (angle3 retry)')
                         self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
                 else:
-                    print(f"❌ ไม่สามารถเขียน D7009 = {d7009_value} ได้ (angle3 retry)")
-                    self.gui.status_label.setText(f'❌ ไม่สามารถเขียน D7009 = {d7009_value} ได้ (angle3 retry)')
+                    print(f"❌ ไม่สามารถ ON M130/M140 ได้ (angle3 retry)")
+                    self.gui.status_label.setText(f'❌ ไม่สามารถ ON M130/M140 ได้ (angle3 retry)')
                     self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             return
         
@@ -894,15 +1030,13 @@ class BottleDetectionHandlers:
                 angle3_alone = True
             
             if angle3_alone:
-                # angle3 ถูกตรวจจับเพียงอย่างเดียว → ส่ง 40
-                d7009_value = 40
-                print("🏷️ D7009 = 40 (angle3 ถูกตรวจจับเพียงอย่างเดียว - เป็น angle3 จริงๆ)")
+                # angle3 ถูกตรวจจับเพียงอย่างเดียว → ON M130
+                print("🏷️ M130 = ON (angle3 ถูกตรวจจับเพียงอย่างเดียว - เป็น angle3 จริงๆ)")
+                success = self.gui.modbus_thread.on_m130()
             else:
-                # angle3 ถูกตรวจจับพร้อมกับ labels อื่นๆ → ส่ง 50
-                d7009_value = 50
-                print("🏷️ D7009 = 50 (angle3 ถูกตรวจจับพร้อมกับ labels อื่นๆ - ไม่ใช่ angle3 จริงๆ)")
-            
-            success = self.gui.modbus_thread.write_register(7009, d7009_value)
+                # angle3 ถูกตรวจจับพร้อมกับ labels อื่นๆ → ON M140
+                print("🏷️ M140 = ON (angle3 ถูกตรวจจับพร้อมกับ labels อื่นๆ - ไม่ใช่ angle3 จริงๆ)")
+                success = self.gui.modbus_thread.on_m140()
             if success:
                 
                 # ON M850 สำหรับ M130
@@ -947,24 +1081,14 @@ class BottleDetectionHandlers:
             # แสดงผล GUI สำหรับการประมวลผลฝา
             self.gui.cap_handlers.display_cap_processing_ui()
             
-            # เรียกใช้ process_cap_detection() เหมือนการกดปุ่ม
+            # เรียกใช้ process_cap_detection() เหมือนการกดปุ่ม (ทำงานใน thread แยก ไม่บล็อก GUI)
             print("🔍 AUTO CAP PROCESS: Calling process_cap_detection()...")
             if hasattr(self.gui, 'cap_handlers') and self.gui.cap_handlers:
                 self.gui.cap_handlers.process_cap_detection()
-                print("🔍 AUTO CAP PROCESS: process_cap_detection() completed")
+                print("🔍 AUTO CAP PROCESS: Cap processing started (ผลจะแสดงเมื่อเสร็จ via signal)")
             else:
                 print("❌ AUTO CAP PROCESS: cap_handlers ไม่พร้อม")
-            
-            # รอให้การประมวลผลเสร็จสิ้น
-            print("🔍 AUTO CAP PROCESS: Waiting for cap processing to complete...")
-            if hasattr(self.gui, 'cap_processing_thread') and self.gui.cap_processing_thread:
-                # รอให้ thread เสร็จสิ้น (ไม่เกิน 30 วินาที)
-                if self.gui.cap_processing_thread.wait(30000):  # 30 วินาที
-                    print("🔍 AUTO CAP PROCESS: Cap processing thread completed")
-                else:
-                    print("⚠️ AUTO CAP PROCESS: Cap processing thread timeout")
-            else:
-                print("⚠️ AUTO CAP PROCESS: No cap processing thread found")
+            # ไม่รอ thread ที่นี่ — ผลจะมาที่ on_cap_processing_complete ผ่าน signal เพื่อไม่ให้ GUI ค้าง
         else:
             print("⚠️ AUTO CAP PROCESS: ไม่มีภาพจาก Sentech - ไม่สามารถประมวลผลฝาได้")
             self.gui.status_label.setText('⚠️ ไม่มีภาพจาก Sentech - ไม่สามารถประมวลผลฝาได้')
@@ -1014,6 +1138,10 @@ class BottleDetectionHandlers:
                     detail_text += "❌ ไม่พบคำว่า 'เดิม', '2%', หรือ 'ลัก'\n"
             
         self.gui.results_text.setText(detail_text)
+        
+        # Update Home tab results too
+        if hasattr(self.gui, 'home_bottle_results_text'):
+            self.gui.home_bottle_results_text.setText(detail_text)
         print("✅ DISPLAY SINGLE RESULTS: Results text set")
         
         # Force GUI update
@@ -1083,6 +1211,11 @@ class BottleDetectionHandlers:
             # Reset button states
             self.gui.btn_process.setEnabled(False)
             self.gui.btn_save_image.setEnabled(False)  # Disable save button when image is cleared
+            # Also update tab buttons if they exist
+            if hasattr(self.gui, 'btn_process_bottle_tab'):
+                self.gui.btn_process_bottle_tab.setEnabled(False)
+            if hasattr(self.gui, 'btn_save_bottle_image_tab'):
+                self.gui.btn_save_bottle_image_tab.setEnabled(False)
             self.gui.btn_process_cap.setEnabled(False)
             self.gui.btn_stop_processing.setEnabled(False)
             
