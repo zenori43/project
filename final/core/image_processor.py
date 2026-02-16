@@ -64,33 +64,27 @@ def fuzzy_match(text, target, threshold=0.7):
 
 def check_bottle_type(ocr_text, selected_tastes=None):
     """
-    Check bottle type using keyword matching
-    
+    Check bottle type using keyword matching from OCR text only.
+    ไม่กรองตาม selected_tastes — ทุกโหมด (1/2/3 รส) แมปตามที่อ่านได้ แล้ว ON M ตามผล (Good → ON M ที่อ่านได้, NG → NG).
+
     Args:
         ocr_text: combined OCR text
-        selected_tastes: list of selected taste types to check against
-        
+        selected_tastes: ไม่ใช้แล้ว (เก็บไว้เพื่อ backward compatibility)
+
     Returns:
-        str: M100, M110, M120, M130, or None
+        str: M100, M110, M120, or None
     """
     if not ocr_text:
         return None
-    
-    # If no selected tastes provided, check all (default behavior)
-    if selected_tastes is None:
-        selected_tastes = ["M100", "M110", "M120"]
-    
-    # ตรวจสอบคำว่า "เดิม" (สำหรับ M100 - ดั้งเดิม)
-    if "เดิม" in ocr_text and "M100" in selected_tastes:
+
+    # แมปจากข้อความที่อ่านได้เท่านั้น — โหมด 1 รส / 2 รส / 3 รส ล้วนประมวลและ ON M ตามที่อ่านได้
+    if "เดิม" in ocr_text:
         return "M100"
-    
-    # ตรวจสอบคำว่า "2%" (สำหรับ M110 - น้ำตาล 2%)
-    elif "2%" in ocr_text and "M110" in selected_tastes:
+    if "2%" in ocr_text:
         return "M110"
-    
-    # ตรวจสอบคำว่า "ลัก" (สำหรับ M120 - ผสมแมงลัก)
-    elif "ลัก" in ocr_text and "M120" in selected_tastes:
+    if "ลัก" in ocr_text:
         return "M120"
+    return None
 
 
 # =============================================================================
@@ -473,10 +467,11 @@ def detect_faded_text_in_cap(cap_image, yolo_model=None, show_debug=False, bottl
         # Determine status - ใช้ threshold เดียวกันสำหรับทุกรส
         area_thresh = FADED_TEXT_CONFIG['AREA_THRESH']
         if area_thresh <= 0:
-            area_thresh = 3000  # Default threshold
-        print(f"🔍 ใช้เกณฑ์ area_thresh = {area_thresh} สำหรับทุกรส")
-        
-        status = "faded" if total_area < area_thresh else "normal"
+            status = "normal"  # 0 = ปิดเกณฑ์จางชั่วคราว (ถือว่าไม่จางเสมอ)
+            print(f"🔍 AREA_THRESH = 0 — ปิดเกณฑ์จาง (ถือว่า normal)")
+        else:
+            print(f"🔍 ใช้เกณฑ์ area_thresh = {area_thresh} สำหรับทุกรส")
+            status = "faded" if total_area < area_thresh else "normal"
         
         result.update({
             'status': status,
@@ -579,6 +574,9 @@ def enhance_cap_sharpness(image):
         return image
 
 
+# ย่อครอปก่อน OCR เพื่อเร่งความเร็ว (max ด้านไม่เกินค่านี้)
+OCR_MAX_EDGE = 480
+
 def perform_ocr_on_image(image):
     """
     Perform OCR on an image using EasyOCR
@@ -597,6 +595,13 @@ def perform_ocr_on_image(image):
         if image is None:
             print("⚠️ OCR Error: Image is None")
             return []
+        
+        # ย่อภาพถ้าใหญ่เกินไป เพื่อเร่ง OCR
+        if max(image.shape[:2]) > OCR_MAX_EDGE:
+            h, w = image.shape[:2]
+            r = OCR_MAX_EDGE / max(h, w)
+            new_w, new_h = int(round(w * r)), int(round(h * r))
+            image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
         
         # Convert to RGB if needed (EasyOCR expects RGB)
         # OpenCV images are typically BGR, so convert to RGB

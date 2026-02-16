@@ -49,25 +49,56 @@ except ImportError:
 
 # เพิ่ม path ของ CRAFT-pytorch
 # Get path from config if available, otherwise use default
+CRAFT_MODULES_AVAILABLE = False
+craft_utils = None
+imgproc = None
+file_utils = None
+CRAFT = None
+
 try:
     from config.settings import CRAFT_PYTORCH_DIR
     craft_path = CRAFT_PYTORCH_DIR
 except ImportError:
-    # Fallback to old path if config not available
-    craft_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch"
+    # Fallback: try to find CRAFT-pytorch in common locations
+    import platform
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    craft_path = os.path.join(project_root, "external", "CRAFT-pytorch")
+    
+    # If not found, try Linux default path
+    if not os.path.exists(craft_path):
+        if platform.system() == 'Linux':
+            craft_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch"
+        else:
+            # Windows: try relative path
+            craft_path = os.path.join(project_root, "external", "CRAFT-pytorch")
 
-if craft_path not in sys.path:
-    sys.path.append(craft_path)
-
-try:
-    import craft_utils
-    import imgproc
-    import file_utils
-    from craft import CRAFT
-except ImportError as e:
-    print(f"Error importing CRAFT modules: {e}")
-    print("Please make sure CRAFT-pytorch is properly installed")
-    sys.exit(1)
+# Add CRAFT path to sys.path if it exists
+if os.path.exists(craft_path):
+    if craft_path not in sys.path:
+        sys.path.insert(0, craft_path)
+    
+    # Also add basenet subdirectory if it exists
+    basenet_path = os.path.join(craft_path, "basenet")
+    if os.path.exists(basenet_path) and basenet_path not in sys.path:
+        sys.path.insert(0, basenet_path)
+    
+    try:
+        import craft_utils
+        import imgproc
+        import file_utils
+        from craft import CRAFT
+        CRAFT_MODULES_AVAILABLE = True
+        print("✅ CRAFT modules imported successfully")
+    except ImportError as e:
+        print(f"⚠️ Warning: Error importing CRAFT modules: {e}")
+        print(f"   CRAFT path: {craft_path}")
+        print("   Some CRAFT features will be disabled")
+        print("   Please make sure CRAFT-pytorch is properly installed")
+        # Don't exit - allow program to continue without CRAFT
+else:
+    print(f"⚠️ Warning: CRAFT-pytorch directory not found at: {craft_path}")
+    print("   Some CRAFT features will be disabled")
+    print("   Please install CRAFT-pytorch in the external/ directory")
 
 def copyStateDict(state_dict):
     """Copy state dict for compatibility"""
@@ -86,6 +117,9 @@ def str2bool(v):
 
 def test_net(net, image, text_threshold, link_threshold, low_text, cuda, poly, refine_net=None, show_time=False):
     """Test network on image and return detection results"""
+    if not CRAFT_MODULES_AVAILABLE:
+        raise ImportError("CRAFT modules are not available. Please install CRAFT-pytorch.")
+    
     t0 = time.time()
 
     # resize
@@ -136,6 +170,9 @@ def test_net(net, image, text_threshold, link_threshold, low_text, cuda, poly, r
 
 def load_craft_model(model_path, refiner_path=None, use_cuda=True):
     """Load CRAFT model and optional refiner"""
+    if not CRAFT_MODULES_AVAILABLE:
+        raise ImportError("CRAFT modules are not available. Please install CRAFT-pytorch.")
+    
     net = CRAFT()
     
     print(f'Loading main model weights from checkpoint ({model_path})')
@@ -765,6 +802,9 @@ class CRAFTLineDetector:
                 raise ValueError("CRAFT model not loaded. Please load model first.")
             
             # Load image
+            if not CRAFT_MODULES_AVAILABLE:
+                raise ImportError("CRAFT modules are not available. Please install CRAFT-pytorch.")
+            
             image = imgproc.loadImage(image_path)
             if image is None:
                 raise ValueError(f"Could not read image {image_path}")

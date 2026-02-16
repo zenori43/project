@@ -58,19 +58,25 @@ if CUDA_AVAILABLE:
 else:
     bottle_model.to('cpu')
 
+# ความเร็ว: ย่อภาพก่อน YOLO และใช้ imgsz เล็กลง
+YOLO_MAX_EDGE = 1280  # ถ้าภาพใหญ่กว่านี้จะย่อก่อนรัน YOLO
+YOLO_IMGSZ = 640      # ขนาดที่ส่งเข้า YOLO (เล็ก = เร็วขึ้น)
+
 # ===== BOTTLE DETECTION FUNCTIONS =====
-def detect_bottles(image: np.ndarray, confidence_threshold: float = 0.5) -> List[Dict]:
+def detect_bottles(image: np.ndarray, confidence_threshold: float = 0.5, imgsz: int = None) -> List[Dict]:
     """
     Detect bottles in the image using YOLO model
     
     Args:
         image: Input image (BGR format)
         confidence_threshold: Minimum confidence for detection
+        imgsz: YOLO input size (default YOLO_IMGSZ for speed)
         
     Returns:
         List of detection dictionaries with bbox, label, confidence
     """
-    results = bottle_model(image, conf=confidence_threshold)
+    sz = imgsz if imgsz is not None else YOLO_IMGSZ
+    results = bottle_model(image, conf=confidence_threshold, imgsz=sz)
     detections = []
     
     for result in results:
@@ -118,38 +124,98 @@ def crop_type_regions(image: np.ndarray, detections: List[Dict]) -> List[Dict]:
     
     return type_crops
 
+
+def crop_angle1_regions(image: np.ndarray, detections: List[Dict]) -> List[Dict]:
+    """
+    Crop angle1 regions from detected bottles (สำหรับส่งเข้า defect model)
+    
+    Args:
+        image: Original image
+        detections: List of bottle detections
+        
+    Returns:
+        List of cropped angle1 regions with metadata
+    """
+    angle1_crops = []
+    for detection in detections:
+        if detection['label'] == "angle1":
+            x1, y1, x2, y2 = detection['bbox']
+            roi = image[y1:y2, x1:x2].copy()
+            angle1_crops.append({
+                'original_crop': roi,
+                'bbox': detection['bbox'],
+                'confidence': detection['confidence'],
+                'label': detection['label']
+            })
+    return angle1_crops
+
 # ===== MAIN DETECTION FUNCTION =====
 def detect_bottle_and_crop_type(image: np.ndarray, confidence_threshold: float = 0.5) -> Dict:
     """
-    Main function to detect bottles and crop type regions
-    
-    Args:
-        image: Input image (BGR format)
-        confidence_threshold: Minimum confidence for detection
-        
-    Returns:
-        Dictionary containing detection results and type crops
+    Main function to detect bottles and crop type regions.
+    ตรวจ defect (angle1) ก่อน — ถ้า NG ไม่ครอป type และไม่รัน OCR (ข้ามไปเลย)
+    เร่งความเร็ว: ย่อภาพก่อน YOLO ถ้าใหญ่กว่า YOLO_MAX_EDGE
     """
-    # Detect bottles
-    detections = detect_bottles(image, confidence_threshold)
+    h, w = image.shape[:2]
+    scale_factor = 1.0
+    img_for_yolo = image
+    if max(h, w) > YOLO_MAX_EDGE:
+        scale_factor = max(h, w) / float(YOLO_MAX_EDGE)
+        new_w = int(round(w / scale_factor))
+        new_h = int(round(h / scale_factor))
+        img_for_yolo = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    detections = detect_bottles(img_for_yolo, confidence_threshold, imgsz=YOLO_IMGSZ)
+    if scale_factor != 1.0:
+        detections = [
+            {**d, 'bbox': tuple(int(round(c * scale_factor)) for c in d['bbox'])}
+            for d in detections
+        ]
+        for d in detections:
+            x1, y1, x2, y2 = d['bbox']
+            d['bbox'] = (max(0, min(x1, w)), max(0, min(y1, h)), max(0, min(x2, w)), max(0, min(y2, h)))
+    # Crop angle1 ก่อน (ใช้สำหรับ defect inspection) — ใช้ภาพต้นฉบับ
+    angle1_crops = crop_angle1_regions(image, detections)
     
-    # Crop type regions
-    type_crops = crop_type_regions(image, detections)
+    # เรียก defect model ล่วงหน้า (ใช้ภาพ angle1 ตัวแรก)
+    defect_inspection = None
+    if angle1_crops and len(angle1_crops) > 0:
+        try:
+            from libs.detection.defect_model import run_defect_inspection
+            first_angle1 = angle1_crops[0]
+            crop_img = first_angle1.get('original_crop')
+            if crop_img is not None and crop_img.size > 0:
+                defect_inspection = run_defect_inspection(crop_img)
+                if defect_inspection:
+                    print(f"🔍 Defect inspection (angle1): score={defect_inspection.get('score')} -> {defect_inspection.get('result')}")
+        except Exception as e:
+            print(f"⚠️ Defect inspection skipped: {e}")
+    
+    # ถ้า defect เป็น NG — ไม่ครอป type, ไม่อ่าน OCR (ไปเลย)
+    if defect_inspection is not None and defect_inspection.get('result') == 'NG':
+        print("⏭️ Defect NG — ข้าม type crop และ OCR")
+        type_crops = []
+    else:
+        type_crops = crop_type_regions(image, detections)
     
     # Prepare result summary
     result_summary = {
         'total_detections': len(detections),
         'type_detections': len(type_crops),
         'detected_labels': list(set([d['label'] for d in detections])),
-        'has_type': len(type_crops) > 0
+        'has_type': len(type_crops) > 0,
+        'angle1_detections': len(angle1_crops),
     }
     
-    return {
+    result = {
         'detections': detections,
         'type_crops': type_crops,
+        'angle1_crops': angle1_crops,
         'summary': result_summary,
         'original_image': image
     }
+    if defect_inspection is not None:
+        result['defect_inspection'] = defect_inspection
+    return result
 
 # ===== UTILITY FUNCTIONS =====
 def load_image(image_path: str) -> Optional[np.ndarray]:

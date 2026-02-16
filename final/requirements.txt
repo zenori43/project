@@ -20,6 +20,11 @@ torch>=1.9.0
 torchvision>=0.10.0
 ultralytics>=8.0.0
 
+# Defect inspection (angle1 Good/NG) - fix_best_defect_model.h5
+# บน Jetson ให้ใช้ GPU: รัน ./install_tensorflow_gpu_jetson.sh (ติดตั้ง wheel จาก NVIDIA)
+tf-keras>=0.1.0
+tensorflow>=2.10.0
+
 # Modbus Communication
 pymodbus>=3.0.0
 

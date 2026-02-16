@@ -58,6 +58,8 @@ class CapDetectionHandlers:
                     self.gui.current_rotation_angle = 0  # Reset rotation angle
                     self.display_sentech_image(image)
                     self.gui.sentech_image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
+                    if hasattr(self.gui, 'home_cap_image_info_label'):
+                        self.gui.home_cap_image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {file_path.split('/')[-1]}")
                     self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                     self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is loaded
                     # Manual rotation buttons removed
@@ -350,6 +352,8 @@ class CapDetectionHandlers:
                 self.gui.current_sentech_image = captured_image
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
+                if hasattr(self.gui, 'home_cap_image_info_label'):
+                    self.gui.home_cap_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                 self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech สำเร็จ - พร้อมประมวลผลฝา')
@@ -366,6 +370,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
@@ -388,6 +394,8 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
@@ -472,24 +480,15 @@ class CapDetectionHandlers:
                 self.gui.current_sentech_image = captured_image
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
+                if hasattr(self.gui, 'home_cap_image_info_label'):
+                    self.gui.home_cap_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                 self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพอัตโนมัติจาก Sentech สำเร็จ - พร้อมประมวลผลฝา')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
-                # Auto process is always enabled (BOTTLE AND CAP processing enabled)
-                if True:  # Auto mode is always enabled
-                    # ตรวจสอบว่าเป็นโหมดถ่ายภาพซ้ำหรือไม่
-                    if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread and self.gui.modbus_thread.angle3_retry_mode:
-                        print("🔄 SENTECH AUTO PROCESS: Angle3 retry mode - skipping cap processing")
-                        # ไม่ประมวลผลฝาในโหมดถ่ายภาพซ้ำ
-                    else:
-                        print("🔄 SENTECH AUTO PROCESS: Normal mode - processing both bottle and cap")
-                        # แสดงผล GUI สำหรับการประมวลผลฝา
-                        self.display_cap_processing_ui()
-                        self.process_cap_detection()  # ENABLED - cap processing turned on
-                else:
-                    print("⚠️ Auto processing disabled - Sentech image captured but not processed")
+                # ฝาไม่เริ่มประมวลผลเอง — รอผลขวดก่อน ถ้าขวด Good ค่อยเริ่มจาก handle_bottle_type_detection
+                print("🔄 SENTECH AUTO: เก็บภาพฝาไว้ - รอผลขวด (ถ้าขวด Good จะเริ่มประมวลผลฝาอัตโนมัติ)")
             else:
                 # Fallback logic similar to capture_sentech_image
                 print("❌ Failed to capture from Sentech - trying USB camera fallback...")
@@ -502,18 +501,14 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} | เวลา: {capture_time} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} | เวลา: {capture_time} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         
-                        # Auto process
-                        if True:
-                            if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread and self.gui.modbus_thread.angle3_retry_mode:
-                                print("🔄 USB FALLBACK: Angle3 retry mode - skipping cap processing")
-                            else:
-                                print("🔄 USB FALLBACK: Normal mode - processing both bottle and cap")
-                                self.display_cap_processing_ui()
-                                self.process_cap_detection()
+                        # รอผลขวดก่อน — ฝาไม่เริ่มประมวลผลเอง
+                        print("🔄 USB FALLBACK: เก็บภาพฝาไว้ - รอผลขวด (ถ้าขวด Good จะเริ่มประมวลผลฝาอัตโนมัติ)")
                         return
                 
                 self.gui.status_label.setText('❌ ไม่สามารถถ่ายภาพอัตโนมัติจาก Sentech ได้')
@@ -531,19 +526,15 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         
-                        # Auto process
-                        if True:
-                            if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread and self.gui.modbus_thread.angle3_retry_mode:
-                                print("🔄 USB FALLBACK AUTO: Angle3 retry mode - skipping cap processing")
-                            else:
-                                print("🔄 USB FALLBACK AUTO: Normal mode - processing both bottle and cap")
-                                self.display_cap_processing_ui()
-                                self.process_cap_detection()
+                        # รอผลขวดก่อน — ฝาไม่เริ่มประมวลผลเอง
+                        print("🔄 USB FALLBACK AUTO: เก็บภาพฝาไว้ - รอผลขวด (ถ้าขวด Good จะเริ่มประมวลผลฝาอัตโนมัติ)")
                         return
             except:
                 pass
@@ -612,24 +603,15 @@ class CapDetectionHandlers:
                 self.gui.current_sentech_image = captured_image
                 self.display_sentech_image(captured_image)
                 self.gui.sentech_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
+                if hasattr(self.gui, 'home_cap_image_info_label'):
+                    self.gui.home_cap_image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time} | จากคิว")
                 self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                 self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is captured
                 self.gui.status_label.setText('✅ ถ่ายภาพจาก Sentech จากคิวสำเร็จ - พร้อมประมวลผลฝา')
                 self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                 
-                # Auto process is always enabled (BOTTLE AND CAP processing enabled)
-                if True:  # Auto mode is always enabled
-                    # ตรวจสอบว่าเป็นโหมดถ่ายภาพซ้ำหรือไม่
-                    if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread and self.gui.modbus_thread.angle3_retry_mode:
-                        print("🔄 SENTECH QUEUE PROCESS: Angle3 retry mode - skipping cap processing")
-                        # ไม่ประมวลผลฝาในโหมดถ่ายภาพซ้ำ
-                    else:
-                        print("🔄 SENTECH QUEUE PROCESS: Normal mode - processing both bottle and cap")
-                        # แสดงผล GUI สำหรับการประมวลผลฝา
-                        self.display_cap_processing_ui()
-                        self.process_cap_detection()  # ENABLED - cap processing turned on
-                else:
-                    print("⚠️ Auto processing disabled - Sentech image captured but not processed")
+                # ฝาไม่เริ่มประมวลผลเอง — รอผลขวดก่อน (ถ้าขวด NG ไม่ประมวลผลฝา)
+                print("🔄 SENTECH QUEUE: เก็บภาพฝาไว้ - รอผลขวด (ถ้าขวด Good จะเริ่มประมวลผลฝาอัตโนมัติ)")
             else:
                 # Similar fallback logic
                 print("❌ Failed to capture from Sentech queue - trying USB camera fallback...")
@@ -646,14 +628,8 @@ class CapDetectionHandlers:
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         
-                        # Auto process
-                        if True:
-                            if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread and self.gui.modbus_thread.angle3_retry_mode:
-                                print("🔄 USB FALLBACK QUEUE: Angle3 retry mode - skipping cap processing")
-                            else:
-                                print("🔄 USB FALLBACK QUEUE: Normal mode - processing both bottle and cap")
-                                self.display_cap_processing_ui()
-                                self.process_cap_detection()
+                        # รอผลขวดก่อน — ฝาไม่เริ่มประมวลผลเอง
+                        print("🔄 USB FALLBACK QUEUE: เก็บภาพฝาไว้ - รอผลขวด (ถ้าขวด Good จะเริ่มประมวลผลฝาอัตโนมัติ)")
                         return
                 
                 self.gui.status_label.setText('❌ ไม่สามารถถ่ายภาพจาก Sentech จากคิวได้')
@@ -671,19 +647,15 @@ class CapDetectionHandlers:
                         self.gui.current_sentech_image = fallback_image
                         self.display_sentech_image(fallback_image)
                         self.gui.sentech_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
+                        if hasattr(self.gui, 'home_cap_image_info_label'):
+                            self.gui.home_cap_image_info_label.setText(f"ขนาด: {fallback_image.shape[1]}x{fallback_image.shape[0]} (USB Fallback)")
                         self.gui.btn_process_cap.setEnabled(True)
                         self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when fallback image is used
                         self.gui.status_label.setText('✅ ใช้ USB camera แทน Sentech - พร้อมประมวลผลฝา')
                         self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                         
-                        # Auto process
-                        if True:
-                            if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread and self.gui.modbus_thread.angle3_retry_mode:
-                                print("🔄 USB FALLBACK QUEUE: Angle3 retry mode - skipping cap processing")
-                            else:
-                                print("🔄 USB FALLBACK QUEUE: Normal mode - processing both bottle and cap")
-                                self.display_cap_processing_ui()
-                                self.process_cap_detection()
+                        # รอผลขวดก่อน — ฝาไม่เริ่มประมวลผลเอง
+                        print("🔄 USB FALLBACK QUEUE (error): เก็บภาพฝาไว้ - รอผลขวด")
                         return
             except:
                 pass
@@ -763,6 +735,12 @@ class CapDetectionHandlers:
             
             # Store result
             self.gui.current_cap_result = result
+            
+            # อัปเดตภาพฝาบนแท็บฝาและหน้าหลักให้ตรงกับผลจากคิว
+            cap_img = result.get('image') or result.get('processed_image')
+            if cap_img is not None:
+                self.gui.current_sentech_image = cap_img
+                self.display_sentech_image(cap_img)
             
             # Display cap detection results
             self.display_cap_detection_results(result)
@@ -882,6 +860,21 @@ class CapDetectionHandlers:
                 )
                 self.gui.sentech_image_label.setPixmap(scaled_pixmap)
                 
+                # Update Home tab cap image too
+                if hasattr(self.gui, 'home_cap_image_label'):
+                    label_size = self.gui.home_cap_image_label.size()
+                    if label_size.width() > 0 and label_size.height() > 0:
+                        scale_w = label_size.width() / pixmap.width()
+                        scale_h = label_size.height() / pixmap.height()
+                        scale = min(scale_w, scale_h)
+                        home_scaled_pixmap = pixmap.scaled(
+                            int(pixmap.width() * scale), 
+                            int(pixmap.height() * scale), 
+                            Qt.KeepAspectRatio, 
+                            Qt.SmoothTransformation
+                        )
+                        self.gui.home_cap_image_label.setPixmap(home_scaled_pixmap)
+                
                 print(f"✅ Image displayed successfully: {rgb_image.shape} -> scaled to {scaled_pixmap.size().width()}x{scaled_pixmap.size().height()} (full image visible)")
             else:
                 self.gui.sentech_image_label.setText("ไม่สามารถโหลดภาพได้")
@@ -919,6 +912,9 @@ class CapDetectionHandlers:
         
         # แสดงผล GUI สำหรับการประมวลผลฝา
         self.display_cap_processing_ui()
+        
+        # แสดง loading ระดับทั้งแอป (มองเห็นทุกแท็บ)
+        self.gui.show_global_loading("กำลังประมวลผลฝา...")
         
         # Start processing thread
         self.gui.cap_progress_bar.setVisible(True)
@@ -1015,6 +1011,8 @@ class CapDetectionHandlers:
             # Update cap detection text
             if hasattr(self.gui, 'cap_detection_text') and self.gui.cap_detection_text:
                 self.gui.cap_detection_text.setText("🔄 กำลังประมวลผลฝา... กรุณารอสักครู่")
+                if hasattr(self.gui, 'home_cap_detection_text'):
+                    self.gui.home_cap_detection_text.setText("🔄 กำลังประมวลผลฝา... กรุณารอสักครู่")
                 self.gui.cap_detection_text.setStyleSheet("""
                     QTextEdit {
                         background-color: #fef9e7;
@@ -1068,8 +1066,12 @@ class CapDetectionHandlers:
             if hasattr(self.gui, 'cap_detection_text') and self.gui.cap_detection_text:
                 if self.gui.current_bottle_type in ["M100", "M110", "M120"]:
                     self.gui.cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.gui.current_bottle_type}")
+                    if hasattr(self.gui, 'home_cap_detection_text'):
+                        self.gui.home_cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.gui.current_bottle_type}")
                 else:
                     self.gui.cap_detection_text.setText("✅ การประมวลผลฝาเสร็จสิ้น")
+                    if hasattr(self.gui, 'home_cap_detection_text'):
+                        self.gui.home_cap_detection_text.setText("✅ การประมวลผลฝาเสร็จสิ้น")
                 self.gui.cap_detection_text.setStyleSheet("""
                     QTextEdit {
                         background-color: #d5f4e6;
@@ -1090,6 +1092,7 @@ class CapDetectionHandlers:
         """Handle cap detection processing completion"""
         print("✅ CAP PROCESS COMPLETE: Cap detection finished")
         self.gui.cap_progress_bar.setVisible(False)
+        self.gui.hide_global_loading()
         
         # Update performance stats
         self.gui.total_images_processed_count += 1
@@ -1107,12 +1110,17 @@ class CapDetectionHandlers:
             
             # Check if bottle result is also ready
             if hasattr(self.gui, 'bottle_handlers') and self.gui.bottle_handlers.pending_bottle_result is not None:
-                # Both results are ready - add to queue
-                print("🔇 SILENT MODE: Both bottle and cap results ready - adding to queue")
+                # Both results are ready - add to queue หรือแสดงทันทีถ้ามีคิวนับอยู่
+                bottle_result = self.gui.bottle_handlers.pending_bottle_result
                 if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
-                    self.gui.modbus_thread.pending_results_queue.append((self.gui.bottle_handlers.pending_bottle_result, result))
-                    print(f"🔇 SILENT MODE: Results added to queue (queue size: {len(self.gui.modbus_thread.pending_results_queue)})")
-                    # Clear pending results
+                    mt = self.gui.modbus_thread
+                    if mt.pending_m301_count > 0:
+                        mt.pending_m301_count -= 1
+                        print(f"🔇 SILENT MODE: ผลพร้อม — แสดงจากคิวทันที (ลดคิวเหลือ: {mt.pending_m301_count})")
+                        mt.result_ready_to_display.emit(bottle_result, result)
+                    else:
+                        mt.pending_results_queue.append((bottle_result, result))
+                        print(f"🔇 SILENT MODE: Results added to queue (queue size: {len(mt.pending_results_queue)})")
                     self.pending_cap_result = None
                     self.gui.bottle_handlers.pending_bottle_result = None
                 else:
@@ -1125,12 +1133,30 @@ class CapDetectionHandlers:
             self.silent_mode = False
             return
         
-        # ตรวจสอบว่าเป็นข้อความจางหรือไม่ - แสดงผลลัพธ์ก่อน (ภาพและค่า area)
+        # ตรวจสอบว่าเป็นข้อความจางหรือไม่ - แสดงผลลัพธ์ก่อน (ภาพและค่า area) และส่ง Modbus เหมือนขวด NG
         if "error" in result and result["error"] == "faded_text_detected":
             print("❌ CAP PROCESS COMPLETE: ตรวจพบข้อความจาง - แสดงผลลัพธ์ (ภาพและค่า area)")
             
             # เก็บผลลัพธ์ไว้
             self.gui.current_cap_result = result
+            
+            # ส่ง Modbus เหมือนขวด NG (D7009=50, M140, M600)
+            if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
+                m140_ok = self.gui.modbus_thread.on_m140()
+                if m140_ok:
+                    self.gui.status_handlers.update_coil_lamp("m140", True)
+                    m600_ok = self.gui.modbus_thread.on_m600()
+                    if m600_ok:
+                        self.gui.status_handlers.update_coil_lamp("m600", True)
+                        self.gui.status_label.setText('❌ ฝาจาง → D7009=50, M140, M600 ส่งแล้ว')
+                    else:
+                        self.gui.status_label.setText('❌ ฝาจาง แต่ไม่สามารถ ON M600 ได้')
+                else:
+                    self.gui.status_label.setText('❌ ฝาจาง แต่ไม่สามารถส่ง D7009=50 ได้')
+                self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            else:
+                self.gui.status_label.setText('❌ ฝาจาง แต่ Modbus ไม่พร้อม')
+                self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             
             # Update status tab
             self.gui.status_handlers.update_cap_detection_status("ข้อความจาง - แสดงผลลัพธ์", False)
@@ -1144,9 +1170,8 @@ class CapDetectionHandlers:
             num_chars = faded_text_result.get('num_chars', 0)
             status = faded_text_result.get('status', 'unknown')
             
-            # Update status label with area information
-            self.gui.status_label.setText(f'❌ ตรวจพบข้อความจาง - total_area: {total_area}, num_chars: {num_chars}')
-            self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            if not (hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread):
+                self.gui.status_label.setText(f'❌ ตรวจพบข้อความจาง - total_area: {total_area}, num_chars: {num_chars}')
             
             print(f"📊 CAP PROCESS COMPLETE: แสดงผลลัพธ์ข้อความจาง - total_area: {total_area}, num_chars: {num_chars}, status: {status}")
             
@@ -1204,17 +1229,33 @@ class CapDetectionHandlers:
                 print(f"🔍 CAP PROCESS COMPLETE: Validation result: {is_valid}")
                 
                 if is_valid:
-                    print(f"✅ CAP VALIDATION PASSED: Cap result is valid for {self.gui.current_bottle_type} - Sending Modbus signals")
-                    print(f"✅ CAP PROCESS COMPLETE: Calling on_bottle_type_after_cap_validation()")
-                    
-                    # ตรวจสอบว่า modbus_thread มีอยู่หรือไม่
-                    if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
-                        print(f"✅ CAP PROCESS COMPLETE: Modbus thread is available - Sending signals")
-                        self.on_bottle_type_after_cap_validation()
+                    # Good = ฝาผ่าน + ขวดผ่าน เท่านั้น ถึงส่ง Modbus ปกติ (D7009=10/20/30)
+                    bottle_result = getattr(self.gui, 'current_result', None) or getattr(self.gui, 'last_bottle_result', None)
+                    bottle_defect_ng = False
+                    if bottle_result and bottle_result.get('defect_inspection'):
+                        if bottle_result['defect_inspection'].get('result') == 'NG':
+                            bottle_defect_ng = True
+                    if bottle_defect_ng:
+                        print(f"❌ ขวดไม่ผ่าน (Defect NG) - ส่ง Modbus NG แทน Good")
+                        if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
+                            m140_ok = self.gui.modbus_thread.on_m140()
+                            if m140_ok:
+                                self.gui.status_handlers.update_coil_lamp("m140", True)
+                                m600_ok = self.gui.modbus_thread.on_m600()
+                                if m600_ok:
+                                    self.gui.status_handlers.update_coil_lamp("m600", True)
+                                self.gui.status_label.setText('❌ ขวดไม่ผ่าน (Defect NG) → D7009=50, M140, M600')
+                                self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
                     else:
-                        print(f"❌ CAP PROCESS COMPLETE: Modbus thread is not available!")
-                        self.gui.status_label.setText(f'❌ Modbus thread ไม่พร้อม - ไม่สามารถส่งสัญญาณ {self.gui.current_bottle_type} ได้')
-                        self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                        print(f"✅ CAP VALIDATION PASSED: ฝาผ่าน + ขวดผ่าน - Sending Modbus signals")
+                        print(f"✅ CAP PROCESS COMPLETE: Calling on_bottle_type_after_cap_validation()")
+                        if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
+                            print(f"✅ CAP PROCESS COMPLETE: Modbus thread is available - Sending signals")
+                            self.on_bottle_type_after_cap_validation()
+                        else:
+                            print(f"❌ CAP PROCESS COMPLETE: Modbus thread is not available!")
+                            self.gui.status_label.setText(f'❌ Modbus thread ไม่พร้อม - ไม่สามารถส่งสัญญาณ {self.gui.current_bottle_type} ได้')
+                            self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
                 else:
                     print(f"❌ CAP VALIDATION FAILED: Cap result is invalid for {self.gui.current_bottle_type} - Sending M140 instead")
                     # ON M140 (ฝาไม่ผ่าน - ไม่ตรงกับฟอร์ม)

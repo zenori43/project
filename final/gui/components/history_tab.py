@@ -89,10 +89,10 @@ def create_history_tab():
     return history_tab, widgets_dict
 
 
-def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, timestamp, ocr_text="", faded_status=None, total_area=None, num_chars=None, gui_instance=None):
+def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, timestamp, ocr_text="", faded_status=None, total_area=None, num_chars=None, bottle_defect=None, bottle_defect_score=None, cap_status=None, gui_instance=None):
     """
     สร้าง history item widget สำหรับแสดงประวัติแต่ละรายการ
-    
+
     Args:
         bottle_image: numpy array - ภาพขวด
         cap_image: numpy array - ภาพฝา (อาจเป็น None)
@@ -103,6 +103,9 @@ def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, times
         faded_status: str - สถานะจาง ('faded', 'normal', 'unknown', None)
         total_area: int - พื้นที่รวมของตัวอักษรที่อ่านได้
         num_chars: int - จำนวนตัวอักษรที่ตรวจจับได้
+        bottle_defect: str - ขวด Good/NG จาก defect model (None ถ้าไม่มี)
+        bottle_defect_score: float - คะแนน defect 0–1 (None ถ้าไม่มี)
+        cap_status: str - ฝา ผ่าน/ไม่ผ่าน (None ถ้าไม่มี)
         gui_instance: BottleDetectionGUI instance - สำหรับเรียก show_image_zoom_popup
     
     Returns:
@@ -310,6 +313,29 @@ def create_history_item(bottle_image, cap_image, bottle_type, expiry_date, times
     type_info = QLabel(f"<b>รสชาติ:</b> {bottle_type}")
     type_info.setStyleSheet("color: #2c3e50; font-size: 14px; padding: 5px;")
     info_layout.addWidget(type_info)
+    
+    # ขวด Good/NG (พร้อม score) และ ฝา ผ่าน/ไม่ผ่าน
+    defect_lines = []
+    if bottle_defect is not None:
+        score_str = ""
+        if bottle_defect_score is not None:
+            try:
+                score_str = f" <span style='color: #7f8c8d;'>({float(bottle_defect_score):.4f})</span>"
+            except (TypeError, ValueError):
+                pass
+        if bottle_defect == "Good":
+            defect_lines.append("🔬 <b>ขวด:</b> <span style='color: #27ae60;'>Good</span>" + score_str)
+        else:
+            defect_lines.append("🔬 <b>ขวด:</b> <span style='color: #e74c3c;'>NG</span>" + score_str)
+    if cap_status is not None:
+        if cap_status == "ผ่าน":
+            defect_lines.append("📷 <b>ฝา:</b> <span style='color: #27ae60;'>ผ่าน</span>")
+        else:
+            defect_lines.append("📷 <b>ฝา:</b> <span style='color: #e74c3c;'>ไม่ผ่าน</span>")
+    if defect_lines:
+        defect_label = QLabel(" | ".join(defect_lines))
+        defect_label.setStyleSheet("color: #2c3e50; font-size: 13px; padding: 3px 5px;")
+        info_layout.addWidget(defect_label)
     
     # Faded status (สถานะจาง/ไม่จาง) และ Area
     if faded_status is not None:

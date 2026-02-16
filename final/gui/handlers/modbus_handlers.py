@@ -23,12 +23,9 @@ class ModbusHandlers:
         self.gui = gui_instance
     
     def on_modbus_trigger(self):
-        """Handle Modbus trigger (M301)"""
-        print("🎯 MODBUS TRIGGER RECEIVED - Starting capture sequence")
-        # Auto mode is always enabled
-        # Capture from both cameras simultaneously
-        self.gui.bottle_handlers.capture_image_auto()
-        self.gui.cap_handlers.capture_sentech_image_auto()
+        """Handle Modbus trigger (M301) - ถ่ายภาพใน worker thread ไม่บล็อก GUI"""
+        print("🎯 MODBUS TRIGGER RECEIVED - Starting capture sequence (worker thread)")
+        self.gui.bottle_handlers.start_full_auto_capture()
     
     def on_queue_trigger(self):
         """Handle queue trigger (from M600 reset)"""
@@ -50,43 +47,51 @@ class ModbusHandlers:
         print("📋 RESULT READY TO DISPLAY - Showing results from queue and sending Modbus signals")
         try:
             # Display bottle results
+            bottle_ng = bottle_result and bottle_result.get('defect_inspection') and bottle_result['defect_inspection'].get('result') == 'NG'
             if bottle_result and "error" not in bottle_result:
                 print("📋 DISPLAY: Displaying bottle results from queue")
                 self.gui.bottle_handlers.display_result_from_queue(bottle_result)
                 
-                # Handle bottle type detection and send Modbus signals
-                if bottle_result.get('bottle_type') and bottle_result.get('combined_ocr_text'):
-                    print(f"🎯 DISPLAY: Bottle type detected: {bottle_result['bottle_type']}")
+                # Handle bottle type — จากคิวมีผลฝาอยู่แล้ว ไม่เริ่มประมวลผลฝาใหม่ (กัน M140 ซ้ำ)
+                if bottle_result.get('bottle_type') and bottle_result.get('combined_ocr_text') and not bottle_ng:
+                    print(f"🎯 DISPLAY: Bottle type detected: {bottle_result['bottle_type']} (ขวดผ่าน, จากคิว)")
                     self.gui.bottle_handlers.handle_bottle_type_detection(
-                        bottle_result['bottle_type'], 
-                        bottle_result['combined_ocr_text']
+                        bottle_result['bottle_type'],
+                        bottle_result['combined_ocr_text'],
+                        from_queue=True
                     )
+                elif bottle_ng:
+                    print("❌ DISPLAY: ขวด NG — ไม่เรียก handle_bottle_type_detection (ไม่ประมวลฝา)")
             
             # Display cap results
             if cap_result and "error" not in cap_result:
                 print("📋 DISPLAY: Displaying cap results from queue")
                 self.gui.cap_handlers.display_result_from_queue(cap_result)
                 
-                # Validate and send Modbus signals for cap
+                # Validate and send Modbus signals for cap (Good = ฝาผ่าน + ขวดผ่าน เท่านั้น)
                 if self.gui.current_bottle_type in ["M100", "M110", "M120"]:
                     is_valid = self.gui.cap_handlers.validate_cap_result(cap_result)
-                    if is_valid:
-                        print(f"✅ DISPLAY: Cap validation passed - Sending Modbus signals")
+                    bottle_ng = bottle_result and bottle_result.get('defect_inspection') and bottle_result['defect_inspection'].get('result') == 'NG'
+                    if is_valid and not bottle_ng:
+                        print(f"✅ DISPLAY: Cap + Bottle passed - Sending Modbus signals")
                         self.on_bottle_type_after_cap_validation()
-                    else:
-                        print(f"❌ DISPLAY: Cap validation failed - Writing D7009 = 50")
+                    elif not is_valid or bottle_ng:
+                        print(f"❌ DISPLAY: ฝาไม่ผ่านหรือขวดไม่ผ่าน - Writing D7009 = 50 (NG)")
                         if hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread:
-                            # M140 → D7009 = 50
-                            m140_success = self.gui.modbus_thread.write_register(7009, 50)
+                            m140_success = self.gui.modbus_thread.on_m140()
                             if m140_success:
-                                print("🏷️ D7009 = 50 (ฝาไม่ผ่าน)")
+                                self.gui.status_handlers.update_coil_lamp("m140", True)
+                                print("🏷️ D7009 = 50 (ฝาไม่ผ่านหรือขวดไม่ผ่าน)")
                                 m600_success = self.gui.modbus_thread.on_m600()
                                 if m600_success:
                                     self.gui.status_handlers.update_coil_lamp("m600", True)
             
-            # Add to history
+            # Add to history (ขวด NG ไม่ใส่ผลฝาเข้าแถวเดียวกัน — แสดงแค่ขวด NG)
             if hasattr(self.gui, 'add_to_history'):
-                self.gui.add_to_history(bottle_result, cap_result)
+                if bottle_ng:
+                    self.gui.add_to_history(bottle_result, None)
+                else:
+                    self.gui.add_to_history(bottle_result, cap_result)
             
             print("✅ DISPLAY: Results displayed and Modbus signals sent")
             
@@ -337,19 +342,26 @@ class ModbusHandlers:
             
             success = False
             if self.gui.current_bottle_type == "M100":
-                # M100 → D7009 = 10
-                success = self.gui.modbus_thread.write_register(7009, 10)
-                print("🏷️ D7009 = 10 (พบคำว่า 'เดิม' - ฝาผ่าน)")
+                success = self.gui.modbus_thread.on_m100()
+                if success:
+                    print("🏷️ ON M100 (พบคำว่า 'เดิม' - ฝาผ่าน)")
             elif self.gui.current_bottle_type == "M110":
-                # M110 → D7009 = 20
-                success = self.gui.modbus_thread.write_register(7009, 20)
-                print("🏷️ D7009 = 20 (พบคำว่า '2%' - ฝาผ่าน)")
+                success = self.gui.modbus_thread.on_m110()
+                if success:
+                    print("🏷️ ON M110 (พบคำว่า '2%' - ฝาผ่าน)")
             elif self.gui.current_bottle_type == "M120":
-                # M120 → D7009 = 30
-                success = self.gui.modbus_thread.write_register(7009, 30)
-                print("🏷️ D7009 = 30 (พบคำว่า 'ลัก' - ฝาผ่าน)")
+                success = self.gui.modbus_thread.on_m120()
+                if success:
+                    print("🏷️ ON M120 (พบคำว่า 'ลัก' - ฝาผ่าน)")
             
             if success:
+                # อัปเดต lamp ตาม bottle type
+                if self.gui.current_bottle_type == "M100":
+                    self.gui.status_handlers.update_coil_lamp("m100", True)
+                elif self.gui.current_bottle_type == "M110":
+                    self.gui.status_handlers.update_coil_lamp("m110", True)
+                elif self.gui.current_bottle_type == "M120":
+                    self.gui.status_handlers.update_coil_lamp("m120", True)
                 # ON M600 หลังจาก ON M100/M110/M120
                 print("⏳ ON M600 และรอ M401 ON เพื่อ reset ทั้งหมด...")
                 m600_success = self.gui.modbus_thread.on_m600()

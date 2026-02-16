@@ -6,7 +6,7 @@ Bottle Detection Tab Component
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, 
-    QScrollArea, QTextEdit
+    QScrollArea, QTextEdit, QPushButton, QGroupBox
 )
 from PyQt5.QtCore import Qt
 
@@ -99,6 +99,36 @@ def create_bottle_tab():
     # Set splitter sizes
     bottle_splitter.setSizes([500, 300, 400])
     
+    # Add control buttons for bottle detection
+    bottle_control_group = QGroupBox("ตัวเลือกการทำงานขวด")
+    bottle_control_layout = QHBoxLayout()
+    
+    # Process bottle button
+    btn_process_bottle = QPushButton('🔍 ประมวลผลขวด')
+    btn_process_bottle.setEnabled(False)  # Disabled by default, enabled when image is available
+    btn_process_bottle.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #27ae60; color: white; border-radius: 5px; }")
+    bottle_control_layout.addWidget(btn_process_bottle)
+    
+    # Save image button
+    btn_save_bottle_image = QPushButton('💾 บันทึกรูปภาพขวด')
+    btn_save_bottle_image.setEnabled(False)
+    btn_save_bottle_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #9b59b6; color: white; border-radius: 5px; }")
+    bottle_control_layout.addWidget(btn_save_bottle_image)
+    
+    # Select image file button for bottle detection
+    btn_select_bottle_image = QPushButton('📁 เลือกไฟล์ภาพขวด')
+    btn_select_bottle_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #3498db; color: white; border-radius: 5px; }")
+    bottle_control_layout.addWidget(btn_select_bottle_image)
+    
+    # Select multiple images button for batch processing
+    btn_select_multiple_bottle_images = QPushButton('📁 เลือกหลายไฟล์ภาพขวด')
+    btn_select_multiple_bottle_images.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #16a085; color: white; border-radius: 5px; }")
+    btn_select_multiple_bottle_images.setToolTip("เลือกหลายไฟล์เพื่อประมวลผลและบันทึกลงประวัติ")
+    bottle_control_layout.addWidget(btn_select_multiple_bottle_images)
+    
+    bottle_control_group.setLayout(bottle_control_layout)
+    bottle_layout.addWidget(bottle_control_group)
+    
     bottle_layout.addWidget(bottle_splitter)
     
     # Create widgets dict for main window to reference
@@ -109,7 +139,11 @@ def create_bottle_tab():
         'crops_scroll': crops_scroll,
         'crops_container': crops_container,
         'crops_layout': crops_container_layout,
-        'results_text': results_text
+        'results_text': results_text,
+        'btn_process_bottle': btn_process_bottle,
+        'btn_save_bottle_image': btn_save_bottle_image,
+        'btn_select_bottle_image': btn_select_bottle_image,
+        'btn_select_multiple_bottle_images': btn_select_multiple_bottle_images
     }
     
     return bottle_tab, widgets_dict

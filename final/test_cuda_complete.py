@@ -8,7 +8,17 @@ import sys
 import os
 import time
 
-# Setup CUDA paths FIRST (like in main.py)
+# TensorFlow โหลด CUDA ตอน process เริ่ม — ต้องมี LD_LIBRARY_PATH/CUDA_HOME ใน shell ตั้งแต่ต้น
+# การ set ใน Python (setup_cuda_paths) ไม่มีผลกับ linker ของ process ปัจจุบัน
+_ld = os.environ.get("LD_LIBRARY_PATH", "")
+if "cuda" not in _ld.lower() and "tegra" not in _ld.lower():
+    print("⚠️ เตือน: ยังไม่ได้ตั้ง CUDA ใน shell — TensorFlow มักจะไม่เห็น GPU")
+    print("   แนะนำ: รันผ่านสคริปต์ที่ set env ให้:")
+    print("   ./check_tensorflow_gpu.sh")
+    print("   หรือ export CUDA_HOME และ LD_LIBRARY_PATH ตามใน run.sh แล้วค่อยรัน python3 test_cuda_complete.py")
+    print()
+
+# Setup CUDA paths FIRST (like in main.py) — มีผลกับ OpenCV/PyTorch; TensorFlow ต้องพึ่ง env จาก shell
 from core.cuda_setup import setup_cuda_paths
 setup_cuda_paths()
 
@@ -316,6 +326,62 @@ else:
 print()
 
 # ============================================================================
+# TEST 4: Defect Model (TensorFlow / tf_keras) - ใช้ CUDA ไหม
+# ============================================================================
+print("📋 TEST 4: Defect Model (TensorFlow) - CUDA")
+print("-" * 70)
+
+defect_uses_gpu = False
+try:
+    import os
+    os.environ["TF_USE_LEGACY_KERAS"] = "1"
+    import tensorflow as tf
+    gpus = tf.config.list_physical_devices("GPU")
+    if gpus:
+        print(f"   TensorFlow เห็น GPU: {len(gpus)} device(s)")
+        for i, gpu in enumerate(gpus):
+            print(f"   - GPU {i}: {gpu.name}")
+        defect_uses_gpu = True
+        # ตั้ง memory growth
+        for gpu in gpus:
+            try:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            except RuntimeError:
+                pass
+    else:
+        print("   TensorFlow ไม่เห็น GPU (จะใช้ CPU)")
+except Exception as e:
+    print(f"   ❌ TensorFlow check failed: {e}")
+
+# โหลด defect model และรัน inference หนึ่งครั้ง
+try:
+    from libs.detection.defect_model import _load_defect_model, run_defect_inspection
+    model = _load_defect_model()
+    if model is not None:
+        # ภาพทดสอบ 224x224 (ขนาดที่ defect ใช้)
+        test_crop = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+        start = time.time()
+        result = run_defect_inspection(test_crop)
+        elapsed = time.time() - start
+        if result is not None:
+            print(f"   ✓ Defect inference สำเร็จ: score={result.get('score')}, result={result.get('result')}")
+            print(f"   เวลา: {elapsed*1000:.2f} ms")
+            if defect_uses_gpu:
+                print("   🚀 Defect model ใช้ GPU (TensorFlow)")
+            else:
+                print("   💻 Defect model ใช้ CPU")
+        else:
+            print("   ⚠️ Defect inference คืนค่า None")
+    else:
+        print("   ⚠️ โหลด Defect model ไม่ได้ (ข้ามการทดสอบ inference)")
+except Exception as e:
+    print(f"   ❌ Defect model test failed: {e}")
+    import traceback
+    traceback.print_exc()
+
+print()
+
+# ============================================================================
 # SUMMARY
 # ============================================================================
 print("=" * 70)
@@ -338,11 +404,20 @@ if torch.cuda.is_available():
 else:
     print("   - Status: Not available")
 
+print("\n✅ Defect Model (TensorFlow):")
+if defect_uses_gpu:
+    print("   - Status: ใช้ GPU (TensorFlow เห็น CUDA)")
+else:
+    print("   - Status: ใช้ CPU (TensorFlow ไม่เห็น GPU)")
+    print("   - แก้ไข: รันผ่าน shell ที่ set CUDA แล้ว เช่น ./check_tensorflow_gpu.sh")
+
 print()
 print("=" * 70)
 if (hasattr(cv2, 'cuda') and device_count > 0) and torch.cuda.is_available():
     print("🎉 ทั้ง OpenCV และ PyTorch ใช้ CUDA แล้ว! (GPU Acceleration)")
 else:
     print("⚠️ CUDA อาจไม่พร้อมใช้งานสำหรับบางส่วน")
+if defect_uses_gpu:
+    print("🎉 Defect model ใช้ TensorFlow GPU")
 print("=" * 70)
 

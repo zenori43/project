@@ -15,9 +15,9 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import (
     QFileDialog, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, 
     QWidget, QGroupBox, QTextEdit, QGridLayout, QListWidget, QProgressBar,
-    QSplitter, QMessageBox, QCheckBox, QScrollArea, QTabWidget,
+    QSplitter, QMessageBox, QCheckBox, QScrollArea, QTabWidget, QTabBar,
     QSlider, QSpinBox, QDoubleSpinBox, QComboBox, QFrame, QApplication,
-    QDateTimeEdit, QDialog
+    QDateTimeEdit, QDialog, QToolBox
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
 from PyQt5.QtGui import QImage, QPixmap, QWheelEvent
@@ -27,6 +27,7 @@ import os
 import time
 from typing import List, Dict
 import sys
+import types
 
 # Import CUDA image utilities
 from core.cuda_image_utils import cuda_resize, cuda_cvtColor, cuda_gaussianBlur
@@ -97,6 +98,7 @@ if CAP_DETECTION_AVAILABLE:
 # Import separated GUI components
 from gui.login_dialog import LoginDialog
 from gui.debug_stream import DebugStream
+from gui.components.home_tab import create_home_tab
 from gui.components.bottle_tab import create_bottle_tab
 from gui.components.cap_tab import create_cap_tab
 from gui.components.status_tab import create_status_tab
@@ -112,6 +114,260 @@ from gui.handlers.cap_handlers import CapDetectionHandlers
 from gui.handlers.robot_test_handlers import RobotTestHandlers
 from gui.handlers.status_handlers import StatusHandlers
 from gui.handlers.modbus_handlers import ModbusHandlers
+
+
+class CollapsibleTabWidget(QWidget):
+    """Custom collapsible tab widget that works like panel output - can collapse/expand each tab with vertical text"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.tabs = {}  # Store tab widgets and their states
+        self.main_layout = QHBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+        
+        # Left side: Tab buttons (vertical)
+        tabs_panel = QWidget()
+        tabs_panel.setFixedWidth(180)
+        tabs_panel.setStyleSheet("background-color: #f5f5f5; border-right: 1px solid #bdc3c7;")
+        tabs_layout = QVBoxLayout(tabs_panel)
+        tabs_layout.setContentsMargins(5, 5, 5, 5)
+        tabs_layout.setSpacing(3)
+        
+        # Container for tabs with scroll
+        self.tabs_container = QWidget()
+        self.tabs_layout = QVBoxLayout(self.tabs_container)
+        self.tabs_layout.setContentsMargins(0, 0, 0, 0)
+        self.tabs_layout.setSpacing(3)
+        self.tabs_layout.addStretch()
+        
+        # Scroll area for tabs
+        scroll = QScrollArea()
+        scroll.setWidget(self.tabs_container)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: #f5f5f5;
+            }
+            QScrollBar:vertical {
+                background-color: #e0e0e0;
+                width: 10px;
+                border: none;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #bdc3c7;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #95a5a6;
+            }
+        """)
+        
+        tabs_layout.addWidget(scroll)
+        self.main_layout.addWidget(tabs_panel)
+        
+        # Right side: Content area
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.current_tab_index = None
+        
+        self.main_layout.addWidget(self.content_widget, 1)
+    
+    def addTab(self, widget, label):
+        """Add a collapsible tab with vertical text"""
+        index = len(self.tabs)
+        
+        # Create collapsible header button with vertical text
+        header = QPushButton()
+        header.setCheckable(True)
+        header.setChecked(False)
+        header.setMinimumWidth(170)
+        header.setMinimumHeight(60)
+        header.setMaximumHeight(60)
+        
+        # Store label for painting
+        header._label_text = label
+        
+        # Custom paint event for vertical text
+        def paint_button(self, event):
+            from PyQt5.QtGui import QPainter, QFontMetrics, QPen, QBrush, QColor
+            
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            
+            rect = self.rect()
+            
+            # Background color
+            if self.isChecked():
+                bg_color = QColor("#3498db")
+                text_color = QColor("white")
+            else:
+                bg_color = QColor("#ecf0f1")
+                text_color = QColor("#2c3e50")
+            
+            # Draw background
+            painter.fillRect(rect, QBrush(bg_color))
+            
+            # Draw border
+            painter.setPen(QPen(QColor("#bdc3c7"), 1))
+            painter.drawRect(rect.adjusted(0, 0, -1, -1))
+            
+            # Draw vertical text (rotated 90 degrees)
+            painter.setPen(QPen(text_color))
+            font_metrics = QFontMetrics(self.font())
+            text = self._label_text
+            
+            # Rotate painter for vertical text
+            painter.save()
+            painter.translate(rect.width() / 2, rect.height() / 2)
+            painter.rotate(0)
+            
+            # Center text
+            text_width = font_metrics.width(text)
+            text_height = font_metrics.height()
+            x = -text_width / 2
+            y = text_height / 2 - font_metrics.descent()
+            
+            painter.drawText(int(x), int(y), text)
+            painter.restore()
+        
+        # Bind paint event to header button
+        header.paintEvent = types.MethodType(paint_button, header)
+        
+        # Store tab info
+        self.tabs[index] = {
+            'widget': widget,
+            'header': header,
+            'label': label,
+            'expanded': False
+        }
+        
+        # Insert before stretch
+        self.tabs_layout.insertWidget(self.tabs_layout.count() - 1, header)
+        
+        # Connect header click to toggle (use lambda with default parameter to capture index)
+        def on_header_clicked(checked):
+            self._toggleTab(index, checked)
+        
+        header.clicked.connect(on_header_clicked)
+        
+        return index
+    
+    def _toggleTab(self, index, expanded):
+        """Toggle tab expansion"""
+        try:
+            tab_info = self.tabs[index]
+            
+            # Prevent infinite loop by checking if state is already correct
+            if tab_info['expanded'] == expanded:
+                return
+            
+            tab_info['expanded'] = expanded
+            
+            if expanded:
+                # Collapse other tabs (block signals to prevent infinite loop)
+                for idx, info in self.tabs.items():
+                    if idx != index and info['expanded']:
+                        info['header'].blockSignals(True)
+                        info['header'].setChecked(False)
+                        info['header'].blockSignals(False)
+                        info['expanded'] = False
+                        # Hide other tab widgets
+                        if info['widget'].parent() == self.content_widget:
+                            info['widget'].setParent(None)
+                            info['widget'].hide()
+                
+                # Show this tab's content
+                self.current_tab_index = index
+                
+                # Remove current widget from layout if exists
+                while self.content_layout.count():
+                    item = self.content_layout.takeAt(0)
+                    if item.widget():
+                        widget = item.widget()
+                        self.content_layout.removeWidget(widget)
+                        widget.setParent(None)
+                        widget.hide()
+                
+                # Check if widget still exists and is valid before adding
+                widget = tab_info['widget']
+                if widget is None:
+                    print(f"❌ Widget for tab {index} is None")
+                    return
+                
+                # Check if widget is still valid (not deleted)
+                try:
+                    # Try to access widget properties to check if it's still valid
+                    _ = widget.parent()
+                except RuntimeError:
+                    print(f"❌ Widget for tab {index} has been deleted, cannot add to layout")
+                    return
+                
+                # Remove widget from its current parent if it has one
+                if widget.parent():
+                    old_parent = widget.parent()
+                    if old_parent == self.content_widget:
+                        # Already in content widget, just show it
+                        widget.show()
+                        tab_info['header'].update()
+                        return
+                    else:
+                        # Remove from old parent
+                        old_parent_layout = old_parent.layout()
+                        if old_parent_layout:
+                            old_parent_layout.removeWidget(widget)
+                        widget.setParent(None)
+                
+                # Add tab widget to content (don't delete, just show/hide)
+                widget.setParent(self.content_widget)
+                self.content_layout.addWidget(widget)
+                widget.show()
+                tab_info['header'].update()  # Refresh button appearance
+            else:
+                # Hide content if this tab was expanded
+                if self.current_tab_index == index:
+                    while self.content_layout.count():
+                        item = self.content_layout.takeAt(0)
+                        if item.widget():
+                            widget = item.widget()
+                            self.content_layout.removeWidget(widget)
+                            widget.setParent(None)
+                            widget.hide()
+                    self.current_tab_index = None
+                
+                tab_info['header'].update()  # Refresh button appearance
+        except KeyError as e:
+            print(f"❌ KeyError in _toggleTab: Tab index {index} not found - {e}")
+        except RuntimeError as e:
+            if "wrapped C/C++ object" in str(e):
+                print(f"❌ RuntimeError in _toggleTab: Widget has been deleted - {e}")
+                # Try to recover by removing the invalid widget reference
+                if index in self.tabs:
+                    print(f"⚠️ Removing invalid widget reference for tab {index}")
+                    # Don't delete the tab, just mark widget as None
+                    self.tabs[index]['widget'] = None
+            else:
+                raise
+        except Exception as e:
+            print(f"❌ Error in _toggleTab: {e}")
+            import traceback
+            traceback.print_exc()
+        except Exception as e:
+            print(f"❌ Error in _toggleTab: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def tabBar(self):
+        """Return a dummy tab bar for compatibility"""
+        return self
+    
+    def setTabPosition(self, position):
+        """Dummy method for compatibility"""
+        pass
 
 
 class ImageZoomDialog(QDialog):
@@ -201,7 +457,83 @@ class ImageZoomDialog(QDialog):
         self.image_label.resize(scaled_pixmap.size())
 
 
+class InitWorker(QThread):
+    """โหลดกล้องและโมเดลในพื้นหลัง ไม่บล็อก GUI"""
+    camera_ready = pyqtSignal(object, bool)
+    sentech_ready = pyqtSignal(object, bool)
+    models_ready = pyqtSignal(object)  # dict or None
+    progress_msg = pyqtSignal(str)
+
+    def run(self):
+        # USB camera
+        try:
+            self.progress_msg.emit("กำลังโหลดกล้อง USB...")
+            from core.camera_manager import USBCamera
+            cam = USBCamera()
+            ok = cam.open_camera()
+            self.camera_ready.emit(cam, ok)
+        except Exception as e:
+            print(f"❌ InitWorker USB camera: {e}")
+            self.camera_ready.emit(None, False)
+        # Sentech camera
+        try:
+            self.progress_msg.emit("กำลังโหลดกล้อง Sentech...")
+            from core.camera_manager import SentechCamera
+            sc = SentechCamera()
+            ok = sc.initialize()
+            self.sentech_ready.emit(sc, ok)
+        except Exception as e:
+            print(f"❌ InitWorker Sentech: {e}")
+            self.sentech_ready.emit(None, False)
+        # Cap detection models
+        try:
+            self.progress_msg.emit("กำลังโหลดโมเดลฝา/OCR...")
+            from config.settings import CAP_DETECTION_AVAILABLE, CAP_MODEL_PATH, CRAFT_MODEL_PATH, CRAFT_REFINER_PATH, ROTATION_MODEL_PATH, OCR_MODEL_PATH, YOLO_AVAILABLE
+            if not CAP_DETECTION_AVAILABLE:
+                self.models_ready.emit(None)
+                return
+            from libs.detection.capmodel import initialize_detector
+            from libs.processing.rotationCRAFT import initialize_detector as initialize_craft_detector
+            from libs.processing.rotationmodel import initialize_model
+            from libs.processing.craft_line_detection import initialize_detector as initialize_line_detector
+            from libs.processing.deep_ocr import initialize_ocr_model
+            d = {}
+            d['cap_detector'] = initialize_detector(CAP_MODEL_PATH)
+            d['craft_detector'] = initialize_craft_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
+            d['rotation_model'] = initialize_model(ROTATION_MODEL_PATH)
+            d['rotation_model'].init_craft_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
+            d['line_detector'] = initialize_line_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
+            d['ocr_model'] = initialize_ocr_model(OCR_MODEL_PATH)
+            d['faded_text_yolo_model'] = None
+            if YOLO_AVAILABLE:
+                try:
+                    from ultralytics import YOLO
+                    d['faded_text_yolo_model'] = YOLO(CAP_MODEL_PATH)
+                except Exception:
+                    pass
+            self.models_ready.emit(d)
+        except Exception as e:
+            print(f"❌ InitWorker models: {e}")
+            import traceback
+            traceback.print_exc()
+            self.models_ready.emit(None)
+        # Defect model (Good/NG ขวด) — โหลดในหน้า loading เพื่อพร้อมก่อนแสดง GUI
+        try:
+            self.progress_msg.emit("กำลังโหลด Defect model (ขวด Good/NG)...")
+            from libs.detection.defect_model import _load_defect_model
+            if _load_defect_model() is not None:
+                print("✅ Defect model โหลดในหน้า loading แล้ว (พร้อมก่อนประมวลผล)")
+            else:
+                print("⚠️ Defect model โหลดไม่ได้ (จะข้ามการตรวจ defect)")
+        except Exception as e:
+            print(f"⚠️ InitWorker Defect model ข้าม: {e}")
+
+
 class BottleDetectionGUI(QWidget):
+    """สัญญาณเมื่อโหลดระบบในพื้นหลังเสร็จ (สำหรับแสดง loading ก่อนแล้วค่อยแสดง GUI)"""
+    init_complete = pyqtSignal()
+    init_progress = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle('ระบบตรวจจับขวดและ OCR - USB Camera + Modbus + Sentech Camera')
@@ -295,10 +627,11 @@ class BottleDetectionGUI(QWidget):
         self.setup_ui()
         self.setup_print_capture()  # Setup print capture after UI is ready
         
-        self.setup_camera()
-        self.setup_sentech_camera()
-        self.setup_cap_detection_models()
-        self.setup_modbus()
+        # โหลดกล้อง/โมเดล/Modbus ในพื้นหลังหลังหน้าต่างแสดง — ไม่ให้เปิดแล้วค้าง
+        if hasattr(self, 'status_label'):
+            self.status_label.setText('⏳ กำลังโหลดระบบ... (กดได้เลย)')
+        self._init_worker = None
+        QTimer.singleShot(80, self._start_background_init)
         
         # เพิ่ม keyboard shortcuts สำหรับ Jetson
         if self.is_jetson:
@@ -354,62 +687,63 @@ class BottleDetectionGUI(QWidget):
         main_widget.setStyleSheet("background-color: #2c3e50;")
         layout = QVBoxLayout(main_widget)
         
-        # Title
+        # Title - อยู่บนสุดสุด
         title_label = QLabel("ระบบตรวจจับขวดและ OCR - USB Camera + Modbus + Sentech Camera")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; margin: 10px; color: #ecf0f1;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px; color: #ecf0f1; background-color: #1a252f; border-bottom: 2px solid #34495e;")
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
         
-        # Status group
-        status_group = QGroupBox("สถานะระบบ")
-        status_layout = QHBoxLayout()
+        # Top Panel - Fixed at top, visible on all tabs
+        top_panel = QWidget()
+        top_panel.setFixedHeight(80)
+        top_panel.setStyleSheet("background-color: #34495e; border-bottom: 2px solid #2c3e50;")
+        top_panel_layout = QHBoxLayout(top_panel)
+        top_panel_layout.setContentsMargins(10, 5, 10, 5)
+        top_panel_layout.setSpacing(10)
         
-        # Camera status
-        self.camera_status_label = QLabel('📷 กล้อง: กำลังเริ่มต้น...')
-        self.camera_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
-        status_layout.addWidget(self.camera_status_label)
+        # Start button
+        self.btn_start = QPushButton('▶️ START (M700)')
+        self.btn_start.clicked.connect(self.start_system)
+        self.btn_start.setStyleSheet("QPushButton { padding: 8px 15px; font-size: 12px; background-color: #27ae60; color: white; border-radius: 5px; font-weight: bold; } QPushButton:hover { background-color: #229954; }")
+        top_panel_layout.addWidget(self.btn_start)
         
-        # Sentech camera status
-        self.sentech_camera_status_label = QLabel('📷 Sentech: กำลังเริ่มต้น...')
-        self.sentech_camera_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
-        status_layout.addWidget(self.sentech_camera_status_label)
+        # Stop button
+        self.btn_stop = QPushButton('⏹️ STOP (M701)')
+        self.btn_stop.clicked.connect(self.stop_system)
+        self.btn_stop.setStyleSheet("QPushButton { padding: 8px 15px; font-size: 12px; background-color: #e74c3c; color: white; border-radius: 5px; font-weight: bold; } QPushButton:hover { background-color: #c0392b; }")
+        top_panel_layout.addWidget(self.btn_stop)
         
-        # Modbus status
-        self.modbus_status_label = QLabel('📡 Modbus: กำลังเชื่อมต่อ...')
-        self.modbus_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
-        status_layout.addWidget(self.modbus_status_label)
+        # Reset button
+        self.btn_reset = QPushButton('🔄 RESET (D5012)')
+        self.btn_reset.pressed.connect(self.on_reset_pressed)
+        self.btn_reset.released.connect(self.on_reset_released)
+        self.btn_reset.setStyleSheet("QPushButton { padding: 8px 15px; font-size: 12px; background-color: #f39c12; color: white; border-radius: 5px; font-weight: bold; } QPushButton:hover { background-color: #e67e22; }")
+        top_panel_layout.addWidget(self.btn_reset)
         
-        # Queue status
-        self.queue_status_label = QLabel('📋 คิว: 0')
-        self.queue_status_label.setStyleSheet("color: #e67e22; padding: 5px; font-weight: bold;")
-        status_layout.addWidget(self.queue_status_label)
-        
-        # Login button
-        self.login_button = QPushButton('🔐 Login')
-        self.login_button.setFixedWidth(100)
-        self.login_button.setStyleSheet("""
+        # Toggle ไฟ (M76) - เปิด/ปิด ไฟในหน้าหลัก
+        self.btn_light_m76 = QPushButton('💡 ไฟ (M76) ปิด')
+        self.btn_light_m76.setCheckable(True)
+        self.btn_light_m76.setChecked(False)
+        self.btn_light_m76.clicked.connect(self.on_toggle_light_m76)
+        self.btn_light_m76.setStyleSheet("""
             QPushButton {
-                padding: 5px;
-                font-size: 11px;
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 5px;
+                padding: 8px 15px; font-size: 12px; background-color: #7f8c8d; color: white;
+                border-radius: 5px; font-weight: bold;
             }
-            QPushButton:hover {
-                background-color: #229954;
+            QPushButton:hover { background-color: #95a5a6; }
+            QPushButton:checked {
+                background-color: #f1c40f; color: #2c3e50;
             }
-            QPushButton:pressed {
-                background-color: #1e8449;
-            }
+            QPushButton:checked:hover { background-color: #f39c12; }
         """)
-        self.login_button.clicked.connect(self.on_login_button_clicked)
-        status_layout.addWidget(self.login_button)
+        top_panel_layout.addWidget(self.btn_light_m76)
+        
+        top_panel_layout.addSpacing(20)
         
         # Mode selection dropdown
-        mode_label = QLabel('โหมด:')
-        mode_label.setStyleSheet("color: #34495e; padding: 5px; font-weight: bold;")
-        status_layout.addWidget(mode_label)
+        mode_label = QLabel('โปรแกรม:')
+        mode_label.setStyleSheet("color: #ecf0f1; padding: 5px; font-weight: bold; font-size: 12px;")
+        top_panel_layout.addWidget(mode_label)
         
         self.mode_combo = QComboBox()
         self.mode_combo.addItem("ID 7 full auto")
@@ -445,7 +779,7 @@ class BottleDetectionGUI(QWidget):
         
         # Capture limit input (for ID 5 mode)
         self.capture_limit_label = QLabel("จำนวนครั้ง:")
-        self.capture_limit_label.setStyleSheet("color: white; font-size: 11px;")
+        self.capture_limit_label.setStyleSheet("color: #ecf0f1; font-size: 11px;")
         self.capture_limit_spin = QSpinBox()
         self.capture_limit_spin.setMinimum(1)
         self.capture_limit_spin.setMaximum(1000)
@@ -455,24 +789,255 @@ class BottleDetectionGUI(QWidget):
             QSpinBox {
                 padding: 5px;
                 font-size: 11px;
-                background-color: #34495e;
-                color: white;
+                background-color: #ecf0f1;
+                color: #2c3e50;
                 border: 1px solid #7f8c8d;
                 border-radius: 3px;
             }
         """)
-        # เชื่อมต่อ signal เมื่อค่าเปลี่ยน
         self.capture_limit_spin.valueChanged.connect(self.on_capture_limit_changed)
         self.capture_limit_label.setVisible(False)
         self.capture_limit_spin.setVisible(False)
         
-        # ตั้งค่าเริ่มต้นเป็น "ID 7 full auto"
+        # Set default to "ID 7 full auto"
         self.mode_combo.setCurrentIndex(0)
-        status_layout.addWidget(self.mode_combo)
-        status_layout.addWidget(self.capture_limit_label)
-        status_layout.addWidget(self.capture_limit_spin)
+        top_panel_layout.addWidget(self.mode_combo)
+        top_panel_layout.addWidget(self.capture_limit_label)
+        top_panel_layout.addWidget(self.capture_limit_spin)
         
-        # D5002 Status Display (ข้างๆโหมด)
+        top_panel_layout.addSpacing(15)
+        
+        # Status indicators (Camera USB, Sentech, Modbus)
+        # USB Camera Status
+        usb_camera_status_widget = QWidget()
+        usb_camera_status_layout = QHBoxLayout(usb_camera_status_widget)
+        usb_camera_status_layout.setContentsMargins(5, 0, 5, 0)
+        usb_camera_status_layout.setSpacing(5)
+        
+        self.usb_camera_status_indicator = QLabel('●')
+        self.usb_camera_status_indicator.setFixedWidth(15)
+        self.usb_camera_status_indicator.setStyleSheet("color: #f39c12; font-size: 16px; font-weight: bold;")
+        usb_camera_status_layout.addWidget(self.usb_camera_status_indicator)
+        
+        usb_camera_status_text = QLabel('USB Camera')
+        usb_camera_status_text.setStyleSheet("color: #ecf0f1; font-size: 11px;")
+        usb_camera_status_layout.addWidget(usb_camera_status_text)
+        
+        top_panel_layout.addWidget(usb_camera_status_widget)
+        
+        # Sentech Camera Status
+        sentech_camera_status_widget = QWidget()
+        sentech_camera_status_layout = QHBoxLayout(sentech_camera_status_widget)
+        sentech_camera_status_layout.setContentsMargins(5, 0, 5, 0)
+        sentech_camera_status_layout.setSpacing(5)
+        
+        self.sentech_camera_status_indicator = QLabel('●')
+        self.sentech_camera_status_indicator.setFixedWidth(15)
+        self.sentech_camera_status_indicator.setStyleSheet("color: #f39c12; font-size: 16px; font-weight: bold;")
+        sentech_camera_status_layout.addWidget(self.sentech_camera_status_indicator)
+        
+        sentech_camera_status_text = QLabel('Sentech')
+        sentech_camera_status_text.setStyleSheet("color: #ecf0f1; font-size: 11px;")
+        sentech_camera_status_layout.addWidget(sentech_camera_status_text)
+        
+        top_panel_layout.addWidget(sentech_camera_status_widget)
+        
+        # Modbus Status
+        modbus_status_widget = QWidget()
+        modbus_status_layout = QHBoxLayout(modbus_status_widget)
+        modbus_status_layout.setContentsMargins(5, 0, 5, 0)
+        modbus_status_layout.setSpacing(5)
+        
+        self.modbus_status_indicator = QLabel('●')
+        self.modbus_status_indicator.setFixedWidth(15)
+        self.modbus_status_indicator.setStyleSheet("color: #f39c12; font-size: 16px; font-weight: bold;")
+        modbus_status_layout.addWidget(self.modbus_status_indicator)
+        
+        modbus_status_text = QLabel('Modbus')
+        modbus_status_text.setStyleSheet("color: #ecf0f1; font-size: 11px;")
+        modbus_status_layout.addWidget(modbus_status_text)
+        
+        top_panel_layout.addWidget(modbus_status_widget)
+        
+        top_panel_layout.addSpacing(15)
+        
+        # Taste Mode selection dropdown
+        taste_mode_label = QLabel('รสชาติ:')
+        taste_mode_label.setStyleSheet("color: #ecf0f1; padding: 5px; font-weight: bold; font-size: 12px;")
+        top_panel_layout.addWidget(taste_mode_label)
+        
+        self.taste_mode_combo = QComboBox()
+        self.taste_mode_combo.addItem("1 รสชาติ")
+        self.taste_mode_combo.addItem("2 รสชาติ")
+        self.taste_mode_combo.addItem("3 รสชาติ")
+        self.taste_mode_combo.setCurrentIndex(2)  # Default to 3-taste mode
+        self.taste_mode_combo.setFixedWidth(120)
+        self.taste_mode_combo.setStyleSheet("""
+            QComboBox {
+                padding: 5px;
+                font-size: 11px;
+                background-color: #ecf0f1;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                color: #2c3e50;
+            }
+            QComboBox:hover {
+                background-color: #d5dbdb;
+                border: 2px solid #95a5a6;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #34495e;
+                margin-right: 5px;
+            }
+        """)
+        self.taste_mode_combo.currentIndexChanged.connect(self.on_taste_mode_combo_changed)
+        top_panel_layout.addWidget(self.taste_mode_combo)
+        
+        top_panel_layout.addSpacing(15)
+        
+        # Expiry Mode selection dropdown
+        expiry_mode_label = QLabel('วันหมดอายุ:')
+        expiry_mode_label.setStyleSheet("color: #ecf0f1; padding: 5px; font-weight: bold; font-size: 12px;")
+        top_panel_layout.addWidget(expiry_mode_label)
+        
+        self.expiry_mode_combo = QComboBox()
+        self.expiry_mode_combo.addItem("โหมดปกติ")
+        self.expiry_mode_combo.addItem("คัดกรองวัน")
+        self.expiry_mode_combo.setCurrentIndex(0)  # Default to normal mode
+        self.expiry_mode_combo.setFixedWidth(130)
+        self.expiry_mode_combo.setStyleSheet("""
+            QComboBox {
+                padding: 5px;
+                font-size: 11px;
+                background-color: #ecf0f1;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                color: #2c3e50;
+            }
+            QComboBox:hover {
+                background-color: #d5dbdb;
+                border: 2px solid #95a5a6;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #34495e;
+                margin-right: 5px;
+            }
+        """)
+        self.expiry_mode_combo.currentIndexChanged.connect(self.on_expiry_mode_combo_changed)
+        top_panel_layout.addWidget(self.expiry_mode_combo)
+        
+        top_panel_layout.addStretch()
+        
+        # Login button
+        self.login_button = QPushButton('🔐 Login')
+        self.login_button.setFixedWidth(100)
+        self.login_button.setStyleSheet("""
+            QPushButton {
+                padding: 8px 15px;
+                font-size: 12px;
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+        """)
+        self.login_button.clicked.connect(self.on_login_button_clicked)
+        top_panel_layout.addWidget(self.login_button)
+        
+        # Debug button
+        self.debug_toggle_header_btn = QPushButton("🐛 Debug")
+        self.debug_toggle_header_btn.setFixedWidth(100)
+        self.debug_toggle_header_btn.clicked.connect(self.toggle_debug_panel)
+        self.debug_toggle_header_btn.setStyleSheet("QPushButton { padding: 8px 15px; font-size: 12px; background-color: #7f8c8d; color: white; border-radius: 5px; font-weight: bold; } QPushButton:hover { background-color: #95a5a6; }")
+        top_panel_layout.addWidget(self.debug_toggle_header_btn)
+        
+        layout.addWidget(top_panel)
+        
+        # Global loading banner (มองเห็นทุกแท็บ - แสดงเมื่อประมวลผลขวดหรือฝา)
+        self._global_loading_count = 0
+        self.global_loading_banner = QWidget()
+        self.global_loading_banner.setStyleSheet("""
+            QWidget { background-color: #f39c12; border-bottom: 2px solid #e67e22; padding: 8px; }
+            QLabel { color: white; font-size: 14px; font-weight: bold; }
+        """)
+        global_loading_layout = QHBoxLayout(self.global_loading_banner)
+        global_loading_layout.setContentsMargins(15, 8, 15, 8)
+        self.global_loading_label = QLabel("🔄 กำลังประมวลผล...")
+        self.global_loading_label.setStyleSheet("color: white; font-size: 14px; font-weight: bold;")
+        global_loading_layout.addWidget(self.global_loading_label)
+        self.global_loading_spinner = QProgressBar()
+        self.global_loading_spinner.setMinimum(0)
+        self.global_loading_spinner.setMaximum(0)  # indeterminate
+        self.global_loading_spinner.setFixedHeight(12)
+        self.global_loading_spinner.setStyleSheet("QProgressBar { border: 1px solid #e67e22; border-radius: 6px; background: #d35400; } QProgressBar::chunk { background: white; border-radius: 5px; }")
+        global_loading_layout.addWidget(self.global_loading_spinner, 1)
+        self.global_loading_banner.setVisible(False)
+        layout.addWidget(self.global_loading_banner)
+        
+        # Create collapsible tab widget (like panel output) - moved up before status controls
+        self.tab_widget = CollapsibleTabWidget()
+        
+        # Style the collapsible tab widget
+        self.tab_widget.setStyleSheet("""
+            QWidget {
+                background-color: #f5f5f5;
+            }
+        """)
+        
+        # Create Control Panel tab first (for status and controls)
+        control_panel_tab = QWidget()
+        control_panel_layout = QVBoxLayout(control_panel_tab)
+        control_panel_layout.setContentsMargins(10, 10, 10, 10)
+        control_panel_layout.setSpacing(10)
+        
+        # Status group
+        status_group = QGroupBox("สถานะระบบ")
+        status_layout = QHBoxLayout()
+        
+        # Camera status
+        self.camera_status_label = QLabel('📷 กล้อง: กำลังเริ่มต้น...')
+        self.camera_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+        status_layout.addWidget(self.camera_status_label)
+        
+        # Sentech camera status
+        self.sentech_camera_status_label = QLabel('📷 Sentech: กำลังเริ่มต้น...')
+        self.sentech_camera_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+        status_layout.addWidget(self.sentech_camera_status_label)
+        
+        # Modbus status (kept in Control Panel for detailed info, indicator is in Top Panel)
+        self.modbus_status_label = QLabel('📡 Modbus: กำลังเชื่อมต่อ...')
+        self.modbus_status_label.setStyleSheet("color: #f39c12; padding: 5px;")
+        status_layout.addWidget(self.modbus_status_label)
+        
+        # Queue status
+        self.queue_status_label = QLabel('📋 คิว: 0')
+        self.queue_status_label.setStyleSheet("color: #e67e22; padding: 5px; font-weight: bold;")
+        status_layout.addWidget(self.queue_status_label)
+        
+        # Note: Login button has been moved to Top Panel
+        
+        # D5002 Status Display
         self.d5002_status_header = QLabel('🔍 D5002: รอค่า')
         self.d5002_status_header.setFixedWidth(180)
         self.d5002_status_header.setStyleSheet("""
@@ -489,7 +1054,7 @@ class BottleDetectionGUI(QWidget):
         self.d5002_status_header.setAlignment(Qt.AlignCenter)
         status_layout.addWidget(self.d5002_status_header)
         
-        # D5001 Error Code Display (ข้างๆ D5002)
+        # D5001 Error Code Display
         self.d5001_status_header = QLabel('🔍 D5001: รอค่า')
         self.d5001_status_header.setFixedWidth(150)
         self.d5001_status_header.setStyleSheet("""
@@ -508,37 +1073,14 @@ class BottleDetectionGUI(QWidget):
         
         status_layout.addStretch()
         
-        # Debug panel toggle button (ใน status bar)
-        self.debug_toggle_header_btn = QPushButton("🐛 Debug")
-        self.debug_toggle_header_btn.setFixedWidth(80)
-        self.debug_toggle_header_btn.clicked.connect(self.toggle_debug_panel)
-        self.debug_toggle_header_btn.setStyleSheet("padding: 5px; font-size: 11px; background-color: #7f8c8d; color: white;")
-        status_layout.addWidget(self.debug_toggle_header_btn)
-        
         status_group.setLayout(status_layout)
-        layout.addWidget(status_group)
+        control_panel_layout.addWidget(status_group)
         
-        # Control buttons
+        # Note: Login button has been moved to Top Panel
+        
+        # Control buttons (moved to top panel, keeping only tab-specific buttons here)
         control_group = QGroupBox("ตัวเลือกการทำงาน")
         control_layout = QHBoxLayout()
-        
-        # Start/Stop buttons
-        self.btn_start = QPushButton('▶️ START (M700)')
-        self.btn_start.clicked.connect(self.start_system)
-        self.btn_start.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #27ae60; color: white; }")
-        control_layout.addWidget(self.btn_start)
-        
-        self.btn_stop = QPushButton('⏹️ STOP (M701)')
-        self.btn_stop.clicked.connect(self.stop_system)
-        self.btn_stop.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #e74c3c; color: white; }")
-        control_layout.addWidget(self.btn_stop)
-        
-        # Reset button (momentary - press to send 1, release to send 0)
-        self.btn_reset = QPushButton('🔄 RESET (D5012)')
-        self.btn_reset.pressed.connect(self.on_reset_pressed)
-        self.btn_reset.released.connect(self.on_reset_released)
-        self.btn_reset.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #f39c12; color: white; }")
-        control_layout.addWidget(self.btn_reset)
         
         # Manual capture button
         self.btn_capture = QPushButton('📸 ถ่ายภาพ (USB + Sentech)')
@@ -559,8 +1101,6 @@ class BottleDetectionGUI(QWidget):
         self.btn_select_image.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #3498db; color: white; }")
         control_layout.addWidget(self.btn_select_image)
         
-        # Auto mode is always enabled (checkbox removed)
-        
         # Process button
         self.btn_process = QPushButton('🔍 ประมวลผล')
         self.btn_process.clicked.connect(self.bottle_handlers.process_current_image)
@@ -576,7 +1116,7 @@ class BottleDetectionGUI(QWidget):
         control_layout.addWidget(self.btn_stop_processing)
         
         control_group.setLayout(control_layout)
-        layout.addWidget(control_group)
+        control_panel_layout.addWidget(control_group)
         
         # Taste Mode Selection Group
         taste_mode_group = QGroupBox("โหมดการตรวจสอบรสชาติ")
@@ -589,19 +1129,19 @@ class BottleDetectionGUI(QWidget):
         # Radio buttons for taste modes
         self.taste_mode_1 = QCheckBox("1 รสชาติ")
         self.taste_mode_1.setChecked(False)
-        self.taste_mode_1.toggled.connect(self.modbus_handlers.on_taste_mode_changed)
+        self.taste_mode_1.toggled.connect(self.on_taste_mode_checkbox_changed)
         self.taste_mode_1.setStyleSheet("QCheckBox { color: white; font-size: 12px; }")
         mode_selection_layout.addWidget(self.taste_mode_1)
         
         self.taste_mode_2 = QCheckBox("2 รสชาติ")
         self.taste_mode_2.setChecked(False)
-        self.taste_mode_2.toggled.connect(self.modbus_handlers.on_taste_mode_changed)
+        self.taste_mode_2.toggled.connect(self.on_taste_mode_checkbox_changed)
         self.taste_mode_2.setStyleSheet("QCheckBox { color: white; font-size: 12px; }")
         mode_selection_layout.addWidget(self.taste_mode_2)
         
         self.taste_mode_3 = QCheckBox("3 รสชาติ (ปัจจุบัน)")
         self.taste_mode_3.setChecked(True)  # Default to current mode
-        self.taste_mode_3.toggled.connect(self.modbus_handlers.on_taste_mode_changed)
+        self.taste_mode_3.toggled.connect(self.on_taste_mode_checkbox_changed)
         self.taste_mode_3.setStyleSheet("QCheckBox { color: white; font-size: 12px; }")
         mode_selection_layout.addWidget(self.taste_mode_3)
         
@@ -640,7 +1180,7 @@ class BottleDetectionGUI(QWidget):
         taste_mode_layout.addWidget(self.taste_mode_status)
         
         taste_mode_group.setLayout(taste_mode_layout)
-        layout.addWidget(taste_mode_group)
+        control_panel_layout.addWidget(taste_mode_group)
         
         # Expiry Filtering Mode Group
         expiry_mode_group = QGroupBox("โหมดการคัดกรองวันหมดอายุ (BBF)")
@@ -734,7 +1274,7 @@ class BottleDetectionGUI(QWidget):
         expiry_mode_layout.addWidget(self.expiry_mode_status)
         
         expiry_mode_group.setLayout(expiry_mode_layout)
-        layout.addWidget(expiry_mode_group)
+        control_panel_layout.addWidget(expiry_mode_group)
         
         # Gripper Control Group
         gripper_group = QGroupBox("ควบคุม Gripper")
@@ -781,61 +1321,87 @@ class BottleDetectionGUI(QWidget):
         gripper_layout.addWidget(self.gripper_status_label)
         
         gripper_group.setLayout(gripper_layout)
-        layout.addWidget(gripper_group)
+        control_panel_layout.addWidget(gripper_group)
         
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        control_panel_layout.addWidget(self.progress_bar)
         
         # Cap detection progress bar
         self.cap_progress_bar = QProgressBar()
         self.cap_progress_bar.setVisible(False)
         self.cap_progress_bar.setStyleSheet("QProgressBar { border: 2px solid #8e44ad; border-radius: 5px; text-align: center; } QProgressBar::chunk { background-color: #8e44ad; }")
-        layout.addWidget(self.cap_progress_bar)
+        control_panel_layout.addWidget(self.cap_progress_bar)
         
         # Status label
         self.status_label = QLabel('⏸️ โปรแกรมพร้อมทำงาน (รอ M511 เพื่อเริ่มการทำงาน)')
         self.status_label.setStyleSheet("color: #f39c12; padding: 5px;")
-        layout.addWidget(self.status_label)
+        control_panel_layout.addWidget(self.status_label)
         
         # Combined status label
         self.combined_status_label = QLabel('📊 สถานะรวม: กล้อง USB + Sentech พร้อมทำงาน')
         self.combined_status_label.setStyleSheet("color: #27ae60; padding: 5px; font-weight: bold;")
-        layout.addWidget(self.combined_status_label)
+        control_panel_layout.addWidget(self.combined_status_label)
         
         # Queue info label
         self.queue_info_label = QLabel('📋 สถานะคิว: ไม่มีคิวรอ')
         self.queue_info_label.setStyleSheet("color: #e67e22; padding: 5px; font-size: 11px;")
-        layout.addWidget(self.queue_info_label)
+        control_panel_layout.addWidget(self.queue_info_label)
         
         # D6004 status label
         self.d6004_status_label = QLabel('🔍 D6004: รอค่า')
         self.d6004_status_label.setStyleSheet("color: #9b59b6; padding: 5px; font-size: 11px;")
-        layout.addWidget(self.d6004_status_label)
+        control_panel_layout.addWidget(self.d6004_status_label)
         
         # D6007 status label
         self.d6007_status_label = QLabel('🔍 D6007: รอค่า')
         self.d6007_status_label.setStyleSheet("color: #9b59b6; padding: 5px; font-size: 11px;")
-        layout.addWidget(self.d6007_status_label)
+        control_panel_layout.addWidget(self.d6007_status_label)
         
         # D5002 status label
         self.d5002_status_label = QLabel('🔍 D5002: รอค่า')
         self.d5002_status_label.setStyleSheet("color: #9b59b6; padding: 5px; font-size: 11px;")
-        layout.addWidget(self.d5002_status_label)
+        control_panel_layout.addWidget(self.d5002_status_label)
         
         # System time label (for real-time updates)
         self.system_time_label = QLabel('🕐 เวลาปัจจุบัน: กำลังโหลด...')
         self.system_time_label.setStyleSheet("color: #34495e; padding: 5px; font-size: 11px;")
-        layout.addWidget(self.system_time_label)
+        control_panel_layout.addWidget(self.system_time_label)
         
         # Processing status label (for real-time updates)
         self.processing_status_label = QLabel('⏸️ ไม่มีการประมวลผล')
         self.processing_status_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
-        layout.addWidget(self.processing_status_label)
+        control_panel_layout.addWidget(self.processing_status_label)
         
-        # Create tab widget for bottle and cap detection
-        self.tab_widget = QTabWidget()
+        # Add Control Panel tab to tab widget
+        self.tab_widget.addTab(control_panel_tab, "⚙️ Control Panel")
+        
+        # Tab 0: Home - Monitor both bottle and cap detection (will be added first, so it becomes tab 0)
+        home_tab, home_widgets = create_home_tab()
+        # Map widgets to self for event handlers
+        self.home_main_splitter = home_widgets['main_splitter']
+        self.home_bottle_splitter = home_widgets['bottle_splitter']
+        self.home_bottle_image_label = home_widgets['bottle_image_label']
+        self.home_bottle_image_info_label = home_widgets['bottle_image_info_label']
+        self.home_bottle_crops_scroll = home_widgets['bottle_crops_scroll']
+        self.home_bottle_crops_container = home_widgets['bottle_crops_container']
+        self.home_bottle_crops_layout = home_widgets['bottle_crops_layout']
+        self.home_bottle_results_text = home_widgets['bottle_results_text']
+        self.home_cap_splitter = home_widgets['cap_splitter']
+        self.home_cap_image_label = home_widgets['cap_image_label']
+        self.home_cap_image_info_label = home_widgets['cap_image_info_label']
+        self.home_cap_results_scroll = home_widgets['cap_results_scroll']
+        self.home_cap_results_container = home_widgets['cap_results_container']
+        self.home_cap_results_layout = home_widgets['cap_results_layout']
+        self.home_cap_detection_text = home_widgets['cap_detection_text']
+        # Add Home tab first (so it becomes tab 0 and can be expanded by default)
+        home_tab_index = self.tab_widget.addTab(home_tab, "🏠 หน้าหลัก")
+        
+        # Expand Home tab by default (after all tabs are added)
+        # We'll do this after all tabs are added, so we need to call it later
+        # Store reference for later expansion
+        self.home_tab_index = home_tab_index
         
         # Tab 1: Bottle Detection (USB Camera) - Use component
         bottle_tab, bottle_widgets = create_bottle_tab()
@@ -847,6 +1413,16 @@ class BottleDetectionGUI(QWidget):
         self.crops_container = bottle_widgets['crops_container']
         self.crops_layout = bottle_widgets['crops_layout']
         self.results_text = bottle_widgets['results_text']
+        # Map bottle tab buttons
+        self.btn_process_bottle_tab = bottle_widgets['btn_process_bottle']
+        self.btn_save_bottle_image_tab = bottle_widgets['btn_save_bottle_image']
+        self.btn_select_bottle_image_tab = bottle_widgets['btn_select_bottle_image']
+        self.btn_select_multiple_bottle_images_tab = bottle_widgets['btn_select_multiple_bottle_images']
+        # Connect event handlers for bottle tab buttons
+        self.btn_process_bottle_tab.clicked.connect(self.bottle_handlers.process_current_image)
+        self.btn_save_bottle_image_tab.clicked.connect(self.bottle_handlers.save_captured_image)
+        self.btn_select_bottle_image_tab.clicked.connect(self.bottle_handlers.select_image_file)
+        # Note: Multiple images handler can be added if needed
         self.tab_widget.addTab(bottle_tab, "🔍 ตรวจจับขวด (USB Camera)")
         
         # Tab 2: Cap Detection (Sentech Camera) - Use component
@@ -1030,6 +1606,10 @@ class BottleDetectionGUI(QWidget):
         # Settings tab will be added/removed dynamically based on admin login
         
         layout.addWidget(self.tab_widget)
+        
+        # Expand Home tab by default (after all tabs are added)
+        if hasattr(self, 'home_tab_index'):
+            self.tab_widget._toggleTab(self.home_tab_index, True)
         
         # เพิ่ม main scroll area เข้าไปใน layout หลัก
         main_scroll_area.setWidget(main_widget)
@@ -1332,6 +1912,8 @@ class BottleDetectionGUI(QWidget):
             expiry_date = None
             cap_image = None
             faded_status = None
+            total_area = None  # Initialize total_area
+            num_chars = None   # Initialize num_chars
             
             if cap_result:
                 # Try to get OCR results from different possible locations
@@ -1482,8 +2064,6 @@ class BottleDetectionGUI(QWidget):
                 print(f"✅ HISTORY: Cap image found: {cap_image is not None}")
                 
                 # Extract faded status and area from cap result
-                total_area = None
-                num_chars = None
                 if 'cap_processing_results' in cap_result and len(cap_result['cap_processing_results']) > 0:
                     first_cap = cap_result['cap_processing_results'][0]
                     if 'faded_text_result' in first_cap:
@@ -1528,6 +2108,21 @@ class BottleDetectionGUI(QWidget):
                 except:
                     cap_img_copy = cap_image
             
+            # ขวด: Good/NG และ score จาก defect_inspection (angle1)
+            bottle_defect = None
+            bottle_defect_score = None
+            if bottle_result.get('defect_inspection'):
+                di = bottle_result['defect_inspection']
+                bottle_defect = di.get('result')  # "Good" or "NG"
+                if 'score' in di:
+                    bottle_defect_score = di['score']
+            # ฝา: ผ่าน/ไม่ผ่าน จาก faded_status (normal=ผ่าน, faded=ไม่ผ่าน)
+            cap_status = None
+            if cap_result and faded_status is not None:
+                cap_status = "ผ่าน" if faded_status == 'normal' else "ไม่ผ่าน"
+            elif cap_result:
+                cap_status = "ผ่าน"  # มีผลฝาแต่ไม่มี faded_status ให้ถือว่าผ่าน
+            
             history_entry = {
                 'timestamp': timestamp,
                 'bottle_image': bottle_img_copy,
@@ -1537,7 +2132,10 @@ class BottleDetectionGUI(QWidget):
                 'ocr_text': ocr_text,
                 'faded_status': faded_status,
                 'total_area': total_area,
-                'num_chars': num_chars
+                'num_chars': num_chars,
+                'bottle_defect': bottle_defect,
+                'bottle_defect_score': bottle_defect_score,
+                'cap_status': cap_status
             }
             
             # Add to history list
@@ -1555,6 +2153,9 @@ class BottleDetectionGUI(QWidget):
                     faded_status=faded_status,
                     total_area=total_area,
                     num_chars=num_chars,
+                    bottle_defect=bottle_defect,
+                    bottle_defect_score=bottle_defect_score,
+                    cap_status=cap_status,
                     gui_instance=self
                 )
                 
@@ -1612,19 +2213,110 @@ class BottleDetectionGUI(QWidget):
             if self.usb_camera.open_camera():
                 self.camera_status_label.setText('📷 กล้อง: พร้อมใช้งาน')
                 self.camera_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+                # Update Top Panel indicator
+                if hasattr(self, 'usb_camera_status_indicator'):
+                    self.usb_camera_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
                 self.status_handlers.update_usb_camera_status("พร้อมใช้งาน", True)
                 print("✅ USB Camera initialized successfully")
             else:
                 self.camera_status_label.setText('📷 กล้อง: ไม่สามารถเปิดได้')
                 self.camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                # Update Top Panel indicator
+                if hasattr(self, 'usb_camera_status_indicator'):
+                    self.usb_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
                 self.status_handlers.update_usb_camera_status("ไม่สามารถเปิดได้", False)
                 print("❌ Failed to initialize USB Camera")
         except Exception as e:
             self.camera_status_label.setText(f'📷 กล้อง: ข้อผิดพลาด - {str(e)}')
             self.camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self, 'usb_camera_status_indicator'):
+                self.usb_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
             self.update_usb_camera_status(f"ข้อผิดพลาด - {str(e)}", False)
             print(f"❌ Camera setup error: {e}")
-    
+
+    def _start_background_init(self):
+        """เริ่มโหลดกล้อง/โมเดลในพื้นหลัง"""
+        if getattr(self, '_init_worker', None) is not None:
+            return
+        self._init_worker = InitWorker(self)
+        self._init_worker.camera_ready.connect(self._on_init_camera_ready)
+        self._init_worker.sentech_ready.connect(self._on_init_sentech_ready)
+        self._init_worker.models_ready.connect(self._on_init_models_ready)
+        self._init_worker.progress_msg.connect(self._on_init_progress)
+        self._init_worker.finished.connect(self._on_init_worker_finished)
+        self._init_worker.start()
+
+    def _on_init_progress(self, msg):
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(f'⏳ {msg} (กดได้เลย)')
+        self.init_progress.emit(msg)
+
+    def _on_init_camera_ready(self, cam, ok):
+        self.usb_camera = cam
+        if cam is not None and ok:
+            self.camera_status_label.setText('📷 กล้อง: พร้อมใช้งาน')
+            self.camera_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            if hasattr(self, 'usb_camera_status_indicator'):
+                self.usb_camera_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_usb_camera_status("พร้อมใช้งาน", True)
+            print("✅ USB Camera initialized successfully")
+        else:
+            self.camera_status_label.setText('📷 กล้อง: ไม่สามารถเปิดได้' if cam else '📷 กล้อง: ข้อผิดพลาด')
+            self.camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            if hasattr(self, 'usb_camera_status_indicator'):
+                self.usb_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_usb_camera_status("ไม่สามารถเปิดได้", False)
+
+    def _on_init_sentech_ready(self, sc, ok):
+        self.sentech_camera = sc
+        if sc is not None and ok:
+            self.sentech_camera_status_label.setText('📷 Sentech: พร้อมใช้งาน (Harvesters)')
+            self.sentech_camera_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            if hasattr(self, 'sentech_camera_status_indicator'):
+                self.sentech_camera_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_sentech_camera_status("พร้อมใช้งาน", True)
+            print("✅ SENTECH camera initialized successfully with Harvesters")
+        else:
+            self.sentech_camera_status_label.setText('📷 Sentech: ไม่สามารถเชื่อมต่อได้' if sc else '📷 Sentech: ข้อผิดพลาด')
+            self.sentech_camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            if hasattr(self, 'sentech_camera_status_indicator'):
+                self.sentech_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_sentech_camera_status("ไม่สามารถเชื่อมต่อได้", False)
+
+    def _on_init_models_ready(self, d):
+        if d is None:
+            print("⚠️ Cap detection models not loaded in background")
+            return
+        self.cap_detector = d.get('cap_detector')
+        self.craft_detector = d.get('craft_detector')
+        self.rotation_model = d.get('rotation_model')
+        self.line_detector = d.get('line_detector')
+        self.ocr_model = d.get('ocr_model')
+        self.faded_text_yolo_model = d.get('faded_text_yolo_model')
+        if self.line_detector and hasattr(self, 'padding_spinbox'):
+            self.padding_spinbox.setValue(self.line_detector.settings.get('padding', 0))
+            shrink_x = self.line_detector.settings.get('shrink_x_percent', 0.02) * 100.0
+            shrink_y = self.line_detector.settings.get('shrink_y_percent', 0.10) * 100.0
+            max_hr = self.line_detector.settings.get('max_height_ratio', 0.1) * 100.0
+            self.shrink_x_spinbox.setValue(shrink_x)
+            self.shrink_y_spinbox.setValue(shrink_y)
+            self.max_height_ratio_spinbox.setValue(max_hr)
+        self.optimize_ocr_for_numbers()
+        print("✅ All cap detection models applied from background init")
+
+    def _on_init_worker_finished(self):
+        """โหลด Modbus บน main thread หลังกล้อง/โมเดลพร้อม"""
+        self._init_worker = None
+        self.init_progress.emit("กำลังเชื่อมต่อ Modbus...")
+        if hasattr(self, 'status_label'):
+            self.status_label.setText('⏳ กำลังเชื่อมต่อ Modbus...')
+        QtWidgets.QApplication.processEvents()
+        self.setup_modbus()
+        if hasattr(self, 'status_label'):
+            self.status_label.setText('⏸️ โปรแกรมพร้อมทำงาน (รอ M511 เพื่อเริ่มการทำงาน)')
+        print("✅ Background init finished - GUI ready")
+        self.init_complete.emit()
 
     def setup_sentech_camera(self):
         """Setup Sentech camera for cap detection using Harvesters only"""
@@ -1641,17 +2333,26 @@ class BottleDetectionGUI(QWidget):
             if success:
                 self.sentech_camera_status_label.setText('📷 Sentech: พร้อมใช้งาน (Harvesters)')
                 self.sentech_camera_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+                # Update Top Panel indicator
+                if hasattr(self, 'sentech_camera_status_indicator'):
+                    self.sentech_camera_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
                 self.status_handlers.update_sentech_camera_status("พร้อมใช้งาน", True)
                 print("✅ SENTECH camera initialized successfully with Harvesters")
             else:
                 self.sentech_camera_status_label.setText('📷 Sentech: ไม่สามารถเชื่อมต่อได้')
                 self.sentech_camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+                # Update Top Panel indicator
+                if hasattr(self, 'sentech_camera_status_indicator'):
+                    self.sentech_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
                 self.status_handlers.update_sentech_camera_status("ไม่สามารถเชื่อมต่อได้", False)
                 print("❌ Failed to initialize SENTECH camera")
             
         except Exception as e:
             self.sentech_camera_status_label.setText(f'📷 Sentech: ข้อผิดพลาด - {str(e)}')
             self.sentech_camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self, 'sentech_camera_status_indicator'):
+                self.sentech_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
             self.update_sentech_camera_status(f"ข้อผิดพลาด - {str(e)}", False)
             print(f"❌ SENTECH Camera setup error: {e}")
     
@@ -1884,6 +2585,9 @@ class BottleDetectionGUI(QWidget):
         except Exception as e:
             self.modbus_status_label.setText(f'📡 Modbus: ข้อผิดพลาด - {str(e)}')
             self.modbus_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            # Update Top Panel indicator
+            if hasattr(self, 'modbus_status_indicator'):
+                self.modbus_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
             self.status_handlers.update_modbus_connection_status_ui(False)
             print(f"❌ Modbus setup error: {e}")
     
@@ -1940,12 +2644,13 @@ class BottleDetectionGUI(QWidget):
                 self.login_button.setText("🔓 Logout")
                 self.login_button.setStyleSheet("""
                     QPushButton {
-                        padding: 5px;
-                        font-size: 11px;
+                        padding: 8px 15px;
+                        font-size: 12px;
                         background-color: #e74c3c;
                         color: white;
                         border: none;
                         border-radius: 5px;
+                        font-weight: bold;
                     }
                     QPushButton:hover {
                         background-color: #c0392b;
@@ -1969,12 +2674,13 @@ class BottleDetectionGUI(QWidget):
         self.login_button.setText("🔐 Login")
         self.login_button.setStyleSheet("""
             QPushButton {
-                padding: 5px;
-                font-size: 11px;
+                padding: 8px 15px;
+                font-size: 12px;
                 background-color: #27ae60;
                 color: white;
                 border: none;
                 border-radius: 5px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #229954;
@@ -2223,6 +2929,24 @@ class BottleDetectionGUI(QWidget):
         self.progress_bar.setValue(value)
         self.progress_bar.setFormat(f"กำลังประมวลผล... ({value}%)")
     
+    def show_global_loading(self, message="กำลังประมวลผล..."):
+        """แสดงแถบ loading ระดับทั้งแอป (มองเห็นทุกแท็บ)"""
+        self._global_loading_count = getattr(self, '_global_loading_count', 0) + 1
+        self.global_loading_label.setText(f"🔄 {message}")
+        self.global_loading_banner.setVisible(True)
+        if hasattr(self, 'processing_status_label'):
+            self.processing_status_label.setText(f"🔄 {message}")
+            self.processing_status_label.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
+    
+    def hide_global_loading(self):
+        """ซ่อนแถบ loading เมื่อการประมวลผลจบ (ใช้ ref count ถ้ามีทั้งขวดและฝารันพร้อมกัน)"""
+        self._global_loading_count = max(0, getattr(self, '_global_loading_count', 0) - 1)
+        if self._global_loading_count == 0:
+            self.global_loading_banner.setVisible(False)
+            if hasattr(self, 'processing_status_label'):
+                self.processing_status_label.setText("⏸️ ไม่มีการประมวลผล")
+                self.processing_status_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
+    
     def stop_processing(self):
         """Stop current processing"""
         try:
@@ -2245,6 +2969,11 @@ class BottleDetectionGUI(QWidget):
             self.cap_progress_bar.setVisible(False)
             self.btn_process.setEnabled(True)
             self.btn_stop_processing.setEnabled(False)
+            self._global_loading_count = 0
+            self.global_loading_banner.setVisible(False)
+            if hasattr(self, 'processing_status_label'):
+                self.processing_status_label.setText("⏸️ ไม่มีการประมวลผล")
+                self.processing_status_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
             self.status_label.setText('⏹️ หยุดการประมวลผลแล้ว')
             self.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             
@@ -2306,24 +3035,20 @@ class BottleDetectionGUI(QWidget):
                         faded_text_status = first_cap['faded_text_result'].get('status', 'unknown')
                         print(f"🔍 CAP VALIDATION: Faded text status: {faded_text_status}")
                         
-                        # หยุดประมวลผลและส่ง M140 เมื่อเจอข้อความจาง
+                        # หยุดประมวลผลและส่ง Modbus เหมือนขวด NG (D7009=50, M140, M600)
                         if faded_text_status == 'faded':
-                            print("❌ CAP VALIDATION: ตรวจพบข้อความจาง - หยุดประมวลผล")
-                            print("🚨 CAP VALIDATION: เขียนค่า D7009 = 50 (ฝาไม่ผ่าน)")
-                            print("🚀 CAP VALIDATION: ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)")
-                            
-                            # เขียนค่า D7009 = 50 (ฝาไม่ผ่าน)
+                            print("❌ CAP VALIDATION: ตรวจพบข้อความจาง - ส่ง Modbus เหมือนขวด NG")
                             if hasattr(self, 'modbus_thread') and self.modbus_thread:
-                                success = self.modbus_thread.write_register(7009, 50)
-                                if success:
-                                    print("✅ D7009 = 50 (ฝาไม่ผ่าน) - ส่งสัญญาณเรียบร้อย")
+                                m140_ok = self.modbus_thread.on_m140()
+                                if m140_ok:
+                                    if hasattr(self, 'status_handlers') and self.status_handlers:
+                                        self.status_handlers.update_coil_lamp("m140", True)
+                                    m600_ok = self.modbus_thread.on_m600()
+                                    if m600_ok and hasattr(self, 'status_handlers') and self.status_handlers:
+                                        self.status_handlers.update_coil_lamp("m600", True)
+                                    print("✅ ฝาจาง → D7009=50, M140, M600 ส่งแล้ว")
                                 else:
                                     print("❌ ไม่สามารถเขียน D7009 = 50 ได้")
-                                
-                                # ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)
-                                self.modbus_thread.on_m600()
-                                print("✅ M600 ส่งสัญญาณเรียบร้อย")
-                            
                             return False
             
             # ตรวจสอบว่ามีข้อความที่อ่านได้หรือไม่
@@ -2342,25 +3067,38 @@ class BottleDetectionGUI(QWidget):
                     ocr_text = ocr_results['recognized_text']
                     print(f"🔍 CAP VALIDATION: Using recognized_text field")
                 else:
-                    # ถ้าไม่มี text fields หรือเป็น empty ให้ใช้ values ทั้งหมด
-                    ocr_text = " ".join(str(v) for v in ocr_results.values() if v and str(v).strip())
-                    print(f"🔍 CAP VALIDATION: Using all values")
+                    # ดึงเฉพาะค่าที่เป็น string สั้น (ไม่รวม array/dict/list)
+                    parts = []
+                    for k, v in ocr_results.items():
+                        if v is None:
+                            continue
+                        if isinstance(v, str) and v.strip():
+                            parts.append(v.strip())
+                        elif isinstance(v, (int, float)) and k in ('total_lines', 'num_characters'):
+                            continue  # ไม่เอาเลขพวกนี้มาเป็นข้อความ
+                        elif isinstance(v, (list, dict)):
+                            # ถ้าเป็น list ของ dict ให้ดึง recognized_text จากแต่ละตัว
+                            if isinstance(v, list):
+                                for item in v:
+                                    if isinstance(item, dict):
+                                        t = item.get('recognized_text') or item.get('text')
+                                        if t and isinstance(t, str):
+                                            parts.append(t.strip())
+                    ocr_text = " ".join(parts) if parts else ""
+                    if ocr_text:
+                        print(f"🔍 CAP VALIDATION: Using all values (text only)")
             elif isinstance(ocr_results, list):
-                # ถ้าเป็น list ให้วนลูปผ่าน items
+                # ถ้าเป็น list ให้ดึงเฉพาะข้อความจากแต่ละบรรทัด (ไม่ใช้ str() จะได้ไม่ดึง array/bbox)
                 for ocr_result in ocr_results:
                     if isinstance(ocr_result, dict):
-                        # ถ้าเป็น dictionary ให้ใช้ .get()
-                        ocr_text += ocr_result.get('text', '') + " "
+                        t = ocr_result.get('recognized_text') or ocr_result.get('text') or ocr_result.get('total_recognized_text') or ''
+                        if t and isinstance(t, str):
+                            ocr_text += t.strip() + " "
                     elif isinstance(ocr_result, str):
-                        # ถ้าเป็น string ให้ใช้ตรงๆ
-                        ocr_text += ocr_result + " "
-                    else:
-                        # ถ้าเป็นประเภทอื่น ให้แปลงเป็น string
-                        ocr_text += str(ocr_result) + " "
+                        ocr_text += ocr_result.strip() + " "
                 ocr_text = ocr_text.strip()
             else:
-                # ถ้าเป็นประเภทอื่น ให้แปลงเป็น string
-                ocr_text = str(ocr_results)
+                ocr_text = ""
             
             ocr_text = ocr_text.strip()
             
@@ -2368,21 +3106,9 @@ class BottleDetectionGUI(QWidget):
                 print("❌ CAP VALIDATION: No text found in OCR results")
                 return False
             
-            print(f"🔍 CAP VALIDATION: OCR text: '{ocr_text}'")
-            print(f"🔍 CAP VALIDATION: OCR results type: {type(ocr_results)}")
-            if isinstance(ocr_results, dict):
-                print(f"🔍 CAP VALIDATION: OCR results keys: {list(ocr_results.keys())}")
-                # ลดการ print ข้อมูลที่เยอะเกินไป
-                if 'line_results' in ocr_results:
-                    print(f"🔍 CAP VALIDATION: Found {len(ocr_results['line_results'])} lines")
-                if 'total_lines' in ocr_results:
-                    print(f"🔍 CAP VALIDATION: Total lines: {ocr_results['total_lines']}")
-            elif isinstance(ocr_results, list):
-                print(f"🔍 CAP VALIDATION: OCR results length: {len(ocr_results)}")
-                # ลดการ print ข้อมูลที่เยอะเกินไป
-                if len(ocr_results) > 0:
-                    print(f"🔍 CAP VALIDATION: First OCR result type: {type(ocr_results[0])}")
-                    # ไม่ print ข้อมูลทั้งหมดของ OCR result
+            # แสดงเฉพาะข้อความสั้น (ไม่ dump structure) และจำกัดความยาวใน log
+            _preview = ocr_text[:80] + ("..." if len(ocr_text) > 80 else "")
+            print(f"🔍 CAP VALIDATION: OCR text: '{_preview}'")
             
             # ตรวจสอบรูปแบบวันที่/เวลาตาม bottle type
             if self.current_bottle_type == "M100":
@@ -2581,10 +3307,14 @@ class BottleDetectionGUI(QWidget):
             if isinstance(result, str):
                 print(f"🔍 DEBUG: Result is string: {result}")
                 self.cap_detection_text.setText(f"Error: Received string instead of dictionary: {result}")
+                if hasattr(self, 'home_cap_detection_text'):
+                    self.home_cap_detection_text.setText(f"Error: Received string instead of dictionary: {result}")
                 return
             elif not isinstance(result, dict):
                 print(f"🔍 DEBUG: Result is not dict: {type(result)}")
                 self.cap_detection_text.setText(f"Error: Expected dictionary, got {type(result)}")
+                if hasattr(self, 'home_cap_detection_text'):
+                    self.home_cap_detection_text.setText(f"Error: Expected dictionary, got {type(result)}")
                 return
             
             # print("🔍 DEBUG: Starting to display cap detection results")  # Reduced spam
@@ -2593,6 +3323,13 @@ class BottleDetectionGUI(QWidget):
             # Clear previous results
             for i in reversed(range(self.cap_results_layout.count())):
                 self.cap_results_layout.itemAt(i).widget().setParent(None)
+            
+            # Clear Home tab cap results too
+            if hasattr(self, 'home_cap_results_layout'):
+                for i in reversed(range(self.home_cap_results_layout.count())):
+                    widget = self.home_cap_results_layout.itemAt(i).widget()
+                    if widget:
+                        widget.setParent(None)
             
             # print("🔍 DEBUG: Cleared previous results")  # Reduced spam
             
@@ -2800,6 +3537,22 @@ class BottleDetectionGUI(QWidget):
                             faded_layout.addWidget(faded_info)
                             
                             self.cap_results_layout.addWidget(faded_container)
+                            
+                            # Also add to Home tab cap results
+                            if hasattr(self, 'home_cap_results_layout'):
+                                # Clone the container for Home tab
+                                home_faded_container = QWidget()
+                                home_faded_container.setStyleSheet("border: 2px solid #f39c12; margin: 5px; padding: 5px; background-color: white;")
+                                home_faded_layout = QVBoxLayout(home_faded_container)
+                                home_faded_title = QLabel(f"{emoji} Step 2a.5: ตรวจสอบรอยจางฝาที่ {cap_index+1}")
+                                home_faded_title.setStyleSheet(f"font-weight: bold; color: {color}; font-size: 11px;")
+                                home_faded_title.setAlignment(Qt.AlignCenter)
+                                home_faded_layout.addWidget(home_faded_title)
+                                home_faded_info = QLabel(f"สถานะ: {status.upper()}\nจำนวนตัวอักษร: {num_chars}")
+                                home_faded_info.setStyleSheet(f"color: {color}; font-size: 10px; padding: 5px;")
+                                home_faded_info.setAlignment(Qt.AlignCenter)
+                                home_faded_layout.addWidget(home_faded_info)
+                                self.home_cap_results_layout.addWidget(home_faded_container)
                             
                             # Display debug images if available
                             if 'debug_images' in faded_result and faded_result['debug_images']:
@@ -3098,22 +3851,19 @@ class BottleDetectionGUI(QWidget):
                                 ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
                                 ocr_label.setWordWrap(True)
                                 ocr_layout.addWidget(ocr_label)
-                        else:
-                            # Handle list format (legacy)
-                            for j, ocr_result in enumerate(ocr_results):
-                                # Check if ocr_result is a dictionary
-                                if isinstance(ocr_result, dict):
-                                    ocr_text = f"  {j+1}. '{ocr_result.get('text', 'N/A')}' (ความเชื่อมั่น: {ocr_result.get('confidence', 0):.3f})"
-                                else:
-                                    # If it's a string or other type, display as is
-                                    ocr_text = f"  {j+1}. '{str(ocr_result)}'"
-                                
-                                ocr_label = QLabel(ocr_text)
-                                ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
-                                ocr_label.setWordWrap(True)
-                                ocr_layout.addWidget(ocr_label)
-                        
-                        self.cap_results_layout.addWidget(ocr_container)
+                            if isinstance(ocr_results, list):
+                                # Handle list format (legacy)
+                                for j, ocr_result in enumerate(ocr_results):
+                                    if isinstance(ocr_result, dict):
+                                        ocr_text = f"  {j+1}. '{ocr_result.get('text', 'N/A')}' (ความเชื่อมั่น: {ocr_result.get('confidence', 0):.3f})"
+                                    else:
+                                        ocr_text = f"  {j+1}. '{str(ocr_result)}'"
+                                    ocr_label = QLabel(ocr_text)
+                                    ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
+                                    ocr_label.setWordWrap(True)
+                                    ocr_layout.addWidget(ocr_label)
+                            
+                            self.cap_results_layout.addWidget(ocr_container)
                 else:
                     # Fallback: Display only cropped images (old behavior)
                     for i, crop in enumerate(result['cropped_images']):
@@ -3484,9 +4234,15 @@ class BottleDetectionGUI(QWidget):
             
             self.cap_detection_text.setText(cap_text)
             
+            # Update Home tab cap detection text too
+            if hasattr(self, 'home_cap_detection_text'):
+                self.home_cap_detection_text.setText(cap_text)
+            
         except Exception as e:
             print(f"❌ Error displaying cap detection results: {e}")
             self.cap_detection_text.setText(f"ข้อผิดพลาดในการแสดงผล: {str(e)}")
+            if hasattr(self, 'home_cap_detection_text'):
+                self.home_cap_detection_text.setText(f"ข้อผิดพลาดในการแสดงผล: {str(e)}")
     
     # Cap detection methods delegated to cap_handlers
     # Use self.cap_handlers.display_cap_processing_ui() instead
@@ -3531,6 +4287,8 @@ class BottleDetectionGUI(QWidget):
             if hasattr(self, 'cap_detection_text') and self.cap_detection_text:
                 if self.current_bottle_type in ["M100", "M110", "M120"]:
                     self.cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.current_bottle_type}")
+                    if hasattr(self, 'home_cap_detection_text'):
+                        self.home_cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.current_bottle_type}")
                 else:
                     self.cap_detection_text.setText("✅ การประมวลผลฝาเสร็จสิ้น")
                 self.cap_detection_text.setStyleSheet("""
@@ -3709,6 +4467,146 @@ class BottleDetectionGUI(QWidget):
         except Exception as e:
             print(f"❌ Error in send_one_taste_signal: {e}")
     
+    def on_taste_mode_checkbox_changed(self):
+        """Handle taste mode checkbox change - update combo box"""
+        try:
+            # Update combo box to match checkbox selection
+            if hasattr(self, 'taste_mode_combo'):
+                self.taste_mode_combo.blockSignals(True)
+                if self.taste_mode_1.isChecked():
+                    self.taste_mode_combo.setCurrentIndex(0)
+                elif self.taste_mode_2.isChecked():
+                    self.taste_mode_combo.setCurrentIndex(1)
+                elif self.taste_mode_3.isChecked():
+                    self.taste_mode_combo.setCurrentIndex(2)
+                self.taste_mode_combo.blockSignals(False)
+            
+            # Call the original modbus handler
+            self.modbus_handlers.on_taste_mode_changed()
+            
+        except Exception as e:
+            print(f"❌ Error in on_taste_mode_checkbox_changed: {e}")
+    
+    def on_taste_mode_combo_changed(self, index):
+        """Handle taste mode combo box change"""
+        try:
+            # index: 0 = 1 taste, 1 = 2 taste, 2 = 3 taste
+            new_mode = index + 1
+            
+            # Update checkboxes to match combo selection
+            if hasattr(self, 'taste_mode_1') and hasattr(self, 'taste_mode_2') and hasattr(self, 'taste_mode_3'):
+                self.taste_mode_1.blockSignals(True)
+                self.taste_mode_2.blockSignals(True)
+                self.taste_mode_3.blockSignals(True)
+                
+                self.taste_mode_1.setChecked(new_mode == 1)
+                self.taste_mode_2.setChecked(new_mode == 2)
+                self.taste_mode_3.setChecked(new_mode == 3)
+                
+                self.taste_mode_1.blockSignals(False)
+                self.taste_mode_2.blockSignals(False)
+                self.taste_mode_3.blockSignals(False)
+            
+            # Update current taste mode and process the change
+            if new_mode != self.current_taste_mode:
+                self.current_taste_mode = new_mode
+                
+                # Reset all taste mode signals first
+                if hasattr(self, 'modbus_thread') and self.modbus_thread:
+                    self.modbus_thread.reset_m720()
+                    self.modbus_thread.reset_m721()
+                    self.modbus_thread.reset_m722()
+                    self.modbus_thread.reset_m730()
+                    self.modbus_thread.reset_m731()
+                    self.modbus_thread.reset_m732()
+                    self.modbus_thread.reset_m733()
+                    self.modbus_thread.reset_m734()
+                    self.modbus_thread.reset_m735()
+                    self.modbus_thread.reset_m740()
+                    self.modbus_thread.reset_m741()
+                    self.modbus_thread.reset_m742()
+                    
+                    # Reset lamp status
+                    self.status_handlers.update_coil_lamp("m720", False)
+                    self.status_handlers.update_coil_lamp("m721", False)
+                    self.status_handlers.update_coil_lamp("m722", False)
+                    self.status_handlers.update_coil_lamp("m730", False)
+                    self.status_handlers.update_coil_lamp("m731", False)
+                    self.status_handlers.update_coil_lamp("m732", False)
+                    self.status_handlers.update_coil_lamp("m733", False)
+                    self.status_handlers.update_coil_lamp("m734", False)
+                    self.status_handlers.update_coil_lamp("m735", False)
+                    self.status_handlers.update_coil_lamp("m740", False)
+                    self.status_handlers.update_coil_lamp("m741", False)
+                    self.status_handlers.update_coil_lamp("m742", False)
+                
+                # Process mode change
+                if new_mode == 1:
+                    self.modbus_handlers.show_taste_selection()
+                    if hasattr(self, 'taste_mode_status'):
+                        self.taste_mode_status.setText("โหมดปัจจุบัน: 1 รสชาติ - กรุณาเลือกรสชาติ")
+                        self.taste_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
+                    if hasattr(self, 'modbus_thread') and self.modbus_thread:
+                        self.modbus_thread.write_register(9006, 30)
+                elif new_mode == 2:
+                    self.modbus_handlers.show_taste_selection()
+                    if hasattr(self, 'taste_mode_status'):
+                        self.taste_mode_status.setText("โหมดปัจจุบัน: 2 รสชาติ - กรุณาเลือกรสชาติ")
+                        self.taste_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
+                    if hasattr(self, 'modbus_thread') and self.modbus_thread:
+                        self.modbus_thread.write_register(9006, 20)
+                elif new_mode == 3:
+                    self.modbus_handlers.hide_taste_selection()
+                    self.selected_tastes = ["M100", "M110", "M120"]
+                    if hasattr(self, 'taste_mode_status'):
+                        self.taste_mode_status.setText("โหมดปัจจุบัน: 3 รสชาติ (M100, M110, M120)")
+                        self.taste_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
+                    if hasattr(self, 'modbus_thread') and self.modbus_thread:
+                        self.modbus_thread.write_register(9006, 10)
+            
+            print(f"🔄 TASTE MODE: Changed to {new_mode} taste mode via combo box")
+            
+        except Exception as e:
+            print(f"❌ Error in on_taste_mode_combo_changed: {e}")
+    
+    def on_expiry_mode_combo_changed(self, index):
+        """Handle expiry mode combo box change"""
+        try:
+            # index: 0 = normal, 1 = filter
+            if index == 0:
+                # Normal mode
+                if hasattr(self, 'expiry_mode_normal') and hasattr(self, 'expiry_mode_filter'):
+                    self.expiry_mode_normal.blockSignals(True)
+                    self.expiry_mode_filter.blockSignals(True)
+                    self.expiry_mode_normal.setChecked(True)
+                    self.expiry_mode_filter.setChecked(False)
+                    self.expiry_mode_normal.blockSignals(False)
+                    self.expiry_mode_filter.blockSignals(False)
+                
+                self.current_expiry_mode = "normal"
+                self.hide_expiry_filter_controls()
+                if hasattr(self, 'expiry_mode_status'):
+                    self.expiry_mode_status.setText("โหมดปัจจุบัน: ปกติ (ไม่คัดกรองวันหมดอายุ)")
+                    self.expiry_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
+            else:
+                # Filter mode
+                if hasattr(self, 'expiry_mode_normal') and hasattr(self, 'expiry_mode_filter'):
+                    self.expiry_mode_normal.blockSignals(True)
+                    self.expiry_mode_filter.blockSignals(True)
+                    self.expiry_mode_normal.setChecked(False)
+                    self.expiry_mode_filter.setChecked(True)
+                    self.expiry_mode_normal.blockSignals(False)
+                    self.expiry_mode_filter.blockSignals(False)
+                
+                self.current_expiry_mode = "filter"
+                self.show_expiry_filter_controls()
+                self.update_expiry_mode_status()
+            
+            print(f"🔄 EXPIRY MODE: Changed to {self.current_expiry_mode} mode via combo box")
+            
+        except Exception as e:
+            print(f"❌ Error in on_expiry_mode_combo_changed: {e}")
+    
     def on_expiry_mode_changed(self):
         """Handle expiry mode selection change - ทำงานแบบ radio button (ถ้ากดช่องใหม่ ช่องเก่าจะถูกยกเลิกอัตโนมัติ)"""
         try:
@@ -3718,6 +4616,15 @@ class BottleDetectionGUI(QWidget):
             # ถ้า checkbox ถูก uncheck (ไม่ใช่ check) ให้ข้าม
             if sender and not sender.isChecked():
                 return
+            
+            # Update combo box to match checkbox selection
+            if hasattr(self, 'expiry_mode_combo'):
+                self.expiry_mode_combo.blockSignals(True)
+                if sender == self.expiry_mode_normal:
+                    self.expiry_mode_combo.setCurrentIndex(0)
+                elif sender == self.expiry_mode_filter:
+                    self.expiry_mode_combo.setCurrentIndex(1)
+                self.expiry_mode_combo.blockSignals(False)
             
             # ตรวจสอบว่า checkbox ไหนถูก check และยกเลิกช่องอื่นๆ
             if sender == self.expiry_mode_normal:
@@ -4681,6 +5588,26 @@ class BottleDetectionGUI(QWidget):
                 print("❌ RESET: ไม่สามารถเขียน D5012 = 0 ได้")
         else:
             print("❌ RESET: Modbus thread ไม่พร้อมใช้งาน")
+    
+    def on_toggle_light_m76(self):
+        """Toggle ไฟ (M76) เปิด/ปิด - ส่ง write_coil(76, on/off)"""
+        if not hasattr(self, 'modbus_thread') or self.modbus_thread is None:
+            QMessageBox.warning(self, "ข้อผิดพลาด", "Modbus ยังไม่ได้เชื่อมต่อ")
+            self.btn_light_m76.setChecked(not self.btn_light_m76.isChecked())  # revert toggle
+            return
+        is_on = self.btn_light_m76.isChecked()
+        success = self.modbus_thread.write_coil(76, is_on)
+        if success:
+            if is_on:
+                self.btn_light_m76.setText('💡 ไฟ (M76) เปิด')
+                print("✅ ไฟ (M76): เปิด")
+            else:
+                self.btn_light_m76.setText('💡 ไฟ (M76) ปิด')
+                print("✅ ไฟ (M76): ปิด")
+        else:
+            self.btn_light_m76.setChecked(not is_on)  # revert on failure
+            self.btn_light_m76.setText('💡 ไฟ (M76) ปิด' if not is_on else '💡 ไฟ (M76) เปิด')
+            QMessageBox.warning(self, "ข้อผิดพลาด", "ส่งคำสั่ง M76 ไม่ได้")
     
     # Modbus operation methods delegated to modbus_handlers
     # Use self.modbus_handlers.reset_to_initial_state() instead

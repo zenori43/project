@@ -122,10 +122,22 @@ else
     export PATH=/usr/local/cuda-11.4/bin:$PATH
 fi
 
-echo -e "${GREEN}✅ CUDA environment variables set${NC}"
+# โหลด libgomp เฉพาะเมื่อยังใช้ TensorFlow CPU (tensorflow_cpu_aws) และไฟล์มีอยู่จริง
+# ถ้าติดตั้ง TensorFlow GPU แล้ว ไฟล์นี้มักไม่มี — ไม่ set LD_PRELOAD (กัน error ใน log)
+LIBGOMP="$HOME/.local/lib/python3.8/site-packages/tensorflow_cpu_aws.libs/libgomp-cc9055c7.so.1.0.0"
+if [ -f "$LIBGOMP" ] && [ -r "$LIBGOMP" ]; then
+    export LD_PRELOAD="$LIBGOMP${LD_PRELOAD:+:$LD_PRELOAD}"
+else
+    # ล้าง LD_PRELOAD ถ้าเคยชี้ไปที่ path นี้ (ไฟล์หายหรือใช้ TF GPU)
+    case "${LD_PRELOAD-}" in
+        *tensorflow_cpu_aws*libgomp*) export LD_PRELOAD= ;;
+    esac
+fi
+
+echo -e "${GREEN}✅ CUDA environment variables set (OpenCV, PyTorch, TensorFlow ใช้ GPU)${NC}"
 echo -e "${GREEN}   CUDA_HOME: $CUDA_HOME${NC}"
 echo -e "${GREEN}   LD_LIBRARY_PATH includes: CUDA libraries${NC}"
-echo -e "${GREEN}   PYTHONPATH includes: OpenCV Python packages${NC}"
+echo -e "${GREEN}   Defect model (TensorFlow) จะใช้ GPU เมื่อรันผ่าน run.sh${NC}"
 echo ""
 
 # ตรวจสอบว่ามี arguments สำหรับ debug mode หรือไม่
