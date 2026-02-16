@@ -33,6 +33,12 @@ else
     export PATH=/usr/local/cuda-11.4/bin:$PATH
 fi
 
+# โหลด libgomp ก่อน (แก้ "cannot allocate memory in static TLS block" เมื่อใช้ TensorFlow/defect model)
+LIBGOMP="$HOME/.local/lib/python3.8/site-packages/tensorflow_cpu_aws.libs/libgomp-cc9055c7.so.1.0.0"
+if [ -f "$LIBGOMP" ]; then
+    export LD_PRELOAD="$LIBGOMP${LD_PRELOAD:+:$LD_PRELOAD}"
+fi
+
 # รัน main.py
 python3 main.py "$@"
 

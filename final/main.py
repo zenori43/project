@@ -11,6 +11,10 @@ import platform
 IS_WINDOWS = platform.system() == 'Windows'
 IS_LINUX = platform.system() == 'Linux'
 
+# หมายเหตุ: Defect model (TensorFlow) ใช้ GPU ได้เมื่อรันผ่าน run.sh
+# เพราะ run.sh ตั้ง CUDA_HOME / LD_LIBRARY_PATH ใน shell ก่อนเริ่ม Python
+# ถ้ารันจาก IDE หรือคำสั่ง python3 main.py โดยตรง TensorFlow อาจไม่เห็น GPU
+
 # IMPORTANT: Set CUDA environment variables BEFORE importing anything
 # This must be done before any other imports that use CUDA
 # Set CUDA environment variables (like run.sh does) - สำหรับ Linux เท่านั้น
@@ -129,25 +133,24 @@ def main():
             print("📦 กำลังเตรียมหน้าต่างหลัก...")
             window = BottleDetectionGUI()
             
-            if use_splash:
-                splash.set_progress(7, 10, "กำลังเริ่มต้นระบบ...")
-                app.processEvents()
+            # ยังไม่แสดง GUI — รอโหลดกล้อง/โมเดล/Defect/Modbus ในพื้นหลัง แล้วค่อยปิด loading และแสดงหน้าต่างหลัก
+            init_progress_step = [6]  # 6=กล้อง 7=Sentech 8=โมเดล 9=Defect 10=Modbus/พร้อม
+            def on_init_progress(msg):
+                if use_splash and splash:
+                    init_progress_step[0] = min(init_progress_step[0] + 1, 10)
+                    splash.set_progress(init_progress_step[0], 10, msg)
+                    app.processEvents()
+
+            def on_init_complete():
+                if use_splash and splash:
+                    splash.set_progress(10, 10, "พร้อมใช้งาน!")
+                    app.processEvents()
+                    splash.close()
+                print("✅ แสดงหน้าต่างหลัก...")
+                window.show()
             
-            if use_splash:
-                splash.set_progress(8, 10, "กำลังแสดงหน้าต่างหลัก...")
-                app.processEvents()
-            print("✅ แสดงหน้าต่างหลัก...")
-            window.show()
-            
-            if use_splash:
-                splash.set_progress(9, 10, "กำลังเตรียมพร้อม...")
-                app.processEvents()
-                
-                splash.set_progress(10, 10, "พร้อมใช้งาน!")
-                app.processEvents()
-                
-                # ปิด splash screen หลังจาก GUI แสดงแล้ว
-                QTimer.singleShot(300, splash.close)
+            window.init_progress.connect(on_init_progress)
+            window.init_complete.connect(on_init_complete)
             
             print("✅ โปรแกรมพร้อมใช้งาน!")
             sys.exit(app.exec_())

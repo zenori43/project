@@ -827,18 +827,9 @@ class ModbusThread(QThread):
                                 print(f"📋 ยังมีคิวรออยู่: {len(self.pending_results_queue)}")
                                 self.modbus_status.emit(f"📋 ยังมีคิวรออยู่: {len(self.pending_results_queue)}")
                         elif self.pending_m301_count > 0:
-                            # ไม่มีผลลัพธ์ใน queue แต่มีคิว - ถ่ายภาพใหม่ (fallback)
-                            print(f"📸 ถ่ายภาพทันทีหลัง reset ทั้งหมด (คิว: {self.pending_m301_count})")
-                            self.modbus_status.emit(f"📸 ถ่ายภาพทันทีหลัง reset ทั้งหมด (คิว: {self.pending_m301_count})")
-                            # ลดคิวลง 1 และถ่ายภาพจากคิว
-                            self.pending_m301_count -= 1
-                            print(f"📋 ลดคิวลงเหลือ: {self.pending_m301_count}")
-                            self.queue_trigger_detected.emit()  # ใช้ signal สำหรับคิว
-                            
-                            # ถ้ายังมีคิวอยู่ ให้แสดงสถานะ
-                            if self.pending_m301_count > 0:
-                                print(f"📋 ยังมีคิวรออยู่: {self.pending_m301_count}")
-                                self.modbus_status.emit(f"📋 ยังมีคิวรออยู่: {self.pending_m301_count}")
+                            # ไม่มีผลใน queue แต่มีคิว = รอผลจาก silent อยู่ — ไม่ถ่ายภาพใหม่ (กันรอบที่ 3 หยิบอากาศ)
+                            print(f"⏳ รอผลจากคิว (ยังประมวลผลไม่เสร็จ, คิว: {self.pending_m301_count}) - ไม่ถ่ายภาพใหม่")
+                            self.modbus_status.emit(f"⏳ รอผลจากคิว (คิว: {self.pending_m301_count})")
                         else:
                             print("✅ ไม่มีคิวถ่ายภาพ พร้อมรับ M301 ใหม่")
                             self.modbus_status.emit("✅ ไม่มีคิวถ่ายภาพ พร้อมรับ M301 ใหม่")
@@ -1089,6 +1080,33 @@ class ModbusThread(QThread):
     def reset_m81(self):
         """RESET M81"""
         return self.write_coil(81, False)
+    
+    def on_m100(self):
+        """ON M100 (ดั้งเดิม) → D7009 = 10"""
+        success = self.write_register(7009, 10)
+        if success:
+            print("✅ ON M100: D7009 = 10 (ดั้งเดิม)")
+        else:
+            print("❌ ON M100: ไม่สามารถเขียน D7009 = 10 ได้")
+        return success
+    
+    def on_m110(self):
+        """ON M110 (น้ำตาล 2%) → D7009 = 20"""
+        success = self.write_register(7009, 20)
+        if success:
+            print("✅ ON M110: D7009 = 20 (น้ำตาล 2%)")
+        else:
+            print("❌ ON M110: ไม่สามารถเขียน D7009 = 20 ได้")
+        return success
+    
+    def on_m120(self):
+        """ON M120 (ผสมแมงลัก) → D7009 = 30"""
+        success = self.write_register(7009, 30)
+        if success:
+            print("✅ ON M120: D7009 = 30 (ผสมแมงลัก)")
+        else:
+            print("❌ ON M120: ไม่สามารถเขียน D7009 = 30 ได้")
+        return success
     
     def on_m140(self):
         """ส่งค่า 50 ไป D7009 (ฝาไม่ผ่าน - ไม่ตรงกับฟอร์ม)"""
@@ -1428,12 +1446,12 @@ class BottleDetectionThread(QThread):
             else:
                 print("❌ BOTTLE DETECTION THREAD: No type crops found")
                 self.progress_updated.emit(85)
+                result['combined_ocr_text'] = ""
+                result['bottle_type'] = None
                 # ถ้า YOLO ตรวจจับได้ angle3 แต่ไม่มี type crops → ไม่ใช่ angle3 จริงๆ
                 if angle3_detected_by_yolo:
                     print(f"⚠️ BOTTLE DETECTION THREAD: YOLO ตรวจจับได้ angle3 แต่ไม่มี type crops - ไม่ใช่ angle3 จริงๆ")
                     result['angle3_detected'] = False
-                    result['bottle_type'] = None  # ไม่ใช่ angle3 จริงๆ
-                    result['combined_ocr_text'] = ""
             
             # Clean up temp file
             try:

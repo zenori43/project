@@ -457,7 +457,83 @@ class ImageZoomDialog(QDialog):
         self.image_label.resize(scaled_pixmap.size())
 
 
+class InitWorker(QThread):
+    """โหลดกล้องและโมเดลในพื้นหลัง ไม่บล็อก GUI"""
+    camera_ready = pyqtSignal(object, bool)
+    sentech_ready = pyqtSignal(object, bool)
+    models_ready = pyqtSignal(object)  # dict or None
+    progress_msg = pyqtSignal(str)
+
+    def run(self):
+        # USB camera
+        try:
+            self.progress_msg.emit("กำลังโหลดกล้อง USB...")
+            from core.camera_manager import USBCamera
+            cam = USBCamera()
+            ok = cam.open_camera()
+            self.camera_ready.emit(cam, ok)
+        except Exception as e:
+            print(f"❌ InitWorker USB camera: {e}")
+            self.camera_ready.emit(None, False)
+        # Sentech camera
+        try:
+            self.progress_msg.emit("กำลังโหลดกล้อง Sentech...")
+            from core.camera_manager import SentechCamera
+            sc = SentechCamera()
+            ok = sc.initialize()
+            self.sentech_ready.emit(sc, ok)
+        except Exception as e:
+            print(f"❌ InitWorker Sentech: {e}")
+            self.sentech_ready.emit(None, False)
+        # Cap detection models
+        try:
+            self.progress_msg.emit("กำลังโหลดโมเดลฝา/OCR...")
+            from config.settings import CAP_DETECTION_AVAILABLE, CAP_MODEL_PATH, CRAFT_MODEL_PATH, CRAFT_REFINER_PATH, ROTATION_MODEL_PATH, OCR_MODEL_PATH, YOLO_AVAILABLE
+            if not CAP_DETECTION_AVAILABLE:
+                self.models_ready.emit(None)
+                return
+            from libs.detection.capmodel import initialize_detector
+            from libs.processing.rotationCRAFT import initialize_detector as initialize_craft_detector
+            from libs.processing.rotationmodel import initialize_model
+            from libs.processing.craft_line_detection import initialize_detector as initialize_line_detector
+            from libs.processing.deep_ocr import initialize_ocr_model
+            d = {}
+            d['cap_detector'] = initialize_detector(CAP_MODEL_PATH)
+            d['craft_detector'] = initialize_craft_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
+            d['rotation_model'] = initialize_model(ROTATION_MODEL_PATH)
+            d['rotation_model'].init_craft_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
+            d['line_detector'] = initialize_line_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
+            d['ocr_model'] = initialize_ocr_model(OCR_MODEL_PATH)
+            d['faded_text_yolo_model'] = None
+            if YOLO_AVAILABLE:
+                try:
+                    from ultralytics import YOLO
+                    d['faded_text_yolo_model'] = YOLO(CAP_MODEL_PATH)
+                except Exception:
+                    pass
+            self.models_ready.emit(d)
+        except Exception as e:
+            print(f"❌ InitWorker models: {e}")
+            import traceback
+            traceback.print_exc()
+            self.models_ready.emit(None)
+        # Defect model (Good/NG ขวด) — โหลดในหน้า loading เพื่อพร้อมก่อนแสดง GUI
+        try:
+            self.progress_msg.emit("กำลังโหลด Defect model (ขวด Good/NG)...")
+            from libs.detection.defect_model import _load_defect_model
+            if _load_defect_model() is not None:
+                print("✅ Defect model โหลดในหน้า loading แล้ว (พร้อมก่อนประมวลผล)")
+            else:
+                print("⚠️ Defect model โหลดไม่ได้ (จะข้ามการตรวจ defect)")
+        except Exception as e:
+            print(f"⚠️ InitWorker Defect model ข้าม: {e}")
+
+
 class BottleDetectionGUI(QWidget):
+    """สัญญาณเมื่อโหลดระบบในพื้นหลังเสร็จ (สำหรับแสดง loading ก่อนแล้วค่อยแสดง GUI)"""
+    init_complete = pyqtSignal()
+    init_progress = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle('ระบบตรวจจับขวดและ OCR - USB Camera + Modbus + Sentech Camera')
@@ -551,10 +627,11 @@ class BottleDetectionGUI(QWidget):
         self.setup_ui()
         self.setup_print_capture()  # Setup print capture after UI is ready
         
-        self.setup_camera()
-        self.setup_sentech_camera()
-        self.setup_cap_detection_models()
-        self.setup_modbus()
+        # โหลดกล้อง/โมเดล/Modbus ในพื้นหลังหลังหน้าต่างแสดง — ไม่ให้เปิดแล้วค้าง
+        if hasattr(self, 'status_label'):
+            self.status_label.setText('⏳ กำลังโหลดระบบ... (กดได้เลย)')
+        self._init_worker = None
+        QTimer.singleShot(80, self._start_background_init)
         
         # เพิ่ม keyboard shortcuts สำหรับ Jetson
         if self.is_jetson:
@@ -642,6 +719,24 @@ class BottleDetectionGUI(QWidget):
         self.btn_reset.released.connect(self.on_reset_released)
         self.btn_reset.setStyleSheet("QPushButton { padding: 8px 15px; font-size: 12px; background-color: #f39c12; color: white; border-radius: 5px; font-weight: bold; } QPushButton:hover { background-color: #e67e22; }")
         top_panel_layout.addWidget(self.btn_reset)
+        
+        # Toggle ไฟ (M76) - เปิด/ปิด ไฟในหน้าหลัก
+        self.btn_light_m76 = QPushButton('💡 ไฟ (M76) ปิด')
+        self.btn_light_m76.setCheckable(True)
+        self.btn_light_m76.setChecked(False)
+        self.btn_light_m76.clicked.connect(self.on_toggle_light_m76)
+        self.btn_light_m76.setStyleSheet("""
+            QPushButton {
+                padding: 8px 15px; font-size: 12px; background-color: #7f8c8d; color: white;
+                border-radius: 5px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #95a5a6; }
+            QPushButton:checked {
+                background-color: #f1c40f; color: #2c3e50;
+            }
+            QPushButton:checked:hover { background-color: #f39c12; }
+        """)
+        top_panel_layout.addWidget(self.btn_light_m76)
         
         top_panel_layout.addSpacing(20)
         
@@ -878,6 +973,27 @@ class BottleDetectionGUI(QWidget):
         top_panel_layout.addWidget(self.debug_toggle_header_btn)
         
         layout.addWidget(top_panel)
+        
+        # Global loading banner (มองเห็นทุกแท็บ - แสดงเมื่อประมวลผลขวดหรือฝา)
+        self._global_loading_count = 0
+        self.global_loading_banner = QWidget()
+        self.global_loading_banner.setStyleSheet("""
+            QWidget { background-color: #f39c12; border-bottom: 2px solid #e67e22; padding: 8px; }
+            QLabel { color: white; font-size: 14px; font-weight: bold; }
+        """)
+        global_loading_layout = QHBoxLayout(self.global_loading_banner)
+        global_loading_layout.setContentsMargins(15, 8, 15, 8)
+        self.global_loading_label = QLabel("🔄 กำลังประมวลผล...")
+        self.global_loading_label.setStyleSheet("color: white; font-size: 14px; font-weight: bold;")
+        global_loading_layout.addWidget(self.global_loading_label)
+        self.global_loading_spinner = QProgressBar()
+        self.global_loading_spinner.setMinimum(0)
+        self.global_loading_spinner.setMaximum(0)  # indeterminate
+        self.global_loading_spinner.setFixedHeight(12)
+        self.global_loading_spinner.setStyleSheet("QProgressBar { border: 1px solid #e67e22; border-radius: 6px; background: #d35400; } QProgressBar::chunk { background: white; border-radius: 5px; }")
+        global_loading_layout.addWidget(self.global_loading_spinner, 1)
+        self.global_loading_banner.setVisible(False)
+        layout.addWidget(self.global_loading_banner)
         
         # Create collapsible tab widget (like panel output) - moved up before status controls
         self.tab_widget = CollapsibleTabWidget()
@@ -1992,6 +2108,21 @@ class BottleDetectionGUI(QWidget):
                 except:
                     cap_img_copy = cap_image
             
+            # ขวด: Good/NG และ score จาก defect_inspection (angle1)
+            bottle_defect = None
+            bottle_defect_score = None
+            if bottle_result.get('defect_inspection'):
+                di = bottle_result['defect_inspection']
+                bottle_defect = di.get('result')  # "Good" or "NG"
+                if 'score' in di:
+                    bottle_defect_score = di['score']
+            # ฝา: ผ่าน/ไม่ผ่าน จาก faded_status (normal=ผ่าน, faded=ไม่ผ่าน)
+            cap_status = None
+            if cap_result and faded_status is not None:
+                cap_status = "ผ่าน" if faded_status == 'normal' else "ไม่ผ่าน"
+            elif cap_result:
+                cap_status = "ผ่าน"  # มีผลฝาแต่ไม่มี faded_status ให้ถือว่าผ่าน
+            
             history_entry = {
                 'timestamp': timestamp,
                 'bottle_image': bottle_img_copy,
@@ -2001,7 +2132,10 @@ class BottleDetectionGUI(QWidget):
                 'ocr_text': ocr_text,
                 'faded_status': faded_status,
                 'total_area': total_area,
-                'num_chars': num_chars
+                'num_chars': num_chars,
+                'bottle_defect': bottle_defect,
+                'bottle_defect_score': bottle_defect_score,
+                'cap_status': cap_status
             }
             
             # Add to history list
@@ -2019,6 +2153,9 @@ class BottleDetectionGUI(QWidget):
                     faded_status=faded_status,
                     total_area=total_area,
                     num_chars=num_chars,
+                    bottle_defect=bottle_defect,
+                    bottle_defect_score=bottle_defect_score,
+                    cap_status=cap_status,
                     gui_instance=self
                 )
                 
@@ -2097,7 +2234,89 @@ class BottleDetectionGUI(QWidget):
                 self.usb_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
             self.update_usb_camera_status(f"ข้อผิดพลาด - {str(e)}", False)
             print(f"❌ Camera setup error: {e}")
-    
+
+    def _start_background_init(self):
+        """เริ่มโหลดกล้อง/โมเดลในพื้นหลัง"""
+        if getattr(self, '_init_worker', None) is not None:
+            return
+        self._init_worker = InitWorker(self)
+        self._init_worker.camera_ready.connect(self._on_init_camera_ready)
+        self._init_worker.sentech_ready.connect(self._on_init_sentech_ready)
+        self._init_worker.models_ready.connect(self._on_init_models_ready)
+        self._init_worker.progress_msg.connect(self._on_init_progress)
+        self._init_worker.finished.connect(self._on_init_worker_finished)
+        self._init_worker.start()
+
+    def _on_init_progress(self, msg):
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(f'⏳ {msg} (กดได้เลย)')
+        self.init_progress.emit(msg)
+
+    def _on_init_camera_ready(self, cam, ok):
+        self.usb_camera = cam
+        if cam is not None and ok:
+            self.camera_status_label.setText('📷 กล้อง: พร้อมใช้งาน')
+            self.camera_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            if hasattr(self, 'usb_camera_status_indicator'):
+                self.usb_camera_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_usb_camera_status("พร้อมใช้งาน", True)
+            print("✅ USB Camera initialized successfully")
+        else:
+            self.camera_status_label.setText('📷 กล้อง: ไม่สามารถเปิดได้' if cam else '📷 กล้อง: ข้อผิดพลาด')
+            self.camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            if hasattr(self, 'usb_camera_status_indicator'):
+                self.usb_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_usb_camera_status("ไม่สามารถเปิดได้", False)
+
+    def _on_init_sentech_ready(self, sc, ok):
+        self.sentech_camera = sc
+        if sc is not None and ok:
+            self.sentech_camera_status_label.setText('📷 Sentech: พร้อมใช้งาน (Harvesters)')
+            self.sentech_camera_status_label.setStyleSheet("color: #27ae60; padding: 5px;")
+            if hasattr(self, 'sentech_camera_status_indicator'):
+                self.sentech_camera_status_indicator.setStyleSheet("color: #27ae60; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_sentech_camera_status("พร้อมใช้งาน", True)
+            print("✅ SENTECH camera initialized successfully with Harvesters")
+        else:
+            self.sentech_camera_status_label.setText('📷 Sentech: ไม่สามารถเชื่อมต่อได้' if sc else '📷 Sentech: ข้อผิดพลาด')
+            self.sentech_camera_status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
+            if hasattr(self, 'sentech_camera_status_indicator'):
+                self.sentech_camera_status_indicator.setStyleSheet("color: #e74c3c; font-size: 16px; font-weight: bold;")
+            self.status_handlers.update_sentech_camera_status("ไม่สามารถเชื่อมต่อได้", False)
+
+    def _on_init_models_ready(self, d):
+        if d is None:
+            print("⚠️ Cap detection models not loaded in background")
+            return
+        self.cap_detector = d.get('cap_detector')
+        self.craft_detector = d.get('craft_detector')
+        self.rotation_model = d.get('rotation_model')
+        self.line_detector = d.get('line_detector')
+        self.ocr_model = d.get('ocr_model')
+        self.faded_text_yolo_model = d.get('faded_text_yolo_model')
+        if self.line_detector and hasattr(self, 'padding_spinbox'):
+            self.padding_spinbox.setValue(self.line_detector.settings.get('padding', 0))
+            shrink_x = self.line_detector.settings.get('shrink_x_percent', 0.02) * 100.0
+            shrink_y = self.line_detector.settings.get('shrink_y_percent', 0.10) * 100.0
+            max_hr = self.line_detector.settings.get('max_height_ratio', 0.1) * 100.0
+            self.shrink_x_spinbox.setValue(shrink_x)
+            self.shrink_y_spinbox.setValue(shrink_y)
+            self.max_height_ratio_spinbox.setValue(max_hr)
+        self.optimize_ocr_for_numbers()
+        print("✅ All cap detection models applied from background init")
+
+    def _on_init_worker_finished(self):
+        """โหลด Modbus บน main thread หลังกล้อง/โมเดลพร้อม"""
+        self._init_worker = None
+        self.init_progress.emit("กำลังเชื่อมต่อ Modbus...")
+        if hasattr(self, 'status_label'):
+            self.status_label.setText('⏳ กำลังเชื่อมต่อ Modbus...')
+        QtWidgets.QApplication.processEvents()
+        self.setup_modbus()
+        if hasattr(self, 'status_label'):
+            self.status_label.setText('⏸️ โปรแกรมพร้อมทำงาน (รอ M511 เพื่อเริ่มการทำงาน)')
+        print("✅ Background init finished - GUI ready")
+        self.init_complete.emit()
 
     def setup_sentech_camera(self):
         """Setup Sentech camera for cap detection using Harvesters only"""
@@ -2710,6 +2929,24 @@ class BottleDetectionGUI(QWidget):
         self.progress_bar.setValue(value)
         self.progress_bar.setFormat(f"กำลังประมวลผล... ({value}%)")
     
+    def show_global_loading(self, message="กำลังประมวลผล..."):
+        """แสดงแถบ loading ระดับทั้งแอป (มองเห็นทุกแท็บ)"""
+        self._global_loading_count = getattr(self, '_global_loading_count', 0) + 1
+        self.global_loading_label.setText(f"🔄 {message}")
+        self.global_loading_banner.setVisible(True)
+        if hasattr(self, 'processing_status_label'):
+            self.processing_status_label.setText(f"🔄 {message}")
+            self.processing_status_label.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
+    
+    def hide_global_loading(self):
+        """ซ่อนแถบ loading เมื่อการประมวลผลจบ (ใช้ ref count ถ้ามีทั้งขวดและฝารันพร้อมกัน)"""
+        self._global_loading_count = max(0, getattr(self, '_global_loading_count', 0) - 1)
+        if self._global_loading_count == 0:
+            self.global_loading_banner.setVisible(False)
+            if hasattr(self, 'processing_status_label'):
+                self.processing_status_label.setText("⏸️ ไม่มีการประมวลผล")
+                self.processing_status_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
+    
     def stop_processing(self):
         """Stop current processing"""
         try:
@@ -2732,6 +2969,11 @@ class BottleDetectionGUI(QWidget):
             self.cap_progress_bar.setVisible(False)
             self.btn_process.setEnabled(True)
             self.btn_stop_processing.setEnabled(False)
+            self._global_loading_count = 0
+            self.global_loading_banner.setVisible(False)
+            if hasattr(self, 'processing_status_label'):
+                self.processing_status_label.setText("⏸️ ไม่มีการประมวลผล")
+                self.processing_status_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
             self.status_label.setText('⏹️ หยุดการประมวลผลแล้ว')
             self.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             
@@ -2793,24 +3035,20 @@ class BottleDetectionGUI(QWidget):
                         faded_text_status = first_cap['faded_text_result'].get('status', 'unknown')
                         print(f"🔍 CAP VALIDATION: Faded text status: {faded_text_status}")
                         
-                        # หยุดประมวลผลและส่ง M140 เมื่อเจอข้อความจาง
+                        # หยุดประมวลผลและส่ง Modbus เหมือนขวด NG (D7009=50, M140, M600)
                         if faded_text_status == 'faded':
-                            print("❌ CAP VALIDATION: ตรวจพบข้อความจาง - หยุดประมวลผล")
-                            print("🚨 CAP VALIDATION: เขียนค่า D7009 = 50 (ฝาไม่ผ่าน)")
-                            print("🚀 CAP VALIDATION: ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)")
-                            
-                            # เขียนค่า D7009 = 50 (ฝาไม่ผ่าน)
+                            print("❌ CAP VALIDATION: ตรวจพบข้อความจาง - ส่ง Modbus เหมือนขวด NG")
                             if hasattr(self, 'modbus_thread') and self.modbus_thread:
-                                success = self.modbus_thread.write_register(7009, 50)
-                                if success:
-                                    print("✅ D7009 = 50 (ฝาไม่ผ่าน) - ส่งสัญญาณเรียบร้อย")
+                                m140_ok = self.modbus_thread.on_m140()
+                                if m140_ok:
+                                    if hasattr(self, 'status_handlers') and self.status_handlers:
+                                        self.status_handlers.update_coil_lamp("m140", True)
+                                    m600_ok = self.modbus_thread.on_m600()
+                                    if m600_ok and hasattr(self, 'status_handlers') and self.status_handlers:
+                                        self.status_handlers.update_coil_lamp("m600", True)
+                                    print("✅ ฝาจาง → D7009=50, M140, M600 ส่งแล้ว")
                                 else:
                                     print("❌ ไม่สามารถเขียน D7009 = 50 ได้")
-                                
-                                # ส่งสัญญาณ M600 (ประมวลผลเสร็จสิ้น)
-                                self.modbus_thread.on_m600()
-                                print("✅ M600 ส่งสัญญาณเรียบร้อย")
-                            
                             return False
             
             # ตรวจสอบว่ามีข้อความที่อ่านได้หรือไม่
@@ -2829,25 +3067,38 @@ class BottleDetectionGUI(QWidget):
                     ocr_text = ocr_results['recognized_text']
                     print(f"🔍 CAP VALIDATION: Using recognized_text field")
                 else:
-                    # ถ้าไม่มี text fields หรือเป็น empty ให้ใช้ values ทั้งหมด
-                    ocr_text = " ".join(str(v) for v in ocr_results.values() if v and str(v).strip())
-                    print(f"🔍 CAP VALIDATION: Using all values")
+                    # ดึงเฉพาะค่าที่เป็น string สั้น (ไม่รวม array/dict/list)
+                    parts = []
+                    for k, v in ocr_results.items():
+                        if v is None:
+                            continue
+                        if isinstance(v, str) and v.strip():
+                            parts.append(v.strip())
+                        elif isinstance(v, (int, float)) and k in ('total_lines', 'num_characters'):
+                            continue  # ไม่เอาเลขพวกนี้มาเป็นข้อความ
+                        elif isinstance(v, (list, dict)):
+                            # ถ้าเป็น list ของ dict ให้ดึง recognized_text จากแต่ละตัว
+                            if isinstance(v, list):
+                                for item in v:
+                                    if isinstance(item, dict):
+                                        t = item.get('recognized_text') or item.get('text')
+                                        if t and isinstance(t, str):
+                                            parts.append(t.strip())
+                    ocr_text = " ".join(parts) if parts else ""
+                    if ocr_text:
+                        print(f"🔍 CAP VALIDATION: Using all values (text only)")
             elif isinstance(ocr_results, list):
-                # ถ้าเป็น list ให้วนลูปผ่าน items
+                # ถ้าเป็น list ให้ดึงเฉพาะข้อความจากแต่ละบรรทัด (ไม่ใช้ str() จะได้ไม่ดึง array/bbox)
                 for ocr_result in ocr_results:
                     if isinstance(ocr_result, dict):
-                        # ถ้าเป็น dictionary ให้ใช้ .get()
-                        ocr_text += ocr_result.get('text', '') + " "
+                        t = ocr_result.get('recognized_text') or ocr_result.get('text') or ocr_result.get('total_recognized_text') or ''
+                        if t and isinstance(t, str):
+                            ocr_text += t.strip() + " "
                     elif isinstance(ocr_result, str):
-                        # ถ้าเป็น string ให้ใช้ตรงๆ
-                        ocr_text += ocr_result + " "
-                    else:
-                        # ถ้าเป็นประเภทอื่น ให้แปลงเป็น string
-                        ocr_text += str(ocr_result) + " "
+                        ocr_text += ocr_result.strip() + " "
                 ocr_text = ocr_text.strip()
             else:
-                # ถ้าเป็นประเภทอื่น ให้แปลงเป็น string
-                ocr_text = str(ocr_results)
+                ocr_text = ""
             
             ocr_text = ocr_text.strip()
             
@@ -2855,21 +3106,9 @@ class BottleDetectionGUI(QWidget):
                 print("❌ CAP VALIDATION: No text found in OCR results")
                 return False
             
-            print(f"🔍 CAP VALIDATION: OCR text: '{ocr_text}'")
-            print(f"🔍 CAP VALIDATION: OCR results type: {type(ocr_results)}")
-            if isinstance(ocr_results, dict):
-                print(f"🔍 CAP VALIDATION: OCR results keys: {list(ocr_results.keys())}")
-                # ลดการ print ข้อมูลที่เยอะเกินไป
-                if 'line_results' in ocr_results:
-                    print(f"🔍 CAP VALIDATION: Found {len(ocr_results['line_results'])} lines")
-                if 'total_lines' in ocr_results:
-                    print(f"🔍 CAP VALIDATION: Total lines: {ocr_results['total_lines']}")
-            elif isinstance(ocr_results, list):
-                print(f"🔍 CAP VALIDATION: OCR results length: {len(ocr_results)}")
-                # ลดการ print ข้อมูลที่เยอะเกินไป
-                if len(ocr_results) > 0:
-                    print(f"🔍 CAP VALIDATION: First OCR result type: {type(ocr_results[0])}")
-                    # ไม่ print ข้อมูลทั้งหมดของ OCR result
+            # แสดงเฉพาะข้อความสั้น (ไม่ dump structure) และจำกัดความยาวใน log
+            _preview = ocr_text[:80] + ("..." if len(ocr_text) > 80 else "")
+            print(f"🔍 CAP VALIDATION: OCR text: '{_preview}'")
             
             # ตรวจสอบรูปแบบวันที่/เวลาตาม bottle type
             if self.current_bottle_type == "M100":
@@ -3612,22 +3851,19 @@ class BottleDetectionGUI(QWidget):
                                 ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
                                 ocr_label.setWordWrap(True)
                                 ocr_layout.addWidget(ocr_label)
-                        else:
-                            # Handle list format (legacy)
-                            for j, ocr_result in enumerate(ocr_results):
-                                # Check if ocr_result is a dictionary
-                                if isinstance(ocr_result, dict):
-                                    ocr_text = f"  {j+1}. '{ocr_result.get('text', 'N/A')}' (ความเชื่อมั่น: {ocr_result.get('confidence', 0):.3f})"
-                                else:
-                                    # If it's a string or other type, display as is
-                                    ocr_text = f"  {j+1}. '{str(ocr_result)}'"
-                                
-                                ocr_label = QLabel(ocr_text)
-                                ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
-                                ocr_label.setWordWrap(True)
-                                ocr_layout.addWidget(ocr_label)
-                        
-                        self.cap_results_layout.addWidget(ocr_container)
+                            if isinstance(ocr_results, list):
+                                # Handle list format (legacy)
+                                for j, ocr_result in enumerate(ocr_results):
+                                    if isinstance(ocr_result, dict):
+                                        ocr_text = f"  {j+1}. '{ocr_result.get('text', 'N/A')}' (ความเชื่อมั่น: {ocr_result.get('confidence', 0):.3f})"
+                                    else:
+                                        ocr_text = f"  {j+1}. '{str(ocr_result)}'"
+                                    ocr_label = QLabel(ocr_text)
+                                    ocr_label.setStyleSheet("color: #2c3e50; font-size: 10px; background-color: #ecf0f1; padding: 2px;")
+                                    ocr_label.setWordWrap(True)
+                                    ocr_layout.addWidget(ocr_label)
+                            
+                            self.cap_results_layout.addWidget(ocr_container)
                 else:
                     # Fallback: Display only cropped images (old behavior)
                     for i, crop in enumerate(result['cropped_images']):
@@ -5352,6 +5588,26 @@ class BottleDetectionGUI(QWidget):
                 print("❌ RESET: ไม่สามารถเขียน D5012 = 0 ได้")
         else:
             print("❌ RESET: Modbus thread ไม่พร้อมใช้งาน")
+    
+    def on_toggle_light_m76(self):
+        """Toggle ไฟ (M76) เปิด/ปิด - ส่ง write_coil(76, on/off)"""
+        if not hasattr(self, 'modbus_thread') or self.modbus_thread is None:
+            QMessageBox.warning(self, "ข้อผิดพลาด", "Modbus ยังไม่ได้เชื่อมต่อ")
+            self.btn_light_m76.setChecked(not self.btn_light_m76.isChecked())  # revert toggle
+            return
+        is_on = self.btn_light_m76.isChecked()
+        success = self.modbus_thread.write_coil(76, is_on)
+        if success:
+            if is_on:
+                self.btn_light_m76.setText('💡 ไฟ (M76) เปิด')
+                print("✅ ไฟ (M76): เปิด")
+            else:
+                self.btn_light_m76.setText('💡 ไฟ (M76) ปิด')
+                print("✅ ไฟ (M76): ปิด")
+        else:
+            self.btn_light_m76.setChecked(not is_on)  # revert on failure
+            self.btn_light_m76.setText('💡 ไฟ (M76) ปิด' if not is_on else '💡 ไฟ (M76) เปิด')
+            QMessageBox.warning(self, "ข้อผิดพลาด", "ส่งคำสั่ง M76 ไม่ได้")
     
     # Modbus operation methods delegated to modbus_handlers
     # Use self.modbus_handlers.reset_to_initial_state() instead

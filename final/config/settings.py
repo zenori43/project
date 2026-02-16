@@ -81,7 +81,7 @@ _ = validate_model_paths()
 # =============================================================================
 FADED_TEXT_CONFIG = {
     'MIN_AREA': -1,           # เกณฑ์ตัด noise ของ component
-    'AREA_THRESH': 1500,      # เกณฑ์ตัดสิน faded/normal จาก total_area (ถ้า total_area < 1500 = fade)
+    'AREA_THRESH': 0,         # เกณฑ์ตัดสิน faded/normal (0 = ปิดชั่วคราว, ถือว่าไม่จางเสมอ)
     'CIRCLE_FALLBACK_MARGIN': 6,
     'HOUGH_CIRCLES_PARAMS': {
         'dp': 1.2,
