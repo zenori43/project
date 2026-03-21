@@ -1,0 +1,344 @@
+✅ Jetson keyboard shortcuts configured
+   F11: Toggle fullscreen
+   Escape: Exit fullscreen
+   Ctrl+Q: Exit application
+✅ โปรแกรมพร้อมใช้งาน!
+🔍 กำลังตรวจสอบความละเอียดสูงสุดที่กล้องรองรับ...
+  ⚠️ 3840x2160 - ได้ 3264x2448 (ไม่ตรง)
+  ⚠️ 2560x1440 - ได้ 2048x1536 (ไม่ตรง)
+✅ ตั้งค่าความละเอียดสำเร็จ: 1920x1080
+✅ เปิดกล้อง USB สำเร็จ! (Jetson Platform - V4L2)
+📐 ขนาดที่รายงาน: 1920x1080
+⚡ เฟรมเรท: 30.0 FPS
+📐 ขนาดจริง: 1920x1080
+⚡ FPS จริงจากการทดสอบ: 13.4
+⚠️ FPS ต่ำ - ลองปรับการตั้งค่ากล้องหรือ driver
+📸 ความละเอียด: 2K หรือสูงกว่า (ชัดมาก)
+🔧 Initializing SENTECH camera with Harvesters...✅ USB Camera initialized successfully
+✅ Found 1 SENTECH device(s)
+✅ Camera configured successfully
+✅ SENTECH camera initialized with Harvesters
+🚀 PyTorch CUDA enabled - using GPU: Xavier✅ SENTECH camera initialized successfully with Harvesters
+✅ YOLOv8 model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/final/models/detection/cap.pt
+⚠️ Using CPU for YOLO model (torchvision NMS doesn't support CUDA on this system)
+Model info: (170, 25856899, 0, 79.0656)
+✅ Cap detector loaded successfully
+🚀 PyTorch CUDA enabled - using GPU: Xavier
+🔧 CRAFT modules not imported yet, importing now...
+🔧 Importing CRAFT modules...
+✅ vgg16_bn imported from basenet directory
+✅ CRAFT imported with vgg16_bn injection
+✅ CRAFT modules imported successfully
+✅ CRAFT class: <class 'craft.CRAFT'>
+✅ vgg16_bn class: <class 'basenet.vgg16_bn.vgg16_bn'>
+🔧 Creating CRAFT model...
+✅ CRAFT model created successfully
+⚠️ Could not initialize weights: 'Conv2d' object is not iterable
+   Continuing without weight initialization...
+Loading main model weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_mlt_25k.pth)
+✅ Model weights loaded successfully
+✓ Main model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_mlt_25k.pth
+Loading refiner weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_refiner_CTW1500.pth)
+✓ Refiner model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_refiner_CTW1500.pth
+✅ CRAFT detector loaded successfully
+🚀 PyTorch CUDA enabled - using GPU: Xavier
+Loading rotation model from /home/nvidia/Desktop/final_boss/backupsdcard/final/models/rotation/text_rotation_model.pth...
+Using torchvision's EfficientNet-B0 architecture.
+✅ Rotation model loaded successfully.
+🚀 PyTorch CUDA enabled - using GPU: Xavier
+🔧 Creating CRAFT model...
+✅ CRAFT model created successfully
+⚠️ Could not initialize weights: 'Conv2d' object is not iterable
+   Continuing without weight initialization...
+Loading main model weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_mlt_25k.pth)
+✅ Model weights loaded successfully
+✓ Main model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_mlt_25k.pth
+Loading refiner weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_refiner_CTW1500.pth)
+✓ Refiner model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_refiner_CTW1500.pth
+✅ CRAFT detector initialized successfully
+✅ Rotation model loaded successfully
+🚀 PyTorch CUDA enabled - using GPU: Xavier
+Loading CRAFT model from /home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_mlt_25k.pth...
+Loading main model weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_mlt_25k.pth)
+Loading refiner weights from checkpoint (/home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_refiner_CTW1500.pth)
+✓ Refiner model loaded successfully from: /home/nvidia/Desktop/final_boss/backupsdcard/CRAFT-pytorch/craft_refiner_CTW1500.pth
+✅ CRAFT model loaded successfully.
+✓ Refiner model loaded successfully.
+✅ Line detector loaded successfully
+✅ Deep OCR using device: cuda
+Loading Deep OCR model from /home/nvidia/Desktop/final_boss/backupsdcard/final/models/ocr/fix10.pth...
+🔧 Detected DataParallel state dict, removing 'module.' prefix...
+🔍 Model state dict keys (first 10): ['Transformation.LocalizationNetwork.conv.0.weight', 'Transformation.LocalizationNetwork.conv.1.weight', 'Transformation.LocalizationNetwork.conv.1.bias', 'Transformation.LocalizationNetwork.conv.1.running_mean', 'Transformation.LocalizationNetwork.conv.1.running_var', 'Transformation.LocalizationNetwork.conv.1.num_batches_tracked', 'Transformation.LocalizationNetwork.conv.4.weight', 'Transformation.LocalizationNetwork.conv.5.weight', 'Transformation.LocalizationNetwork.conv.5.bias', 'Transformation.LocalizationNetwork.conv.5.running_mean']
+🔍 Found attention cell in model - this is an Attn model
+🔍 Detected 67 classes in model
+🔍 Detected character set: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:/
+🔍 Character set length: 64
+⚠️ Character set length mismatch: expected 67, got 64
+🔧 Adjusting character set length...
+🔧 Using 65-character set for 67-class model (with 2 tokens)
+🔧 Adjusted character set: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:/
+🔧 Adjusted length: 64
+❌ Character set length verification failed: 64 != 67
+🔧 Final character set length: 67
+⚠️ Duplicate characters detected, removing duplicates...
+🔧 Final character set after removing duplicates: 67
+📊 Using model's actual number of classes: 67
+🔍 Detected Attn prediction type from model structure
+🔍 Creating converter with character set length: 67
+🔍 AttnLabelConverter created with 69 characters
+🔍 AttnLabelConverter tokens: ['[GO]', '[s]']
+🔍 Converter type: <class 'utils.AttnLabelConverter'>
+🔍 Converter character set length: 69
+📊 Final model configuration: 67 classes, character set length: 67
+Model input parameters: 32 100 20 1 512 256 67 25 TPS ResNet BiLSTM Attn
+✅ Model weights loaded with strict=True
+✅ Deep OCR model loaded successfully.
+✅ OCR model loaded successfully
+✅ Model loading complete - cap_detector: ✅, craft_detector: ✅, rotation_model: ✅, line_detector: ✅, ocr_model: ✅
+✅ cap_detector loaded successfully - model type: <class 'ultralytics.models.yolo.model.YOLO'>
+🔧 Optimizing OCR settings for better number recognition...
+✅ OCR settings optimized for number recognition:
+   - Image height: 64
+   - Image width: 200
+   - Max length: 10
+   - Padding enabled: True
+✅ All cap detection models applied from background init
+✅ Defect model: TensorFlow GPU พร้อม (1 device(s))
+✅ Defect model loaded: /home/nvidia/Desktop/final_boss/backupsdcard/final/models/detection/fix_best_defect_fixmodel.h5 (tensorflow.keras native)
+✅ Defect model โหลดในหน้า loading แล้ว (พร้อมก่อนประมวลผล)
+✅ Cap fade model: TensorFlow GPU พร้อม (1 device(s))
+✅ Cap fade model loaded: /home/nvidia/Desktop/final_boss/backupsdcard/final/models/detection/cap_fade_model.h5 (tensorflow.keras native)
+✅ Cap fade model โหลดในหน้า loading แล้ว (พร้อมก่อนประมวลผล)
+🔧 Setting up Modbus connection...
+🔧 Starting Modbus thread...
+✅ Modbus thread started successfully
+⏸️ โปรแกรมพร้อมทำงาน (รอ M511 เพื่อเริ่มการทำงาน)
+✅ Background init finished - GUI ready
+✅ แสดงหน้าต่างหลัก...
+✅ ON M700 = False
+✅ RESET M700 = 0 (จาก M513)
+✅ ON M701 = False
+✅ RESET M701 = 0 (จาก M513)
+🛑 M513 STOP: รับสัญญาณหยุดจาก M513 - เริ่ม reset ทั้งหมด
+🔄 Resetting system to initial state...
+🔄 Resetting Modbus state...
+✅ ON M100 = False
+✅ ON M110 = False
+✅ ON M120 = False
+✅ ON M130 = False
+✅ ON M750 = False
+✅ ON M850 = False
+✅ ON M140 = False
+✅ ON M600 = False
+✅ RESET M600 = 0 (พร้อมรับงานใหม่)
+✅ ON M700 = False
+✅ ON M701 = False
+✅ ON M503 = False
+✅ ON M505 = False
+✅ ON M720 = False
+✅ ON M721 = False
+✅ ON M722 = False
+✅ ON M730 = False
+✅ ON M731 = False
+✅ ON M732 = False
+✅ ON M733 = False
+✅ ON M734 = False
+✅ ON M735 = False
+✅ ON M740 = False
+✅ ON M741 = False
+✅ ON M742 = False
+🔄 Resetting queue count...
+✅ Queue count and monitoring reset to 0
+✅ Stopped D6006 monitoring
+✅ Reset D6007 tracking
+✅ Modbus state reset completed
+🔄 Resetting UI elements...
+✅ UI elements reset completed
+🔄 Clearing current data...
+✅ Current data cleared
+🔄 Resetting progress bars...
+✅ Progress bars reset
+🔄 Resetting camera states...
+✅ Camera states reset
+🔄 Resetting lamp status...
+✅ Lamp status reset completed
+✅ System reset to initial state completed
+✅ M513 STOP: Reset ระบบเสร็จสิ้น
+🔄 M513: ส่งสัญญาณให้ GUI reset ทั้งหมด
+🔧 Initializing Modbus state...
+✅ ON M100 = False
+✅ ON M110 = False
+✅ ON M120 = False
+✅ ON M130 = False
+✅ ON M750 = False
+✅ ON M600 = False
+✅ RESET M600 = 0 (พร้อมรับงานใหม่)
+✅ RESET M100, M110, M120, M130, M750, M600 = 0
+🔧 Setting initial taste mode: 3
+🔄 write_register: กำลังเขียน D9006 = 10
+✅ Modbus client พร้อมใช้งาน - กำลังส่งคำสั่ง
+✅ Write D9006 = 10 สำเร็จ
+✅ D9006 = 10 (โหมด 3 รสชาติ) - Initial setup
+✅ ON M503 = 1
+✅ OFF M503 = 0
+🔄 write_register: กำลังเขียน D5500 = 7
+✅ Modbus client พร้อมใช้งาน - กำลังส่งคำสั่ง
+✅ Write D5500 = 7 สำเร็จ
+✅ INITIAL MODE: D5500 = 7 (ID 7 full auto mode)
+✅ ON M701 = False
+✅ ON M700 = True
+✅ START: M700 ON - ระบบเริ่มทำงาน
+✅ M511 ON: เริ่มการทำงาน
+🚀 M600 พร้อม - เริ่มถ่ายภาพทันที
+🎯 MODBUS TRIGGER RECEIVED - Starting capture sequence (worker thread)
+📸 CAPTURE BOTH: กำลังถ่ายภาพจาก USB...
+📸 CAPTURE BOTH USB: Attempt 1/3
+📸 Captured latest frame: (1080, 1920, 3)
+✅ CAPTURE BOTH USB: Success on attempt 1
+📸 CAPTURE BOTH: กำลังถ่ายภาพจาก Sentech...
+📸 Capturing latest frame with Harvesters...
+🔄 Flushing old frames from buffer...
+  Flushing buffer... (flushed 1 frames)
+  Flushing buffer... (flushed 2 frames)
+  Flushing buffer... (flushed 3 frames)
+  Flushing buffer... (flushed 4 frames)
+  Flushing buffer... (flushed 5 frames)
+  ✅ Flushed 27 old frame(s) from buffer
+  ⏳ Waiting for new frame...
+📸 Fetching latest frame...
+  Image data shape: (5013504,)
+  Image dimensions: 2448x2048
+  Data type: uint8
+  Min value: 11, Max value: 255
+✅ Captured latest frame: (2048, 2448)
+📸 CAPTURE BOTH Sentech: Result = True
+✅ CLEAR CROPPED: เคลียร์รูปครอปในหน้าหลักและแท็บขวดแล้ว
+✅ CAPTURE BOTH: USB image captured and displayed
+🔍 Display image shape: (2048, 2448), dtype: uint8
+🔍 Display image min: 11, max: 255
+✅ Image displayed successfully: (2048, 2448, 3) -> scaled to 597x500 (full image visible)
+✅ CAPTURE BOTH: เปิดใช้งานปุ่มประมวลผลฝา (มีภาพจาก Sentech)
+✅ CAPTURE BOTH: Sentech image captured and displayed
+🔄 PROCESS: Starting processing for image shape: (1080, 1920, 3)
+🔄 PROCESS: Creating BottleDetectionThread...
+🔄 PROCESS: Starting processing thread...
+🔄 PROCESS: Using selected tastes: ['M100', 'M110', 'M120']
+🔄 BOTTLE DETECTION THREAD: Starting processing...
+🔄 BOTTLE DETECTION THREAD: Image shape: (1080, 1920, 3)
+🔄 BOTTLE DETECTION THREAD: Saved temp image
+🔄 BOTTLE DETECTION THREAD: Calling process_bottle_image_simple...
+/home/nvidia/.local/lib/python3.8/site-packages/ultralytics/utils/__init__.py:750: ResourceWarning: unclosed file <_io.TextIOWrapper name='/etc/nv_tegra_release' mode='r' encoding='UTF-8'>
+  content = open("/etc/nv_tegra_release").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+🔄 BOTTLE DETECTION THREAD: Processing result type: <class 'dict'>
+🔄 BOTTLE DETECTION THREAD: Processing result keys: ['detections', 'type_crops', 'angle1_crops', 'summary', 'original_image']
+🔍 BOTTLE DETECTION THREAD: YOLO detections: []
+🔍 BOTTLE DETECTION THREAD: Summary: {'total_detections': 0, 'type_detections': 0, 'detected_labels': [], 'has_type': False, 'angle1_detections': 0}
+ℹ️ BOTTLE DETECTION THREAD: 'angle3' not found in YOLO detections (ปกติถ้าตรวจได้ angle1/type)
+❌ BOTTLE DETECTION THREAD: No type crops found
+🔄 BOTTLE DETECTION THREAD: Emitting result...
+✅ PROCESS COMPLETE: Processing finished
+✅ PROCESS COMPLETE: No error in result
+✅ PROCESS COMPLETE: Result keys: ['detections', 'type_crops', 'angle1_crops', 'summary', 'original_image', 'image', 'image_shape', 'combined_ocr_text', 'bottle_type']
+🔄 PROCESS COMPLETE: Displaying results in text area...
+🔄 DISPLAY SINGLE RESULTS: Starting to display results
+🔄 DISPLAY SINGLE RESULTS: Summary: {'total_detections': 0, 'type_detections': 0, 'detected_labels': [], 'has_type': False, 'angle1_detections': 0}
+🔄 DISPLAY SINGLE RESULTS: Detections: 0
+✅ DISPLAY SINGLE RESULTS: Results text set
+✅ PROCESS COMPLETE: Results displayed in text area
+⚠️ PROCESS COMPLETE: No detections to draw
+🔄 DISPLAY RESULT IMAGE: Image shape: (1080, 1920, 3)
+🔄 DISPLAY RESULT IMAGE: Resized to 400x225
+✅ DISPLAY RESULT IMAGE: Image displayed in label
+✅ PROCESS COMPLETE: Original image displayed
+⚠️ PROCESS COMPLETE: No cropped images — clearing crop area
+🔄 DISPLAY CROPPED IMAGES: Starting to display 0 crops
+✅ DISPLAY CROPPED IMAGES: Cleared existing crops
+✅ PROCESS COMPLETE: Cropped images updated
+❌ PROCESS COMPLETE: No type crops / no bottle type — ตี NG ส่ง Modbus (M140, M600)
+✅ ON M140 = True
+✅ ON M140: coil M140 = ON (NG)
+✅ ON M600 = True
+⏳ รอ M401 ON เพื่อ RESET M600, M100, M110, M120, M130, M140...
+✅ HISTORY: Added entry - None at 2026-03-07 14:31:04
+📉 M301 RESET: ON → OFF
+📋 M600 ยังไม่ reset - ถ่ายภาพและประมวลผลทันที (เก็บผลลัพธ์ไว้)
+🔇 SILENT TRIGGER RECEIVED - ถ่ายทั้งสองกล้อง แล้วประมวลผลขวดก่อน
+🔇 SILENT CAPTURE: ถ่ายทั้งสองกล้อง แล้วประมวลผลขวดก่อน...
+📋 เพิ่มคิวผลลัพธ์ (คิวปัจจุบัน: 1)
+📸 CAPTURE BOTH: กำลังถ่ายภาพจาก USB...
+📸 CAPTURE BOTH USB: Attempt 1/3
+📸 Captured latest frame: (1080, 1920, 3)
+✅ CAPTURE BOTH USB: Success on attempt 1
+📸 CAPTURE BOTH: กำลังถ่ายภาพจาก Sentech...
+📸 Capturing latest frame with Harvesters...
+🔄 Flushing old frames from buffer...
+  Flushing buffer... (flushed 1 frames)
+  Flushing buffer... (flushed 2 frames)
+  Flushing buffer... (flushed 3 frames)
+  Flushing buffer... (flushed 4 frames)
+  Flushing buffer... (flushed 5 frames)
+  ✅ Flushed 28 old frame(s) from buffer
+  ⏳ Waiting for new frame...
+📸 Fetching latest frame...
+  Image data shape: (5013504,)
+  Image dimensions: 2448x2048
+  Data type: uint8
+  Min value: 10, Max value: 255
+✅ Captured latest frame: (2048, 2448)
+📸 CAPTURE BOTH Sentech: Result = True
+🔇 SILENT PROCESS: ขวดเริ่มประมวลผล (ฝาจะเริ่มเมื่อขวด OK)
+🔄 BOTTLE DETECTION THREAD: Starting processing...
+🔄 BOTTLE DETECTION THREAD: Image shape: (1080, 1920, 3)
+🔄 BOTTLE DETECTION THREAD: Saved temp image
+🔄 BOTTLE DETECTION THREAD: Calling process_bottle_image_simple...
+Debug panel shown
+🔄 BOTTLE DETECTION THREAD: Processing result type: <class 'dict'>
+🔄 BOTTLE DETECTION THREAD: Processing result keys: ['detections', 'type_crops', 'angle1_crops', 'summary', 'original_image']
+🔍 BOTTLE DETECTION THREAD: YOLO detections: []
+🔍 BOTTLE DETECTION THREAD: Summary: {'total_detections': 0, 'type_detections': 0, 'detected_labels': [], 'has_type': False, 'angle1_detections': 0}
+ℹ️ BOTTLE DETECTION THREAD: 'angle3' not found in YOLO detections (ปกติถ้าตรวจได้ angle1/type)
+❌ BOTTLE DETECTION THREAD: No type crops found
+🔄 BOTTLE DETECTION THREAD: Emitting result...
+✅ PROCESS COMPLETE: Processing finished
+🔇 SILENT MODE: ขวด NG — เก็บเข้าคิว รอ M401 reset ก่อนแล้วค่อยแสดง
+✅ M401 ON มาถึงแล้ว! (คิว: 1)
+✅ RESET M600 = 0
+🔄 write_register: กำลังเขียน D7009 = 0
+✅ Modbus client พร้อมใช้งาน - กำลังส่งคำสั่ง
+✅ Write D7009 = 0 สำเร็จ
+✅ RESET D7009 = 0 (พร้อมรับค่าใหม่)
+✅ RESET M100 = 0
+✅ RESET M110 = 0
+✅ RESET M120 = 0
+✅ RESET M130 = 0
+✅ RESET M140 = 0
+✅ RESET M720 = 0
+✅ RESET M721 = 0
+✅ RESET M722 = 0
+✅ RESET M730 = 0
+✅ RESET M731 = 0
+✅ RESET M732 = 0
+✅ RESET M733 = 0
+✅ RESET M734 = 0
+✅ RESET M735 = 0
+✅ RESET M740 = 0
+✅ RESET M741 = 0
+✅ RESET M742 = 0
+📋 แสดงผลลัพธ์จากคิว (คิวเหลือ: 0)
+📋 RESULT READY TO DISPLAY - Scheduling display from queue
+📋 ลดคิวลงเหลือ: 0
+📋 DISPLAY: Displaying bottle results from queue
+📋 DISPLAY FROM QUEUE: Displaying bottle result from queue
+🔄 DISPLAY SINGLE RESULTS: Starting to display results
+🔄 DISPLAY SINGLE RESULTS: Summary: {'total_detections': 0, 'type_detections': 0, 'detected_labels': [], 'has_type': False, 'angle1_detections': 0}
+🔄 DISPLAY SINGLE RESULTS: Detections: 0
+✅ DISPLAY SINGLE RESULTS: Results text set
+🔄 DISPLAY RESULT IMAGE: Image shape: (1080, 1920, 3)
+🔄 DISPLAY RESULT IMAGE: Resized to 400x225
+✅ DISPLAY RESULT IMAGE: Image displayed in label
+🔄 DISPLAY CROPPED IMAGES: Starting to display 0 crops
+✅ DISPLAY CROPPED IMAGES: Cleared existing crops
+✅ DISPLAY FROM QUEUE: Bottle result displayed
+✅ HISTORY: Added entry - None at 2026-03-07 14:31:16
+✅ DISPLAY: Results displayed and Modbus signals sent

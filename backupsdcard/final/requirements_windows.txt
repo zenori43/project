@@ -1,0 +1,42 @@
+# -*- coding: utf-8 -*-
+# Requirements for bottle detection application - Windows Version
+
+# GUI Framework
+PyQt5>=5.15.0
+
+# Image Processing
+opencv-python>=4.5.0
+opencv-contrib-python>=4.5.0
+numpy>=1.19.0
+Pillow>=8.0.0
+matplotlib>=3.3.0
+
+# OCR
+easyocr>=1.6.0
+pytesseract>=0.3.10
+
+# Deep Learning - CPU version (adjust if you have CUDA)
+# For CPU only:
+torch>=1.9.0
+torchvision>=0.10.0
+# For CUDA 11.8 (if you have NVIDIA GPU with CUDA):
+# torch>=2.0.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+# torchvision>=0.15.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+
+ultralytics>=8.0.0
+
+# Defect inspection (angle1 Good/NG) - fix_best_defect_model.h5
+# TensorFlow for Windows
+tensorflow>=2.10.0
+tf-keras>=0.1.0
+
+# Modbus Communication
+pymodbus>=3.0.0
+
+# Camera Support (Harvesters for SENTECH camera)
+# Note: Harvesters may need to be installed separately
+# pip install harvesters
+
+# Additional utilities
+scipy>=1.7.0
+scikit-image>=0.18.0

@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+*.log.*
+
+# Model files (large files - uncomment if you want to exclude them)
+# *.pth
+# *.pt
+# *.onnx
+# *.pb
+
+# Images (uncomment if you don't want to track captured images)
+# captured_images/
+# test_pic/
+
+# System files
+System Volume Information/
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.orig
+*.bak
+
+# CUDA
+*.cubin
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+

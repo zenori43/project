@@ -1,0 +1,130 @@
+{
+  "image_path": "C:\\Users\\Win 10 Home\\Desktop\\project_final\\final\\test_pic\\sentech_frame_001.png",
+  "lines": [
+    [
+      [
+        [
+          971.5499877929688,
+          696.1500244140625
+        ],
+        [
+          1090.125,
+          696.1500244140625
+        ],
+        [
+          1090.125,
+          722.0
+        ],
+        [
+          971.5499877929688,
+          722.0
+        ]
+      ]
+    ],
+    [
+      [
+        [
+          971.5499877929688,
+          722.0
+        ],
+        [
+          1090.125,
+          722.0
+        ],
+        [
+          1090.125,
+          749.0
+        ],
+        [
+          971.5499877929688,
+          749.0
+        ]
+      ]
+    ]
+  ],
+  "total_lines": 2,
+  "total_text_regions": 1,
+  "text_boxes": [
+    [
+      [
+        971.5499877929688,
+        696.1500244140625
+      ],
+      [
+        1090.125,
+        696.1500244140625
+      ],
+      [
+        1090.125,
+        749.7000122070312
+      ],
+      [
+        971.5499877929688,
+        749.7000122070312
+      ]
+    ]
+  ],
+  "text_polys": [
+    [
+      [
+        971.5499877929688,
+        696.1500244140625
+      ],
+      [
+        1090.125,
+        696.1500244140625
+      ],
+      [
+        1090.125,
+        749.7000122070312
+      ],
+      [
+        971.5499877929688,
+        749.7000122070312
+      ]
+    ]
+  ],
+  "cropped_lines": [
+    {
+      "line_index": 0,
+      "bbox": [
+        973,
+        644,
+        1089,
+        774
+      ],
+      "num_characters": 1
+    },
+    {
+      "line_index": 1,
+      "bbox": [
+        973,
+        670,
+        1089,
+        800
+      ],
+      "num_characters": 1
+    }
+  ],
+  "settings_used": {
+    "text_threshold": 0.7,
+    "low_text": 0.4,
+    "link_threshold": 0.4,
+    "padding": 0,
+    "tolerance": 10,
+    "uniform_height": true,
+    "max_height_ratio": 0.08,
+    "shrink_x_percent": 0.02,
+    "shrink_y_percent": 0.1,
+    "horizontal_splitting": true,
+    "min_width": 65,
+    "min_height": 30,
+    "max_lines": 3
+  },
+  "timestamp": "2026-03-20 16:58:57.057353",
+  "rotation_info": {
+    "rotation_angle": -18.43494882292201,
+    "verification_passed": false,
+    "total_rotations": 1
+  }
+}
