@@ -1,0 +1,368 @@
+line_images\line_00954.png	MFG 23/02/25
+line_images\line_01274.png	17:15S27
+line_images\line_01725.png	17:14S06
+line_images\line_01429.png	BBF 22/03/25
+line_images\line_00047.png	BBF 04/01/25
+line_images\line_01184.png	01:31S57
+line_images\line_01510.png	01:28S79
+line_images\line_01539.png	BBF 28/03/25
+line_images\line_00684.png	MFG 08/02/25
+line_images\line_00147.png	MFG 09/01/25
+line_images\line_00881.png	10:52S32
+line_images\line_01461.png	MFG 23/03/25
+line_images\line_00869.png	MFG 18/02/25
+line_images\line_01556.png	BBF 29/03/25
+line_images\line_00263.png	BBF 16/01/25
+line_images\line_00050.png	10:12S08
+line_images\line_01408.png	MFG 20/03/25
+line_images\line_01320.png	BBF 16/03/25
+line_images\line_00322.png	20:31S64
+line_images\line_00811.png	MFG 15/02/25
+line_images\line_00215.png	22:14S18
+line_images\line_00466.png	18:06S90
+line_images\line_00694.png	BBF 09/02/25
+line_images\line_00529.png	BBF 31/01/25
+line_images\line_00614.png	MFG 04/02/25
+line_images\line_00478.png	BBF 28/01/25
+line_images\line_00314.png	BBF 19/01/25
+line_images\line_00389.png	BBF 23/01/25
+line_images\line_00400.png	MFG 23/01/25
+line_images\line_01452.png	21:15S82
+line_images\line_00142.png	21:18S53
+line_images\line_01647.png	BBF 03/04/25
+line_images\line_00434.png	MFG 25/01/25
+line_images\line_01705.png	06:00S81
+line_images\line_01197.png	BBF 09/03/25
+line_images\line_00467.png	18:06S90
+line_images\line_01529.png	13:05S92
+line_images\line_01214.png	BBF 10/03/25
+line_images\line_00552.png	08:47S47
+line_images\line_01674.png	MFG 04/04/25
+line_images\line_01439.png	03:21S37
+line_images\line_00897.png	17:10S93
+line_images\line_01269.png	BBF 13/03/25
+line_images\line_00419.png	MFG 24/01/25
+line_images\line_00816.png	BBF 16/02/25
+line_images\line_01004.png	17:30S33
+line_images\line_01344.png	22:21S18
+line_images\line_01512.png	MFG 26/03/25
+line_images\line_01666.png	BBF 04/04/25
+line_images\line_01810.png	BBF 31/12/25
+line_images\line_01628.png	BBF 02/04/25
+line_images\line_01826.png	BBF 20/08/26
+line_images\line_00703.png	MFG 09/02/25
+line_images\line_01578.png	04:01S83
+line_images\line_00414.png	MFG 24/01/25
+line_images\line_00144.png	MFG 09/01/25
+line_images\line_01715.png	MFG 06/04/25
+line_images\line_01533.png	MFG 27/03/25
+line_images\line_00928.png	BBF 22/02/25
+line_images\line_01457.png	21:15S82
+line_images\line_01199.png	BBF 09/03/25
+line_images\line_00743.png	MFG 11/02/25
+line_images\line_00950.png	05:58S07
+line_images\line_00100.png	BBF 07/01/25
+line_images\line_00949.png	05:58S07
+line_images\line_01670.png	10:28S69
+line_images\line_00616.png	MFG 04/02/25
+line_images\line_01441.png	MFG 22/03/25
+line_images\line_00982.png	BBF 25/02/25
+line_images\line_00783.png	BBF 14/02/25
+line_images\line_01668.png	10:28S69
+line_images\line_00767.png	BBF 13/02/25
+line_images\line_00352.png	BBF 21/01/25
+line_images\line_00577.png	MFG 02/02/25
+line_images\line_00913.png	15:45S21
+line_images\line_00429.png	03:26S65
+line_images\line_00251.png	03:02S94
+line_images\line_00721.png	MFG 10/02/25
+line_images\line_00281.png	BBF 17/01/25
+line_images\line_01535.png	MFG 27/03/25
+line_images\line_00910.png	BBF 21/02/25
+line_images\line_01404.png	MFG 20/03/25
+line_images\line_01435.png	03:21S37
+line_images\line_00691.png	BBF 09/02/25
+line_images\line_00905.png	MFG 20/02/25
+line_images\line_00258.png	BBF 16/01/25
+line_images\line_01166.png	10:42S57
+line_images\line_01095.png	07:42S07
+line_images\line_01351.png	MFG 17/03/25
+line_images\line_00874.png	BBF 19/02/25
+line_images\line_01808.png	BBF 31/12/25
+line_images\line_00404.png	BBF 24/01/25
+line_images\line_00967.png	19:28S86
+line_images\line_01730.png	MFG 07/04/25
+line_images\line_01243.png	MFG 11/03/25
+line_images\line_01625.png	MFG 01/04/25
+line_images\line_00646.png	22:06S89
+line_images\line_00718.png	12:45S30
+line_images\line_00918.png	MFG 21/02/25
+line_images\line_01290.png	15:31S99
+line_images\line_01266.png	BBF 13/03/25
+line_images\line_00988.png	03:32S73
+line_images\line_01684.png	BBF 05/04/25
+line_images\line_00708.png	BBF 10/02/25
+line_images\line_00342.png	MFG 20/01/25
+line_images\line_01226.png	MFG 10/03/25
+line_images\line_00673.png	BBF 08/02/25
+line_images\line_01739.png	BBF 08/04/25
+line_images\line_00920.png	MFG 21/02/25
+line_images\line_01379.png	BBF 19/03/25
+line_images\line_01803.png	MFG 01/01/25
+line_images\line_01156.png	MFG 06/03/25
+line_images\line_01359.png	BBF 18/03/25
+line_images\line_00362.png	MFG 21/01/25
+line_images\line_00887.png	MFG 19/02/25
+line_images\line_00557.png	08:47S47
+line_images\line_00555.png	08:47S47
+line_images\line_01413.png	BBF 21/03/25
+line_images\line_00993.png	MFG 25/02/25
+line_images\line_00325.png	MFG 19/01/25
+line_images\line_01718.png	BBF 07/04/25
+line_images\line_00744.png	BBF 12/02/25
+line_images\line_01814.png	00:00S00
+line_images\line_00186.png	BBF 12/01/25
+line_images\line_00402.png	BBF 24/01/25
+line_images\line_00319.png	20:31S64
+line_images\line_00392.png	07:04S48
+line_images\line_01453.png	21:15S82
+line_images\line_00769.png	21:34S17
+line_images\line_01660.png	MFG 03/04/25
+line_images\line_01361.png	BBF 18/03/25
+line_images\line_00463.png	18:06S90
+line_images\line_00244.png	BBF 15/01/25
+line_images\line_00207.png	BBF 13/01/25
+line_images\line_01020.png	14:51S35
+line_images\line_00474.png	BBF 28/01/25
+line_images\line_00945.png	BBF 23/02/25
+line_images\line_00630.png	MFG 05/02/25
+line_images\line_00494.png	BBF 29/01/25
+line_images\line_01405.png	MFG 20/03/25
+line_images\line_01673.png	10:28S69
+line_images\line_00383.png	MFG 22/01/25
+line_images\line_01538.png	BBF 28/03/25
+line_images\line_01424.png	MFG 21/03/25
+line_images\line_01504.png	BBF 26/03/25
+line_images\line_00538.png	04:13S15
+line_images\line_01465.png	BBF 24/03/25
+line_images\line_00776.png	MFG 13/02/25
+line_images\line_00576.png	MFG 02/02/25
+line_images\line_01528.png	13:05S92
+line_images\line_01597.png	21:56S86
+line_images\line_01244.png	MFG 11/03/25
+line_images\line_00218.png	MFG 13/01/25
+line_images\line_00188.png	BBF 12/01/25
+line_images\line_01664.png	BBF 04/04/25
+line_images\line_00658.png	BBF 07/02/25
+line_images\line_00715.png	12:45S30
+line_images\line_00834.png	BBF 17/02/25
+line_images\line_01503.png	BBF 26/03/25
+line_images\line_01793.png	BBF 11/04/25
+line_images\line_00827.png	03:54S64
+line_images\line_00545.png	MFG 31/01/25
+line_images\line_00726.png	BBF 11/02/25
+line_images\line_00867.png	MFG 18/02/25
+line_images\line_01340.png	BBF 17/03/25
+line_images\line_00054.png	MFG 04/01/25
+line_images\line_01772.png	BBF 10/04/25
+line_images\line_00451.png	MFG 26/01/25
+line_images\line_00962.png	BBF 24/02/25
+line_images\line_01131.png	13:07S90
+line_images\line_01450.png	BBF 23/03/25
+line_images\line_01125.png	BBF 05/03/25
+line_images\line_01135.png	MFG 05/03/25
+line_images\line_01122.png	BBF 05/03/25
+line_images\line_01071.png	BBF 02/03/25
+line_images\line_00801.png	BBF 15/02/25
+line_images\line_00255.png	MFG 15/01/25
+line_images\line_00453.png	MFG 26/01/25
+line_images\line_01701.png	BBF 06/04/25
+line_images\line_01702.png	BBF 06/04/25
+line_images\line_00570.png	21:06S43
+line_images\line_00624.png	11:22S23
+line_images\line_00302.png	01:06S00
+line_images\line_01169.png	10:42S57
+line_images\line_00856.png	BBF 18/02/25
+line_images\line_01272.png	17:15S27
+line_images\line_00845.png	05:54S13
+line_images\line_00953.png	05:58S07
+line_images\line_01338.png	BBF 17/03/25
+line_images\line_00579.png	MFG 02/02/25
+line_images\line_01694.png	MFG 05/04/25
+line_images\line_00972.png	MFG 24/02/25
+line_images\line_00388.png	BBF 23/01/25
+line_images\line_01792.png	BBF 11/04/25
+line_images\line_01764.png	MFG 09/04/25
+line_images\line_01128.png	13:07S90
+line_images\line_01700.png	BBF 06/04/25
+line_images\line_01357.png	BBF 18/03/25
+line_images\line_01352.png	MFG 17/03/25
+line_images\line_01094.png	07:42S07
+line_images\line_00919.png	MFG 21/02/25
+line_images\line_01138.png	MFG 05/03/25
+line_images\line_00590.png	04:48S76
+line_images\line_01811.png	BBF 31/12/25
+line_images\line_00665.png	09:18S50
+line_images\line_01231.png	BBF 11/03/25
+line_images\line_01728.png	MFG 07/04/25
+line_images\line_01419.png	02:35S57
+line_images\line_00395.png	07:04S48
+line_images\line_00877.png	10:52S32
+line_images\line_00882.png	MFG 19/02/25
+line_images\line_00295.png	BBF 18/01/25
+line_images\line_00225.png	BBF 14/01/25
+line_images\line_01592.png	BBF 31/03/25
+line_images\line_00123.png	12:41S03
+line_images\line_01291.png	15:31S99
+line_images\line_00417.png	MFG 24/01/25
+line_images\line_01667.png	BBF 04/04/25
+line_images\line_01516.png	MFG 26/03/25
+line_images\line_01620.png	MFG 01/04/25
+line_images\line_00628.png	11:22S23
+line_images\line_01567.png	MFG 29/03/25
+line_images\line_01288.png	BBF 14/03/25
+line_images\line_00304.png	01:06S00
+line_images\line_00865.png	MFG 18/02/25
+line_images\line_00817.png	BBF 16/02/25
+line_images\line_01055.png	BBF 01/03/25
+line_images\line_01454.png	21:15S82
+line_images\line_01444.png	MFG 22/03/25
+line_images\line_00363.png	MFG 21/01/25
+line_images\line_01248.png	BBF 12/03/25
+line_images\line_00585.png	BBF 03/02/25
+line_images\line_01584.png	MFG 30/03/25
+line_images\line_00607.png	02:56S71
+line_images\line_01047.png	MFG 28/02/25
+line_images\line_01303.png	BBF 15/03/25
+line_images\line_01743.png	09:24S73
+line_images\line_00724.png	MFG 10/02/25
+line_images\line_00143.png	21:18S53
+line_images\line_01365.png	15:51S35
+line_images\line_00079.png	BBF 06/01/25
+line_images\line_00024.png	BBF 03/01/25
+line_images\line_01087.png	BBF 03/03/25
+line_images\line_00619.png	BBF 05/02/25
+line_images\line_01716.png	BBF 07/04/25
+line_images\line_01029.png	MFG 27/02/25
+line_images\line_00456.png	BBF 27/01/25
+line_images\line_01610.png	BBF 01/04/25
+line_images\line_00832.png	MFG 16/02/25
+line_images\line_00558.png	MFG 01/02/25
+line_images\line_01315.png	MFG 15/03/25
+line_images\line_01232.png	BBF 11/03/25
+line_images\line_01161.png	BBF 07/03/25
+line_images\line_00959.png	MFG 23/02/25
+line_images\line_00876.png	10:52S32
+line_images\line_00159.png	15:12S90
+line_images\line_00526.png	MFG 30/01/25
+line_images\line_00028.png	BBF 03/01/25
+line_images\line_01300.png	MFG 14/03/25
+line_images\line_01649.png	BBF 03/04/25
+line_images\line_00571.png	21:06S43
+line_images\line_01753.png	BBF 09/04/25
+line_images\line_00019.png	MFG 02/01/25
+line_images\line_01142.png	BBF 06/03/25
+line_images\line_01287.png	BBF 14/03/25
+line_images\line_00284.png	12:47S61
+line_images\line_01409.png	MFG 20/03/25
+line_images\line_01789.png	BBF 11/04/25
+line_images\line_00823.png	03:54S64
+line_images\line_00627.png	11:22S23
+line_images\line_00442.png	BBF 26/01/25
+line_images\line_01615.png	12:49S58
+line_images\line_01116.png	MFG 04/03/25
+line_images\line_00650.png	MFG 06/02/25
+line_images\line_00683.png	17:15S51
+line_images\line_01696.png	MFG 05/04/25
+line_images\line_01186.png	01:31S57
+line_images\line_00183.png	MFG 11/01/25
+line_images\line_00457.png	BBF 27/01/25
+line_images\line_00640.png	BBF 06/02/25
+line_images\line_00794.png	MFG 14/02/25
+line_images\line_00569.png	BBF 02/02/25
+line_images\line_01101.png	MFG 03/03/25
+line_images\line_00868.png	MFG 18/02/25
+line_images\line_01337.png	MFG 16/03/25
+line_images\line_01720.png	BBF 07/04/25
+line_images\line_01562.png	19:14S84
+line_images\line_01259.png	15:19S30
+line_images\line_01532.png	MFG 27/03/25
+line_images\line_01109.png	BBF 04/03/25
+line_images\line_00303.png	01:06S00
+line_images\line_00964.png	BBF 24/02/25
+line_images\line_00318.png	20:31S64
+line_images\line_01179.png	BBF 08/03/25
+line_images\line_00428.png	03:26S65
+line_images\line_00180.png	MFG 11/01/25
+line_images\line_01428.png	BBF 22/03/25
+line_images\line_01788.png	BBF 11/04/25
+line_images\line_00581.png	MFG 02/02/25
+line_images\line_00946.png	BBF 23/02/25
+line_images\line_00719.png	12:45S30
+line_images\line_00345.png	MFG 20/01/25
+line_images\line_00346.png	MFG 20/01/25
+line_images\line_00995.png	MFG 25/02/25
+line_images\line_01560.png	19:14S84
+line_images\line_00796.png	MFG 14/02/25
+line_images\line_01627.png	BBF 02/04/25
+line_images\line_00334.png	BBF 20/01/25
+line_images\line_00449.png	17:29S82
+line_images\line_01612.png	BBF 01/04/25
+line_images\line_01208.png	MFG 09/03/25
+line_images\line_00286.png	12:47S61
+line_images\line_00193.png	06:48S51
+line_images\line_00441.png	BBF 26/01/25
+line_images\line_00382.png	MFG 22/01/25
+line_images\line_00199.png	MFG 12/01/25
+line_images\line_01593.png	BBF 31/03/25
+line_images\line_00849.png	MFG 17/02/25
+line_images\line_00112.png	MFG 07/01/25
+line_images\line_00741.png	MFG 11/02/25
+line_images\line_01618.png	12:49S58
+line_images\line_00078.png	BBF 06/01/25
+line_images\line_00987.png	03:32S73
+line_images\line_01289.png	BBF 14/03/25
+line_images\line_01165.png	10:42S57
+line_images\line_01217.png	BBF 10/03/25
+line_images\line_00191.png	BBF 12/01/25
+line_images\line_01590.png	BBF 31/03/25
+line_images\line_00471.png	MFG 27/01/25
+line_images\line_00740.png	MFG 11/02/25
+line_images\line_01265.png	MFG 12/03/25
+line_images\line_00790.png	07:51S00
+line_images\line_01239.png	06:33S24
+line_images\line_01534.png	MFG 27/03/25
+line_images\line_00130.png	MFG 08/01/25
+line_images\line_00884.png	MFG 19/02/25
+line_images\line_01144.png	BBF 06/03/25
+line_images\line_00842.png	05:54S13
+line_images\line_00234.png	MFG 14/01/25
+line_images\line_00036.png	MFG 03/01/25
+line_images\line_00547.png	BBF 01/02/25
+line_images\line_00283.png	12:47S61
+line_images\line_01399.png	04:32S32
+line_images\line_00170.png	BBF 11/01/25
+line_images\line_00305.png	01:06S00
+line_images\line_00903.png	MFG 20/02/25
+line_images\line_01795.png	15:53S32
+line_images\line_01777.png	17:56S76
+line_images\line_00300.png	01:06S00
+line_images\line_01519.png	BBF 27/03/25
+line_images\line_01145.png	BBF 06/03/25
+line_images\line_00917.png	15:45S21
+line_images\line_01765.png	MFG 09/04/25
+line_images\line_00337.png	23:29S70
+line_images\line_01115.png	00:57S76
+line_images\line_00175.png	14:06S41
+line_images\line_01385.png	03:18S13
+line_images\line_00405.png	BBF 24/01/25
+line_images\line_01655.png	05:27S09
+line_images\line_01346.png	22:21S18
+line_images\line_00938.png	MFG 22/02/25
+line_images\line_00278.png	BBF 17/01/25
+line_images\line_00612.png	MFG 04/02/25
+line_images\line_00899.png	17:10S93
+line_images\line_01654.png	05:27S09
+line_images\line_00855.png	BBF 18/02/25
+line_images\line_01149.png	00:20S52
+line_images\line_01745.png	09:24S73

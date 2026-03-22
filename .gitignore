@@ -64,3 +64,12 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# final app: model weights & local run artifacts (keep repo code-only / under GitHub limits)
+final/models/**/*.pt
+final/models/**/*.pth
+final/models/**/*.h5
+final/debug_log_*.txt
+final/test_output_lines*/
+final/test_output_lines2*/
+final/test_output_lines3*/
+
