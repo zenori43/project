@@ -646,7 +646,10 @@ class BottleDetectionGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Bottle Detection & OCR - USB Camera + Modbus + Sentech Camera')
-        
+        _logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Logo1.png")
+        if os.path.isfile(_logo_path):
+            self.setWindowIcon(QIcon(_logo_path))
+
         # ตรวจสอบว่าเป็น Jetson หรือไม่ (ก่อนตั้งขนาดหน้าต่าง)
         self.is_jetson = self.check_if_jetson()
         # ปรับขนาดให้ไม่เกินหน้าจอ (ลดโอกาสเกิดแถบเลื่อนแนวนอนที่ระดับหน้าต่าง)

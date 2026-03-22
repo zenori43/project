@@ -5,7 +5,7 @@ Splash Screen - หน้า Loading ที่แสดงระหว่าง 
 
 from PyQt5.QtWidgets import QSplashScreen, QApplication, QLabel
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QPixmap, QFont, QPainter, QColor, QTransform
+from PyQt5.QtGui import QPixmap, QFont, QPainter, QColor, QTransform, QIcon
 import sys
 import os
 
@@ -34,6 +34,8 @@ class LoadingSplashScreen(QSplashScreen):
                 self.logo_pixmap = QPixmap(self.logo_path)
                 if self.logo_pixmap.isNull():
                     self.logo_pixmap = None
+                else:
+                    self.setWindowIcon(QIcon(self.logo_path))
             except Exception as e:
                 print(f"⚠️ Warning: Could not load logo: {e}")
                 self.logo_pixmap = None

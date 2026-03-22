@@ -82,7 +82,7 @@ if IS_LINUX:
 try:
     from PyQt5 import QtWidgets
     from PyQt5.QtCore import QTimer
-    from PyQt5.QtGui import QFont
+    from PyQt5.QtGui import QFont, QIcon
 except ImportError as e:
     print("=" * 50)
     print("❌ ERROR: PyQt5 ไม่ได้ติดตั้ง")
@@ -116,6 +116,9 @@ def main():
         # สร้าง QApplication ก่อนเพื่อใช้ splash screen
         app = QtWidgets.QApplication(sys.argv)
         app.setStyle('Fusion')
+        _logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Logo1.png")
+        if os.path.isfile(_logo_path):
+            app.setWindowIcon(QIcon(_logo_path))
         
         # ฟอนต์: อังกฤษใช้ Poppins, ภาษาไทยใช้ Mitr (Qt เลือกตาม glyph)
         # setFamilies มีตั้งแต่ Qt 5.13 — PyQt5 เก่าใช้ setFamily อย่างเดียว
