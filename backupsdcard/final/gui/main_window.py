@@ -646,7 +646,7 @@ class BottleDetectionGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Bottle Detection & OCR - USB Camera + Modbus + Sentech Camera')
-        _logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Logo1.png")
+        _logo_path = os.path.join(os.path.dirname(__file__), "gui icon", "Logo1.png")
         if os.path.isfile(_logo_path):
             self.setWindowIcon(QIcon(_logo_path))
 

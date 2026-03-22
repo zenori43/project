@@ -116,7 +116,9 @@ def main():
         # สร้าง QApplication ก่อนเพื่อใช้ splash screen
         app = QtWidgets.QApplication(sys.argv)
         app.setStyle('Fusion')
-        _logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Logo1.png")
+        _logo_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "gui", "gui icon", "Logo1.png"
+        )
         if os.path.isfile(_logo_path):
             app.setWindowIcon(QIcon(_logo_path))
         

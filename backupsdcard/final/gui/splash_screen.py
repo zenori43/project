@@ -27,7 +27,7 @@ class LoadingSplashScreen(QSplashScreen):
         )
         
         # โหลด logo
-        self.logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Logo1.png")
+        self.logo_path = os.path.join(os.path.dirname(__file__), "gui icon", "Logo1.png")
         self.logo_pixmap = None
         if os.path.exists(self.logo_path):
             try:
