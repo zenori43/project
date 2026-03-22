@@ -64,12 +64,12 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
-# final app: model weights & local run artifacts (keep repo code-only / under GitHub limits)
-final/models/**/*.pt
-final/models/**/*.pth
-final/models/**/*.h5
-final/debug_log_*.txt
-final/test_output_lines*/
-final/test_output_lines2*/
-final/test_output_lines3*/
+# app under backupsdcard/final: weights & local artifacts (GitHub file limits / code-only)
+backupsdcard/final/models/**/*.pt
+backupsdcard/final/models/**/*.pth
+backupsdcard/final/models/**/*.h5
+backupsdcard/final/debug_log_*.txt
+backupsdcard/final/test_output_lines*/
+backupsdcard/final/test_output_lines2*/
+backupsdcard/final/test_output_lines3*/
 
