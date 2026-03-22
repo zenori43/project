@@ -66,7 +66,9 @@ def create_history_tab():
     def _make_scroll_and_layout(empty_text):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setMinimumSize(800, 560)
+        scroll.setMinimumSize(320, 360)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll.setStyleSheet("border: 2px solid #34495e; background-color: #ecf0f1;")
         content = QWidget()
         layout = QVBoxLayout(content)

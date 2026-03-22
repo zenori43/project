@@ -423,6 +423,9 @@ class ModbusHandlers:
                 self.gui.modbus_thread.capture_with_limit_mode = True  # เปิดใช้งาน limit mode
                 self.gui.modbus_thread.capture_limit_count = self.gui.capture_limit_spin.value()
                 self.gui.modbus_thread.capture_current_count = 0
+                self.gui.modbus_thread.capture_limit_reached = False
+                self.gui.modbus_thread.capture_image_count = 0
+                self.gui.modbus_thread._capture_limit_m301_notice_sent = False
                 self.gui.capture_limit_label.setVisible(True)
                 self.gui.capture_limit_spin.setVisible(True)
                 print(f"✅ MODE CHANGE: ID 5 capture only mode enabled (limit: {self.gui.modbus_thread.capture_limit_count} times)")
@@ -870,10 +873,13 @@ class ModbusHandlers:
         try:
             if self.gui.modbus_thread:
                 print("🔄 Resetting queue count...")
-                self.gui.modbus_thread.pending_m301_count = 0
-                self.gui.modbus_thread.m600_reset_pending = False
-                self.gui.modbus_thread.waiting_for_late_result = False
-                self.gui.modbus_thread.d6006_monitoring = False
+                if getattr(self.gui.modbus_thread, 'capture_only_mode', False):
+                    self.gui.modbus_thread.reset_id5_capture_session()
+                else:
+                    self.gui.modbus_thread.pending_m301_count = 0
+                    self.gui.modbus_thread.m600_reset_pending = False
+                    self.gui.modbus_thread.waiting_for_late_result = False
+                    self.gui.modbus_thread.d6006_monitoring = False
                 print("✅ Queue count and monitoring reset to 0")
         except Exception as e:
             print(f"❌ Error resetting queue count: {e}")

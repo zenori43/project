@@ -121,6 +121,8 @@ def create_modbus_dashboard():
     # ========== MAIN CONTENT - CARDS GRID ==========
     scroll = QScrollArea()
     scroll.setWidgetResizable(True)
+    scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     scroll.setStyleSheet("""
         QScrollArea {
             border: none;
@@ -129,6 +131,7 @@ def create_modbus_dashboard():
     """)
     
     content_widget = QWidget()
+    content_widget.setMinimumWidth(0)
     content_layout = QGridLayout(content_widget)
     content_layout.setSpacing(15)
     content_layout.setContentsMargins(0, 0, 0, 0)

@@ -685,8 +685,9 @@ class RotationModel:
         Process rotations in parallel using ThreadPoolExecutor
         Optimized for Jetson AGX Xavier with CUDA support
         
-        Note: PyTorch models release GIL during GPU operations, so parallel processing
-        works well even with threading. CUDA can handle multiple tasks via streams.
+        Note: On Jetson / embedded GPUs, never run two threads that both use OpenCV CUDA
+        and PyTorch on the same device — it causes illegal memory access and a wedged
+        CUDA context (symptom: app freeze on next GPU work). Use one worker when CUDA.
         
         Args:
             craft_rotated_image: CRAFT rotated image (numpy array)
@@ -709,13 +710,12 @@ class RotationModel:
         # Use self.cuda instead of torch.cuda.is_available() to ensure consistency
         if self.cuda:
             print(f"🚀 PARALLEL: CUDA available - GPU: {torch.cuda.get_device_name(0)}")
-            # Jetson AGX Xavier can handle multiple CUDA streams
-            # Threading works well because PyTorch releases GIL during GPU ops
-            max_workers = min(5, len(rotation_angles))  # Test up to 5 angles simultaneously
+            # บน Xavier/Jetson: หลาย thread ยิง OpenCV gpu + PyTorch พร้อมกัน → illegal access แล้วค้าง
+            max_workers = 1
+            print("🚀 PARALLEL: CUDA mode — ลองมุมทีละตัว (max_workers=1, thread-safe)")
         else:
             print("⚠️ PARALLEL: CUDA not available - using CPU")
-            # CPU: limit workers to avoid overload
-            max_workers = min(3, len(rotation_angles))  # Test up to 3 angles simultaneously
+            max_workers = min(3, len(rotation_angles))
         
         print(f"🚀 PARALLEL: Testing {len(rotation_angles)} rotations with {max_workers} workers...")
         

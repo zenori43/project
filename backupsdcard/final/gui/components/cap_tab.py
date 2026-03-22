@@ -37,7 +37,7 @@ def create_cap_tab():
     
     # Sentech Image display area
     sentech_image_label = QLabel()
-    sentech_image_label.setMinimumSize(600, 500)
+    sentech_image_label.setMinimumSize(200, 180)
     sentech_image_label.setAlignment(Qt.AlignCenter)
     sentech_image_label.setStyleSheet("border: 2px solid #8e44ad; background-color: #f4f3f4;")
     sentech_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
@@ -138,8 +138,10 @@ def create_cap_tab():
     # Cap detection results display with scroll
     cap_detection_text = QTextEdit()
     cap_detection_text.setReadOnly(True)
+    cap_detection_text.setMinimumSize(160, 180)
+    cap_detection_text.setLineWrapMode(QTextEdit.WidgetWidth)
     cap_detection_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-    cap_detection_text.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    cap_detection_text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     cap_detection_text.setStyleSheet("""
         QTextEdit {
             border: 2px solid #e74c3c;
@@ -166,9 +168,12 @@ def create_cap_tab():
     cap_detection_layout.addWidget(cap_detection_text)
     
     cap_splitter.addWidget(cap_detection_widget)
-    
-    # Set splitter sizes
-    cap_splitter.setSizes([600, 350, 450])
+    cap_splitter.setStretchFactor(0, 1)
+    cap_splitter.setStretchFactor(1, 1)
+    cap_splitter.setStretchFactor(2, 1)
+
+    # Set splitter sizes (รวมแล้วไม่บังคับกว้างเกินหน้าจอเล็ก)
+    cap_splitter.setSizes([280, 240, 260])
     
     # Add control buttons for cap detection
     cap_control_group = QGroupBox("Cap operations")

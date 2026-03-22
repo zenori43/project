@@ -539,6 +539,7 @@ class ModbusThread(QThread):
         self.capture_limit_count = 10  # จำนวนครั้งที่ต้องการถ่าย
         self.capture_current_count = 0  # จำนวนครั้งที่ถ่ายแล้ว
         self.capture_limit_reached = False  # Flag สำหรับบอกว่าถ่ายครบแล้ว รอหยุด
+        self._capture_limit_m301_notice_sent = False  # กันสแปมล็อกเมื่อ M301 สั่นขณะถ่ายครบแล้ว
         self._modbus_unit_key = None  # 'unit' หรือ 'slave' ตามที่ pymodbus รองรับ (detect หลัง connect)
         self._modbus_read_coils_has_count = True  # บางเวอร์ชันรับแค่ (address); detect หลัง connect
         self.angle3_retry_mode = False  # โหมดถ่ายภาพซ้ำสำหรับ angle3 (หลัง M402 ON)
@@ -551,6 +552,19 @@ class ModbusThread(QThread):
         if len(q) >= self._max_pending_queue and q:
             q.pop(0)
         q.append((bottle_result, cap_result))
+
+    def reset_id5_capture_session(self):
+        """โหมด ID5 ถ่ายภาพ: รีเซ็ตนับรอบ/คิว — ใช้เมื่อกด Stop หรือ reset ระบบ (เริ่มถ่ายชุดใหม่ได้)"""
+        self.capture_limit_reached = False
+        self.capture_current_count = 0
+        self.capture_image_count = 0
+        self.pending_m301_count = 0
+        self.m600_reset_pending = False
+        self.waiting_for_late_result = False
+        self.d6006_monitoring = False
+        self._capture_limit_m301_notice_sent = False
+        self._m401_popped_once = False
+        print("🔄 ID 5 CAPTURE ONLY: รีเซ็ตเซสชันถ่ายภาพ (นับใหม่, พร้อมรับ M301)")
 
     def _unit_kw(self, unit_id):
         """คืน dict สำหรับส่ง unit/slave ไปยัง pymodbus client ตามเวอร์ชันที่ติดตั้ง"""
@@ -658,8 +672,10 @@ class ModbusThread(QThread):
                     if self.capture_only_mode:
                         # ตรวจสอบว่าถ่ายครบจำนวนแล้วหรือยัง
                         if self.capture_limit_reached:
-                            print(f"⏹️ ID 5 CAPTURE ONLY: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่รับ M301 ต่อ")
-                            self.modbus_status.emit(f"⏹️ ID 5: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่รับ M301 ต่อ")
+                            if not self._capture_limit_m301_notice_sent:
+                                print(f"⏹️ ID 5 CAPTURE ONLY: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - ไม่รับ M301 ต่อ (กด STOP เพื่อรีเซ็ตนับ)")
+                                self.modbus_status.emit(f"⏹️ ID 5: ถ่ายครบแล้ว ({self.capture_limit_count} ครั้ง) - กด STOP เพื่อเริ่มใหม่")
+                                self._capture_limit_m301_notice_sent = True
                             continue  # หยุดการถ่ายภาพต่อ
                         
                         # ID 5: Capture only mode - just capture images, no processing
@@ -768,6 +784,7 @@ class ModbusThread(QThread):
                             self.modbus_status.emit("⏳ ถ่ายครบแล้ว - รอ 3 วินาทีแล้วหยุด")
                             self.capture_limit_reached_signal.emit()
                             self.capture_limit_reached = False
+                            self._capture_limit_m301_notice_sent = False
                         # ทำการ reset M600 และ coils อื่นๆ เฉพาะเมื่อรอ reset อยู่ (ถ้ามีแค่ผลในคิว ก็แค่ pop แสดง)
                         if self.m600_reset_pending:
                             print(f"✅ M401 ON มาถึงแล้ว! (คิว: {self.pending_m301_count})")
@@ -1516,17 +1533,12 @@ class BottleDetectionThread(QThread):
                     result['bottle_type'] = "M130"
                     result['angle3_detected'] = True
                     result['angle3_detected_alone'] = True  # ตรวจจับได้เพียงอย่างเดียว
-                else:
-                    print(f"⚠️ BOTTLE DETECTION THREAD: Found 'angle3' with other labels {other_labels} - ไม่ใช่ angle3 จริงๆ (ส่ง 50)")
-                    result['combined_ocr_text'] = "angle3 detected by YOLO (with others)"
-                    result['bottle_type'] = "M130"
-                    result['angle3_detected'] = True
-                    result['angle3_detected_alone'] = False  # ตรวจจับได้พร้อมกับ labels อื่นๆ
-                
-                self.progress_updated.emit(100)
-                self.status_updated.emit("พบ angle3 - ประมวลผลเสร็จสิ้น")
-                self.result_ready.emit(result)
-                return
+                    self.progress_updated.emit(100)
+                    self.status_updated.emit("พบ angle3 - ประมวลผลเสร็จสิ้น")
+                    self.result_ready.emit(result)
+                    return
+                # angle3 พร้อม type/angle1 ฯลฯ = false positive มุมหลัง — อ่าน OCR จาก type crop ต่อ (อย่าใส่ placeholder ที่โดน NG จากคิว)
+                print(f"⚠️ BOTTLE DETECTION THREAD: Found 'angle3' with other labels {other_labels} - ข้ามเส้นทาง M130, ทำ OCR type crop ต่อ")
             else:
                 print(f"ℹ️ BOTTLE DETECTION THREAD: 'angle3' not found in YOLO detections (ปกติถ้าตรวจได้ angle1/type)")
             

@@ -123,6 +123,7 @@ class CollapsibleTabWidget(QWidget):
     """Custom collapsible tab widget that works like panel output - can collapse/expand each tab with vertical text"""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setMinimumWidth(0)
         self.tabs = {}  # Store tab widgets and their states
         self.main_layout = QHBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -174,6 +175,7 @@ class CollapsibleTabWidget(QWidget):
         
         # Right side: Content area
         self.content_widget = QWidget()
+        self.content_widget.setMinimumWidth(0)
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.current_tab_index = None
@@ -188,7 +190,7 @@ class CollapsibleTabWidget(QWidget):
         header = QPushButton()
         header.setCheckable(True)
         header.setChecked(False)
-        header.setMinimumWidth(170)
+        header.setMinimumWidth(130)
         header.setMinimumHeight(60)
         header.setMaximumHeight(60)
         
@@ -645,11 +647,15 @@ class BottleDetectionGUI(QWidget):
         super().__init__()
         self.setWindowTitle('Bottle Detection & OCR - USB Camera + Modbus + Sentech Camera')
         
-        # ปรับขนาดหน้าต่างให้เหมาะสมกับ Jetson
-        self.resize(1800, 1200)
-        
-        # ตรวจสอบว่าเป็น Jetson หรือไม่
+        # ตรวจสอบว่าเป็น Jetson หรือไม่ (ก่อนตั้งขนาดหน้าต่าง)
         self.is_jetson = self.check_if_jetson()
+        # ปรับขนาดให้ไม่เกินหน้าจอ (ลดโอกาสเกิดแถบเลื่อนแนวนอนที่ระดับหน้าต่าง)
+        self.resize(1800, 1200)
+        if not self.is_jetson:
+            screen = QApplication.primaryScreen()
+            if screen is not None:
+                g = screen.availableGeometry()
+                self.resize(min(1800, max(960, g.width() - 40)), min(1200, max(700, g.height() - 80)))
         if self.is_jetson:
             print("🚀 Detected Jetson - Enabling fullscreen support")
             self.setWindowState(Qt.WindowFullScreen)
@@ -766,7 +772,7 @@ class BottleDetectionGUI(QWidget):
         main_scroll_area = QScrollArea()
         main_scroll_area.setWidgetResizable(True)
         main_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        main_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        main_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         main_scroll_area.setStyleSheet("""
             QScrollArea {
                 border: none;
@@ -809,17 +815,21 @@ class BottleDetectionGUI(QWidget):
         # สร้าง main widget ที่จะใส่ใน scroll area
         main_widget = QWidget()
         main_widget.setStyleSheet("background-color: #f0f0f0;")
+        main_widget.setMinimumWidth(0)
+        main_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         layout = QVBoxLayout(main_widget)
         
         # Title - อยู่บนสุดสุด
         title_label = QLabel("Bottle Detection & OCR - USB Camera + Modbus + Sentech Camera")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px; color: #333333; background-color: #e5e5e5; border-bottom: 2px solid #cccccc;")
         title_label.setAlignment(Qt.AlignCenter)
+        title_label.setWordWrap(True)
         layout.addWidget(title_label)
         
         # Top Panel - Fixed at top, visible on all tabs
         top_panel = QWidget()
         top_panel.setFixedHeight(80)  # Fixed height to prevent movement
+        top_panel.setMinimumWidth(0)
         top_panel.setStyleSheet("background-color: #e0e0e0; border-bottom: 0px solid #cccccc;")
         top_panel_layout = QHBoxLayout(top_panel)
         top_panel_layout.setContentsMargins(10, 5, 10, 5)
@@ -839,7 +849,7 @@ class BottleDetectionGUI(QWidget):
                 color: #7f8c8d;
             }
         """)
-        robot_status_label.setMinimumWidth(160)
+        robot_status_label.setMinimumWidth(120)
         top_panel_layout.addWidget(robot_status_label)
         self.top_panel_robot_status = robot_status_label
         
@@ -895,7 +905,8 @@ class BottleDetectionGUI(QWidget):
         self.mode_combo.addItem("ID 7 full auto")
         self.mode_combo.addItem("ID 5 capture only")
         self.mode_combo.addItem("ID 8 reset modbus")
-        self.mode_combo.setFixedWidth(150)
+        self.mode_combo.setMinimumWidth(110)
+        self.mode_combo.setMaximumWidth(200)
         self.mode_combo.setStyleSheet("""
             QComboBox {
                 padding: 5px;
@@ -1017,7 +1028,8 @@ class BottleDetectionGUI(QWidget):
         self.taste_mode_combo.addItem("2 Tastes")
         self.taste_mode_combo.addItem("3 Tastes")
         self.taste_mode_combo.setCurrentIndex(2)  # Default to 3-taste mode
-        self.taste_mode_combo.setFixedWidth(120)
+        self.taste_mode_combo.setMinimumWidth(95)
+        self.taste_mode_combo.setMaximumWidth(160)
         self.taste_mode_combo.setStyleSheet("""
             QComboBox {
                 padding: 5px;
@@ -1057,7 +1069,8 @@ class BottleDetectionGUI(QWidget):
         self.expiry_mode_combo.addItem("Normal mode")
         self.expiry_mode_combo.addItem("Filter by date")
         self.expiry_mode_combo.setCurrentIndex(0)  # Default to normal mode
-        self.expiry_mode_combo.setFixedWidth(130)
+        self.expiry_mode_combo.setMinimumWidth(100)
+        self.expiry_mode_combo.setMaximumWidth(170)
         self.expiry_mode_combo.setStyleSheet("""
             QComboBox {
                 padding: 5px;
@@ -1624,8 +1637,8 @@ class BottleDetectionGUI(QWidget):
         main_container_layout.setContentsMargins(0, 0, 0, 0)
         main_container_layout.setSpacing(0)
         
-        # Main content area
-        main_container_layout.addWidget(main_scroll_area)
+        # Main content area — stretch ให้เต็มความกว้างที่เหลือ (กันเนื้อหาดันให้เกิด H-scroll)
+        main_container_layout.addWidget(main_scroll_area, 1)
         
         # Slide debug panel
         main_container_layout.addWidget(self.debug_panel)
@@ -5851,6 +5864,9 @@ class BottleDetectionGUI(QWidget):
     def on_stop_pressed(self):
         """ปุ่ม STOP แบบ momentary: กดค้าง = M701 ON + เคลียร์ผลบนหน้าจอ"""
         self._clear_display_on_stop()
+        if self.modbus_thread and getattr(self.modbus_thread, 'capture_only_mode', False):
+            if hasattr(self.modbus_thread, 'reset_id5_capture_session'):
+                self.modbus_thread.reset_id5_capture_session()
         if self.modbus_thread and self.modbus_thread.write_coil(701, True):
             self.status_handlers.update_coil_lamp("m701", True)
             self.status_label.setText('⏹️ Hold STOP (M701 ON)')

@@ -114,6 +114,8 @@ def create_control_panel():
     # Main widget with scroll area
     scroll_area = QScrollArea()
     scroll_area.setWidgetResizable(True)
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     scroll_area.setStyleSheet("""
         QScrollArea {
             border: none;
@@ -135,6 +137,7 @@ def create_control_panel():
     """)
     
     main_widget = QWidget()
+    main_widget.setMinimumWidth(0)
     main_widget.setStyleSheet("background-color: #f5f5f5;")
     main_layout = QVBoxLayout(main_widget)
     main_layout.setContentsMargins(15, 15, 15, 15)
@@ -187,11 +190,14 @@ def create_control_panel():
     
     control_grid = QGridLayout()
     control_grid.setSpacing(10)
+    control_grid.setColumnStretch(0, 1)
+    control_grid.setColumnStretch(1, 1)
+    control_grid.setColumnStretch(2, 1)
     
-    # ถ่าย USB + Sentech พร้อมกัน (แสดงใน UI — ใช้ handler เดียวกับ btn_capture ที่ซ่อนไว้)
-    btn_capture_both = QPushButton('📸 ถ่ายทั้งสองกล้อง (USB + Sentech)')
+    # USB + Sentech capture (same row as Stop / Capture & Save — equal-width columns)
+    btn_capture_both = QPushButton('📸 Capture both cameras (USB + Sentech)')
     btn_capture_both.setToolTip(
-        "ถ่ายภาพจากกล้อง USB และ Sentech พร้อมกัน แสดงในหน้าจอ (ยังไม่บันทึกไฟล์ — ใช้ปุ่ม Capture & Save Both ถ้าต้องการบันทึก)"
+        "Capture from USB and Sentech at once and show on screen (not saved — use Capture & Save Both to write files)"
     )
     btn_capture_both.setStyleSheet("""
         QPushButton {
@@ -199,8 +205,8 @@ def create_control_panel():
             color: white;
             border: none;
             border-radius: 6px;
-            padding: 12px;
-            font-size: 13px;
+            padding: 10px;
+            font-size: 12px;
             font-weight: bold;
         }
         QPushButton:hover {
@@ -215,7 +221,7 @@ def create_control_panel():
         }
     """)
     btn_capture_both.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    control_grid.addWidget(btn_capture_both, 0, 0, 1, 3)
+    btn_capture_both.setMinimumHeight(40)
     widgets_dict['btn_capture_both'] = btn_capture_both
     
     # Capture button (hidden from UI but kept for handlers)
@@ -307,7 +313,6 @@ def create_control_panel():
     # Not added to layout to hide from UI
     widgets_dict['btn_process'] = btn_process
     
-    # Row 2: centered Stop + Capture & Save Both
     btn_stop = QPushButton('⏹️ Stop Processing')
     btn_stop.setEnabled(False)
     btn_stop.setStyleSheet("""
@@ -316,8 +321,8 @@ def create_control_panel():
             color: white;
             border: none;
             border-radius: 6px;
-            padding: 12px;
-            font-size: 13px;
+            padding: 10px;
+            font-size: 12px;
             font-weight: bold;
         }
         QPushButton:hover:enabled {
@@ -329,7 +334,8 @@ def create_control_panel():
         }
     """)
     widgets_dict['btn_stop_processing'] = btn_stop
-    
+    btn_stop.setMinimumHeight(40)
+
     btn_capture_and_save = QPushButton('📸💾 Capture & Save Both')
     btn_capture_and_save.setToolTip("Capture from USB + Sentech together and save both images to captured_images folder")
     btn_capture_and_save.setStyleSheet("""
@@ -349,23 +355,17 @@ def create_control_panel():
             background-color: #E65100;
         }
     """)
-    # ทำให้ปุ่มขยายเต็มพื้นที่แบบสมดุล
     btn_stop.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     btn_capture_and_save.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    
-    # ใช้ layout กลางให้สองปุ่มสมดุลกับ 3 ปุ่มด้านล่าง
-    row2_layout = QHBoxLayout()
-    row2_layout.setSpacing(20)
-    row2_layout.addStretch(1)
-    row2_layout.addWidget(btn_stop, 1)
-    row2_layout.addWidget(btn_capture_and_save, 1)
-    row2_layout.addStretch(1)
-    control_grid.addLayout(row2_layout, 1, 0, 1, 3)  # row 1: Stop + Capture & Save
+    btn_capture_and_save.setMinimumHeight(40)
+
+    control_grid.addWidget(btn_capture_both, 0, 0)
+    control_grid.addWidget(btn_stop, 0, 1)
+    control_grid.addWidget(btn_capture_and_save, 0, 2)
     widgets_dict['btn_capture_and_save'] = btn_capture_and_save
-    
-    # Row 3: process both (bottle + cap)
-    btn_select_bottle_folder = QPushButton('📁 เลือกโฟลเดอร์ขวด')
-    btn_select_bottle_folder.setToolTip("เลือกโฟลเดอร์ที่มีภาพขวด")
+
+    btn_select_bottle_folder = QPushButton('📁 Select bottle folder')
+    btn_select_bottle_folder.setToolTip("Choose a folder containing bottle images")
     btn_select_bottle_folder.setStyleSheet("""
         QPushButton {
             background-color: #27ae60;
@@ -380,11 +380,13 @@ def create_control_panel():
             background-color: #229954;
         }
     """)
-    control_grid.addWidget(btn_select_bottle_folder, 3, 0)
+    btn_select_bottle_folder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    btn_select_bottle_folder.setMinimumHeight(40)
+    control_grid.addWidget(btn_select_bottle_folder, 1, 0)
     widgets_dict['btn_select_bottle_folder'] = btn_select_bottle_folder
-    
-    btn_select_cap_folder = QPushButton('📁 เลือกโฟลเดอร์ฝา')
-    btn_select_cap_folder.setToolTip("เลือกโฟลเดอร์ที่มีภาพฝา")
+
+    btn_select_cap_folder = QPushButton('📁 Select cap folder')
+    btn_select_cap_folder.setToolTip("Choose a folder containing cap images")
     btn_select_cap_folder.setStyleSheet("""
         QPushButton {
             background-color: #9C27B0;
@@ -399,12 +401,14 @@ def create_control_panel():
             background-color: #7B1FA2;
         }
     """)
-    control_grid.addWidget(btn_select_cap_folder, 3, 1)
+    btn_select_cap_folder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    btn_select_cap_folder.setMinimumHeight(40)
+    control_grid.addWidget(btn_select_cap_folder, 1, 1)
     widgets_dict['btn_select_cap_folder'] = btn_select_cap_folder
-    
+
     btn_process_paired = QPushButton('🔄 Process both')
     btn_process_paired.setToolTip(
-        "ประมวลผลขวด+ฝาคู่กัน: จากโฟลเดอร์ที่เลือก หรือจากภาพล่าสุดหลังกดถ่ายทั้งสองกล้อง (USB + Sentech)"
+        "Run bottle + cap processing: from selected folders or from the latest USB + Sentech capture"
     )
     btn_process_paired.setEnabled(False)
     btn_process_paired.setStyleSheet("""
@@ -425,7 +429,9 @@ def create_control_panel():
             color: #888;
         }
     """)
-    control_grid.addWidget(btn_process_paired, 3, 2)
+    btn_process_paired.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    btn_process_paired.setMinimumHeight(40)
+    control_grid.addWidget(btn_process_paired, 1, 2)
     widgets_dict['btn_process_paired'] = btn_process_paired
     
     control_card.add_layout(control_grid)

@@ -1388,6 +1388,7 @@ class BottleDetectionHandlers:
             
             # Handle bottle type detection and Modbus control
             status_ng_shown = False
+            history_added_early = False  # กัน add_to_history ซ้ำ และกันใช้ current_cap_result ค้างเมื่อขวด NG
             bottle_ng = result.get('defect_inspection') and result['defect_inspection'].get('result') == 'NG'
             if result.get('bottle_type') and result.get('combined_ocr_text'):
                 print(f"🎯 PROCESS COMPLETE: Bottle type detected: {result['bottle_type']}")
@@ -1414,6 +1415,7 @@ class BottleDetectionHandlers:
                         self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
                     if hasattr(self.gui, 'add_to_history'):
                         self.gui.add_to_history(result, None)
+                        history_added_early = True
                     status_ng_shown = True
                 else:
                     # ขวดผ่าน — เก็บ result แล้วส่ง D7009/M110 ฯลฯ จากนั้นเริ่มประมวลผลฝา (ขวดแล้วค่อยฝา)
@@ -1466,6 +1468,11 @@ class BottleDetectionHandlers:
                 if will_wait_cap:
                     # จะมี add_to_history ตอนฝาเสร็จใน cap_handlers เท่านั้น
                     pass
+                elif history_added_early:
+                    pass
+                elif bottle_ng:
+                    # ขวด defect NG — ไม่ได้รัน OCR/ฝาของภาพนี้ ห้ามดึง current_cap_result ของขวดก่อนหน้า
+                    self.gui.add_to_history(result, None)
                 else:
                     cap_result = getattr(self.gui, 'current_cap_result', None)
                     self.gui.add_to_history(result, cap_result)

@@ -36,7 +36,7 @@ def create_bottle_tab():
     
     # Image display area
     image_label = QLabel()
-    image_label.setMinimumSize(500, 400)
+    image_label.setMinimumSize(200, 180)
     image_label.setAlignment(Qt.AlignCenter)
     image_label.setStyleSheet("border: 2px solid #bdc3c7; background-color: #ecf0f1;")
     image_label.setText("ยังไม่มีภาพจากกล้อง")
@@ -79,7 +79,9 @@ def create_bottle_tab():
     # Scroll area for cropped images
     crops_scroll = QScrollArea()
     crops_scroll.setWidgetResizable(True)
-    crops_scroll.setMinimumSize(300, 400)
+    crops_scroll.setMinimumSize(160, 200)
+    crops_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    crops_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     crops_scroll.setStyleSheet("border: 2px solid #e67e22; background-color: #fef9e7;")
     
     # Container for cropped images
@@ -110,10 +112,17 @@ def create_bottle_tab():
     # Results display
     results_text = QTextEdit()
     results_text.setReadOnly(True)
+    results_text.setMinimumSize(160, 180)
+    results_text.setLineWrapMode(QTextEdit.WidgetWidth)
+    results_text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    results_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     results_layout.addWidget(results_text)
     
     bottle_splitter.addWidget(results_widget)
-    
+    bottle_splitter.setStretchFactor(0, 1)
+    bottle_splitter.setStretchFactor(1, 1)
+    bottle_splitter.setStretchFactor(2, 1)
+
     # Add control buttons for bottle detection
     bottle_control_group = QGroupBox("Bottle operations")
     bottle_control_layout = QHBoxLayout()

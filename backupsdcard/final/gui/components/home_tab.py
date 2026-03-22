@@ -69,7 +69,7 @@ def create_home_tab():
     bottle_image_layout.addWidget(bottle_image_title)
     
     bottle_image_label = QLabel()
-    bottle_image_label.setMinimumSize(360, 240)
+    bottle_image_label.setMinimumSize(200, 160)
     bottle_image_label.setAlignment(Qt.AlignCenter)
     bottle_image_label.setStyleSheet("border: 2px solid #bdc3c7; background-color: #ecf0f1; border-radius: 5px;")
     bottle_image_label.setText("ยังไม่มีภาพจากกล้อง USB")
@@ -95,7 +95,9 @@ def create_home_tab():
     
     bottle_crops_scroll = QScrollArea()
     bottle_crops_scroll.setWidgetResizable(True)
-    bottle_crops_scroll.setMinimumSize(240, 220)
+    bottle_crops_scroll.setMinimumSize(160, 180)
+    bottle_crops_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    bottle_crops_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     bottle_crops_scroll.setStyleSheet("border: 2px solid #e67e22; background-color: #fef9e7; border-radius: 5px;")
     
     bottle_crops_container = QWidget()
@@ -134,7 +136,10 @@ def create_home_tab():
     
     bottle_results_text = QTextEdit()
     bottle_results_text.setReadOnly(True)
-    bottle_results_text.setMinimumSize(280, 220)
+    bottle_results_text.setMinimumSize(160, 180)
+    bottle_results_text.setLineWrapMode(QTextEdit.WidgetWidth)
+    bottle_results_text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    bottle_results_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     bottle_results_text.setStyleSheet("border: 2px solid #e74c3c; background-color: #fff; border-radius: 5px; font-size: 11px;")
     bottle_results_layout.addWidget(bottle_results_text)
     
@@ -179,7 +184,7 @@ def create_home_tab():
     cap_image_layout.addWidget(cap_image_title)
     
     cap_image_label = QLabel()
-    cap_image_label.setMinimumSize(360, 240)
+    cap_image_label.setMinimumSize(200, 160)
     cap_image_label.setAlignment(Qt.AlignCenter)
     cap_image_label.setStyleSheet("border: 2px solid #8e44ad; background-color: #f4f3f4; border-radius: 5px;")
     cap_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
@@ -244,7 +249,10 @@ def create_home_tab():
     
     cap_detection_text = QTextEdit()
     cap_detection_text.setReadOnly(True)
-    cap_detection_text.setMinimumSize(280, 220)
+    cap_detection_text.setMinimumSize(160, 180)
+    cap_detection_text.setLineWrapMode(QTextEdit.WidgetWidth)
+    cap_detection_text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    cap_detection_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
     cap_detection_text.setStyleSheet("border: 2px solid #e74c3c; background-color: #fff; border-radius: 5px; font-size: 11px;")
     cap_text_layout.addWidget(cap_detection_text)
     
