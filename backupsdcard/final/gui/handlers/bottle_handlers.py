@@ -209,9 +209,9 @@ class BottleDetectionHandlers:
                 self.clear_cropped_images_display()
                 self.gui.current_image = usb_image
                 self.display_image(usb_image)
-                self.gui.image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
+                self.gui.image_info_label.setText(f"Size: {usb_image.shape[1]}x{usb_image.shape[0]}")
                 if hasattr(self.gui, 'home_bottle_image_info_label'):
-                    self.gui.home_bottle_image_info_label.setText(f"ขนาด: {usb_image.shape[1]}x{usb_image.shape[0]}")
+                    self.gui.home_bottle_image_info_label.setText(f"Size: {usb_image.shape[1]}x{usb_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
                 self.gui.btn_save_image.setEnabled(True)
                 if hasattr(self.gui, 'btn_process_bottle_tab'):
@@ -225,7 +225,7 @@ class BottleDetectionHandlers:
                 self.gui.current_sentech_image = sentech_image
                 if hasattr(self.gui, 'cap_handlers') and self.gui.cap_handlers:
                     self.gui.cap_handlers.display_sentech_image(sentech_image)
-                self.gui.sentech_image_info_label.setText(f"ขนาด: {sentech_image.shape[1]}x{sentech_image.shape[0]}")
+                self.gui.sentech_image_info_label.setText(f"Size: {sentech_image.shape[1]}x{sentech_image.shape[0]}")
                 self.gui.btn_save_sentech_image.setEnabled(True)
                 if hasattr(self.gui, 'btn_process_cap'):
                     self.gui.btn_process_cap.setEnabled(True)
@@ -407,7 +407,7 @@ class BottleDetectionHandlers:
             if captured_image is not None:
                 self.gui.current_image = captured_image
                 self.display_image(captured_image)
-                self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]}")
+                self.gui.image_info_label.setText(f"Size: {captured_image.shape[1]}x{captured_image.shape[0]}")
                 self.gui.btn_process.setEnabled(True)
                 self.gui.btn_save_image.setEnabled(True)
                 # Also update tab buttons if they exist
@@ -577,7 +577,7 @@ class BottleDetectionHandlers:
             self.display_image(image)
             name = os.path.basename(path)
             n, total = self.gui._current_bottle_index + 1, len(paths)
-            self.gui.image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {name} ({n}/{total})")
+            self.gui.image_info_label.setText(f"Size: {image.shape[1]}x{image.shape[0]} | File: {name} ({n}/{total})")
             if hasattr(self.gui, 'btn_next_bottle_image'):
                 self.gui.btn_next_bottle_image.setEnabled(True)
             if hasattr(self.gui, 'btn_prev_bottle_image'):
@@ -597,7 +597,7 @@ class BottleDetectionHandlers:
             self.display_image(image)
             name = os.path.basename(path)
             n, total = self.gui._current_bottle_index + 1, len(paths)
-            self.gui.image_info_label.setText(f"ขนาด: {image.shape[1]}x{image.shape[0]} | ไฟล์: {name} ({n}/{total})")
+            self.gui.image_info_label.setText(f"Size: {image.shape[1]}x{image.shape[0]} | File: {name} ({n}/{total})")
             if hasattr(self.gui, 'btn_prev_bottle_image'):
                 self.gui.btn_prev_bottle_image.setEnabled(True)
             if hasattr(self.gui, 'btn_next_bottle_image'):
@@ -705,7 +705,7 @@ class BottleDetectionHandlers:
                 
                 self.gui.current_image = captured_image
                 self.display_image(captured_image)
-                self.gui.image_info_label.setText(f"ขนาด: {captured_image.shape[1]}x{captured_image.shape[0]} | เวลา: {capture_time}")
+                self.gui.image_info_label.setText(f"Size: {captured_image.shape[1]}x{captured_image.shape[0]} | Time: {capture_time}")
                 self.gui.btn_process.setEnabled(True)
                 # Also update tab buttons if they exist
                 if hasattr(self.gui, 'btn_process_bottle_tab'):
@@ -1042,10 +1042,10 @@ class BottleDetectionHandlers:
                         )
                         self.gui.home_bottle_image_label.setPixmap(scaled_pixmap)
             else:
-                self.gui.image_label.setText("ไม่สามารถโหลดภาพได้")
+                self.gui.image_label.setText("Could not load image")
 
         except Exception as e:
-            self.gui.image_label.setText(f"ข้อผิดพลาด: {str(e)}")
+            self.gui.image_label.setText(f"Error: {str(e)}")
             
     def clear_cropped_images_display(self):
         """เคลียร์พื้นที่แสดงรูปครอปในแท็บขวดและหน้าหลัก (ใช้เมื่อมีรูปใหม่มาในโหมด full auto)"""
@@ -1059,12 +1059,12 @@ class BottleDetectionHandlers:
                     widget = self.gui.home_bottle_crops_layout.itemAt(i).widget()
                     if widget:
                         widget.setParent(None)
-            placeholder_label = QLabel("ยังไม่มีภาพที่ครอป")
+            placeholder_label = QLabel("No cropped image yet")
             placeholder_label.setAlignment(Qt.AlignCenter)
             placeholder_label.setStyleSheet("color: #7f8c8d; padding: 20px;")
             self.gui.crops_layout.addWidget(placeholder_label)
             if hasattr(self.gui, 'home_bottle_crops_layout'):
-                home_placeholder = QLabel("ยังไม่มีภาพที่ครอป")
+                home_placeholder = QLabel("No cropped image yet")
                 home_placeholder.setAlignment(Qt.AlignCenter)
                 home_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_bottle_crops_layout.addWidget(home_placeholder)
@@ -1093,14 +1093,14 @@ class BottleDetectionHandlers:
         
         if not type_crops:
             # Show placeholder
-            placeholder_label = QLabel("ไม่มีภาพที่ครอป")
+            placeholder_label = QLabel("No cropped image")
             placeholder_label.setAlignment(Qt.AlignCenter)
             placeholder_label.setStyleSheet("color: #7f8c8d; padding: 20px;")
             self.gui.crops_layout.addWidget(placeholder_label)
             
             # Also show placeholder in Home tab
             if hasattr(self.gui, 'home_bottle_crops_layout'):
-                home_placeholder = QLabel("ไม่มีภาพที่ครอป")
+                home_placeholder = QLabel("No cropped image")
                 home_placeholder.setAlignment(Qt.AlignCenter)
                 home_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_bottle_crops_layout.addWidget(home_placeholder)
@@ -1573,8 +1573,8 @@ class BottleDetectionHandlers:
         print(f"🔄 DISPLAY SINGLE RESULTS: Detections: {len(detections)}")
         
         detail_text = f"""
-=== ผลการตรวจจับขวดและ OCR ===
-📊 วัตถุที่ตรวจจับได้: {summary.get('total_detections', 0)}
+=== Bottle detection & OCR results ===
+📊 Detections: {summary.get('total_detections', 0)}
 🔍 Type regions: {summary.get('type_detections', 0)}
 🏷️ Labels: {', '.join(summary.get('detected_labels', []))}
         """
@@ -1588,7 +1588,7 @@ class BottleDetectionHandlers:
         a1c = _conf_for('angle1_confidence', 'angle1')
         tyc = _conf_for('type_confidence', 'type')
         if a1c is not None or tyc is not None:
-            detail_text += "\n🎯 ความมั่นใจ YOLO:"
+            detail_text += "\n🎯 YOLO confidence:"
             if a1c is not None:
                 detail_text += f"\n   angle1: {a1c:.4f}"
             if tyc is not None:
@@ -1607,7 +1607,7 @@ class BottleDetectionHandlers:
                 if crop.get('ocr_results'):
                     total_ocr_texts += len(crop['ocr_results'])
             
-            detail_text += f"📝 ข้อความที่อ่านได้: {total_ocr_texts} รายการ\n"
+            detail_text += f"📝 OCR line items: {total_ocr_texts}\n"
             
             # Add combined OCR text and bottle type
             if result.get('combined_ocr_text'):
@@ -1638,7 +1638,7 @@ class BottleDetectionHandlers:
             bottle_type = result.get('bottle_type')
 
             if defect_result == 'NG':
-                v.setText("⚠️  RESULT: NG (Defect)  ⚠️")
+                v.setText("⚠️ RESULT: NG (defect) ⚠️")
                 v.setStyleSheet(
                     "font-size: 22px; font-weight: bold; padding: 10px; "
                     "border-radius: 8px; background-color: #fadbd8; color: #c0392b; border: 2px solid #c0392b;"
@@ -1653,7 +1653,7 @@ class BottleDetectionHandlers:
                 if eo is not None:
                     bits.append(f"EasyOCR {eo:.4f}")
                 extra = f"\n({ ' · '.join(bits) })" if bits else ""
-                v.setText(f"✅  RESULT: {bottle_type}  ✅{extra}")
+                v.setText(f"✅ RESULT: {bottle_type} ✅{extra}")
                 v.setStyleSheet(
                     "font-size: 22px; font-weight: bold; padding: 10px; "
                     "border-radius: 8px; background-color: #d5f4e6; color: #27ae60; border: 2px solid #27ae60;"

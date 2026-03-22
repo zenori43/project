@@ -142,15 +142,15 @@ def main():
         
         # อัพเดท loading progress
         if use_splash:
-            splash.set_progress(1, 10, "กำลังเริ่มระบบ...")
+            splash.set_progress(1, 10, "Starting system...")
             app.processEvents()  # ให้ GUI อัพเดท
         
         # Import modules ตามขั้นตอน
         try:
             if use_splash:
-                splash.set_progress(2, 10, "กำลังโหลด Configuration...")
+                splash.set_progress(2, 10, "Loading configuration...")
                 app.processEvents()
-            print("📦 กำลังโหลด Configuration...")
+            print("📦 Loading configuration...")
             from config import settings
             
             if use_splash:
@@ -162,15 +162,15 @@ def main():
             from core import business_logic
             
             if use_splash:
-                splash.set_progress(4, 10, "กำลังโหลด GUI Modules...")
+                splash.set_progress(4, 10, "Loading GUI modules...")
                 app.processEvents()
-            print("📦 กำลังโหลด GUI Modules...")
+            print("📦 Loading GUI modules...")
             from gui.main_window import BottleDetectionGUI
             
             if use_splash:
-                splash.set_progress(5, 10, "กำลังเตรียมหน้าต่างหลัก...")
+                splash.set_progress(5, 10, "Preparing main window...")
                 app.processEvents()
-            print("📦 กำลังเตรียมหน้าต่างหลัก...")
+            print("📦 Preparing main window...")
             window = BottleDetectionGUI()
             
             # ยังไม่แสดง GUI — รอโหลดกล้อง/โมเดล/Defect/Modbus ในพื้นหลัง แล้วค่อยปิด loading และแสดงหน้าต่างหลัก
@@ -183,10 +183,10 @@ def main():
 
             def on_init_complete():
                 if use_splash and splash:
-                    splash.set_progress(10, 10, "พร้อมใช้งาน!")
+                    splash.set_progress(10, 10, "Ready!")
                     app.processEvents()
                     splash.close()
-                print("✅ แสดงหน้าต่างหลัก...")
+                print("✅ Showing main window...")
                 window.show()
             
             window.init_progress.connect(on_init_progress)
@@ -198,7 +198,7 @@ def main():
         except Exception as e:
             if use_splash and splash:
                 try:
-                    splash.show_message(f"เกิดข้อผิดพลาด: {str(e)}")
+                    splash.show_message(f"Error: {str(e)}")
                     QTimer.singleShot(3000, splash.close)
                 except:
                     pass

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Bottle Detection Tab Component
-สร้าง UI สำหรับ Bottle Detection Tab
+Builds the Bottle detection tab UI.
 """
 
 from PyQt5.QtWidgets import (
@@ -13,11 +13,9 @@ from PyQt5.QtCore import Qt
 
 def create_bottle_tab():
     """
-    สร้าง Bottle Detection Tab
+    Create the Bottle detection tab.
     Returns:
         tuple: (bottle_tab_widget, widgets_dict)
-            - bottle_tab_widget: QWidget สำหรับ tab
-            - widgets_dict: dict ที่เก็บ widgets ทั้งหมดที่ main window ต้องการอ้างอิง
     """
     bottle_tab = QWidget()
     bottle_layout = QVBoxLayout(bottle_tab)
@@ -29,7 +27,7 @@ def create_bottle_tab():
     image_widget = QWidget()
     image_layout = QVBoxLayout(image_widget)
     
-    image_title = QLabel("ภาพจากกล้อง USB")
+    image_title = QLabel("USB camera image")
     image_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #2980b9;")
     image_title.setAlignment(Qt.AlignCenter)
     image_layout.addWidget(image_title)
@@ -39,19 +37,19 @@ def create_bottle_tab():
     image_label.setMinimumSize(200, 180)
     image_label.setAlignment(Qt.AlignCenter)
     image_label.setStyleSheet("border: 2px solid #bdc3c7; background-color: #ecf0f1;")
-    image_label.setText("ยังไม่มีภาพจากกล้อง")
+    image_label.setText("No camera image yet")
     image_layout.addWidget(image_label)
     
     # Current image info
-    image_info_label = QLabel("ข้อมูลภาพ: -")
+    image_info_label = QLabel("Image info: -")
     image_info_label.setStyleSheet("color: #7f8c8d; padding: 5px;")
     image_layout.addWidget(image_info_label)
     
-    # ปุ่มก่อนหน้า/ถัดไป (แสดงเมื่อเลือกหลายภาพ)
+    # Prev / next (visible when multiple images are selected)
     nav_row = QHBoxLayout()
     nav_row.addStretch()
-    btn_prev_bottle_image = QPushButton('◀ ก่อนหน้า')
-    btn_prev_bottle_image.setToolTip("แสดงภาพก่อนหน้าในรายการที่เลือก")
+    btn_prev_bottle_image = QPushButton('◀ Previous')
+    btn_prev_bottle_image.setToolTip("Show previous image in the selected list")
     btn_prev_bottle_image.setVisible(False)
     btn_prev_bottle_image.setEnabled(False)
     btn_prev_bottle_image.setStyleSheet("QPushButton { padding: 6px 12px; font-size: 11px; }")
@@ -71,7 +69,7 @@ def create_bottle_tab():
     crops_widget = QWidget()
     crops_layout = QVBoxLayout(crops_widget)
     
-    crops_title = QLabel("ภาพที่ครอปและผล OCR")
+    crops_title = QLabel("Cropped image and OCR")
     crops_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e67e22;")
     crops_title.setAlignment(Qt.AlignCenter)
     crops_layout.addWidget(crops_title)
@@ -90,7 +88,7 @@ def create_bottle_tab():
     crops_container_layout.setAlignment(Qt.AlignTop)
     
     # Add placeholder text
-    placeholder_label = QLabel("ยังไม่มีภาพที่ครอป")
+    placeholder_label = QLabel("No cropped image yet")
     placeholder_label.setAlignment(Qt.AlignCenter)
     placeholder_label.setStyleSheet("color: #7f8c8d; padding: 20px;")
     crops_container_layout.addWidget(placeholder_label)
@@ -104,7 +102,7 @@ def create_bottle_tab():
     results_widget = QWidget()
     results_layout = QVBoxLayout(results_widget)
     
-    results_title = QLabel("ผลการตรวจจับและ OCR")
+    results_title = QLabel("Detection and OCR results")
     results_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
     results_title.setAlignment(Qt.AlignCenter)
     results_layout.addWidget(results_title)

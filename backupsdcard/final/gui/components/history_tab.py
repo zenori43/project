@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 History Tab Component
-สร้าง UI สำหรับ History Tab (ประวัติการประมวลผล)
+Builds the processing history tab UI.
 """
 
 from PyQt5.QtWidgets import (
@@ -14,26 +14,42 @@ import cv2
 import numpy as np
 
 
+def bottle_type_flavor_label(bottle_type):
+    """
+    Map bottle Modbus/type codes to product flavor names (English), aligned with D6007 product lines.
+    """
+    if bottle_type is None:
+        return "Not specified"
+    code = str(bottle_type).strip()
+    if not code or code.lower() == "unknown":
+        return "Not specified"
+    mapping = {
+        "M100": "Original soy milk",
+        "M110": "Less sugar (2%)",
+        "M120": "With lac seeds",
+        "M130": "View 3 (angle3)",
+    }
+    return mapping.get(code, code)
+
+
 def create_history_tab():
     """
-    สร้าง History Tab (ประวัติการประมวลผล)
+    Create the History tab.
     Returns:
         tuple: (history_tab_widget, widgets_dict)
-            - history_tab_widget: QWidget สำหรับ tab
-            - widgets_dict: dict ที่เก็บ widgets ทั้งหมดที่ main window ต้องการอ้างอิง
     """
     history_tab = QWidget()
     history_layout = QVBoxLayout(history_tab)
     
     # History Title
-    history_title = QLabel("📋 ประวัติการประมวลผล")
+    history_title = QLabel("📋 Processing history")
     history_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50; padding: 15px;")
     history_title.setAlignment(Qt.AlignCenter)
     history_layout.addWidget(history_title)
     
     # Control buttons
     control_layout = QHBoxLayout()
-    btn_clear_history = QPushButton("🗑️ ล้างประวัติ")
+    btn_clear_history = QPushButton("🗑️ Clear History")
     btn_clear_history.setStyleSheet("""
         QPushButton {
             padding: 8px 15px;
@@ -80,7 +96,7 @@ def create_history_tab():
         scroll.setWidget(content)
         return scroll, content, layout, empty
     
-    # Tab: All (รวม)
+    # Tab: All
     history_scroll, history_content, history_content_layout, empty_label = _make_scroll_and_layout("📭 No processing history yet")
     history_tab_widget.addTab(history_scroll, "All")
     
@@ -201,8 +217,9 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
     header_layout.addWidget(timestamp_label)
     header_layout.addStretch()
     
-    # Bottle type badge
-    bottle_type_label = QLabel(f"🏷️ {bottle_type}")
+    # Bottle type badge (show flavor name instead of M-code)
+    flavor = bottle_type_flavor_label(bottle_type)
+    bottle_type_label = QLabel(f"🏷️ {flavor}")
     if bottle_type == "M100":
         bottle_type_label.setStyleSheet("""
             background-color: #3498db;
@@ -413,8 +430,8 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
     info_layout = QVBoxLayout()
     info_layout.setSpacing(10)
     
-    # Bottle type
-    type_info = QLabel(f"<b>รสชาติ:</b> {bottle_type}")
+    # Bottle type / flavor
+    type_info = QLabel(f"<b>Flavor:</b> {flavor}")
     type_info.setStyleSheet("color: #2c3e50; font-size: 14px; padding: 5px;")
     info_layout.addWidget(type_info)
     
@@ -519,11 +536,12 @@ def create_history_compact_item(history_entry, gui_instance=None):
     left_layout = QVBoxLayout()
     ts = history_entry.get('timestamp', '')
     bottle_type = history_entry.get('bottle_type', 'Unknown')
+    flavor = bottle_type_flavor_label(bottle_type)
     timestamp_label = QLabel(f"🕐 {ts}")
     timestamp_label.setStyleSheet("color: #7f8c8d; font-size: 11px; font-weight: bold;")
     left_layout.addWidget(timestamp_label)
     
-    type_label = QLabel(f"🏷️ {bottle_type}")
+    type_label = QLabel(f"🏷️ {flavor}")
     type_label.setStyleSheet("color: #2c3e50; font-size: 12px;")
     left_layout.addWidget(type_label)
     item_layout.addLayout(left_layout)

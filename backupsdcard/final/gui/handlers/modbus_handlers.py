@@ -6,6 +6,7 @@ Handles all events related to Modbus operations and signals
 
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtWidgets import QLabel, QApplication
+from gui.components.history_tab import bottle_type_flavor_label
 import cv2
 import os
 import datetime
@@ -696,7 +697,7 @@ class ModbusHandlers:
             
             if selected_mode == 1:
                 self.show_taste_selection()
-                self.gui.taste_mode_status.setText("โหมดปัจจุบัน: 1 รสชาติ - กรุณาเลือกรสชาติ")
+                self.gui.taste_mode_status.setText("Current mode: 1 taste — select a flavor")
                 self.gui.taste_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
                 
                 # Write 30 to D9006 (1-taste mode)
@@ -709,7 +710,7 @@ class ModbusHandlers:
                 
             elif selected_mode == 2:
                 self.show_taste_selection()
-                self.gui.taste_mode_status.setText("โหมดปัจจุบัน: 2 รสชาติ - กรุณาเลือกรสชาติ")
+                self.gui.taste_mode_status.setText("Current mode: 2 tastes — select flavors")
                 self.gui.taste_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
                 
                 # Write 20 to D9006 (2-taste mode)
@@ -723,7 +724,8 @@ class ModbusHandlers:
             elif selected_mode == 3:
                 self.hide_taste_selection()
                 self.gui.selected_tastes = ["M100", "M110", "M120"]  # All tastes
-                self.gui.taste_mode_status.setText("โหมดปัจจุบัน: 3 รสชาติ (M100, M110, M120)")
+                _three = ", ".join(bottle_type_flavor_label(c) for c in ("M100", "M110", "M120"))
+                self.gui.taste_mode_status.setText(f"Current mode: 3 tastes ({_three})")
                 self.gui.taste_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
                 
                 # Write 10 to D9006 (3-taste mode)
@@ -768,7 +770,7 @@ class ModbusHandlers:
                 widget = self.gui.taste_selection_layout.itemAt(i).widget()
                 if widget and isinstance(widget, type(self.gui.taste_m100)):
                     widget.setVisible(False)
-                elif widget and hasattr(widget, 'text') and "เลือกรสชาติ" in widget.text():
+                elif widget and hasattr(widget, 'text') and "Select taste:" in widget.text():
                     widget.setVisible(False)
             
             print("🔄 TASTE SELECTION: Hiding taste selection checkboxes")
@@ -937,6 +939,10 @@ class ModbusHandlers:
                     widget = self.gui.cap_results_layout.itemAt(i).widget()
                     if widget:
                         widget.setParent(None)
+                cap_ph = QLabel("No cap detection results yet")
+                cap_ph.setAlignment(Qt.AlignCenter)
+                cap_ph.setStyleSheet("color: #7f8c8d; padding: 20px; font-size: 14px;")
+                self.gui.cap_results_layout.addWidget(cap_ph)
             
             print("✅ UI elements reset completed")
             
@@ -963,10 +969,10 @@ class ModbusHandlers:
             # --- แท็บขวด (Bottle tab) ---
             if hasattr(self.gui, 'image_label') and self.gui.image_label:
                 self.gui.image_label.clear()
-                self.gui.image_label.setText("📷 ไม่มีภาพ")
+                self.gui.image_label.setText("📷 No image")
                 self.gui.image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
             if hasattr(self.gui, 'image_info_label') and self.gui.image_info_label:
-                self.gui.image_info_label.setText("ข้อมูลภาพ: -")
+                self.gui.image_info_label.setText("Image info: -")
             if hasattr(self.gui, 'results_text') and self.gui.results_text:
                 self.gui.results_text.clear()
             # รูปครอปแท็บขวด
@@ -975,7 +981,7 @@ class ModbusHandlers:
                     w = self.gui.crops_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
-                ph = QLabel("ยังไม่มีภาพที่ครอป")
+                ph = QLabel("No cropped image yet")
                 ph.setAlignment(Qt.AlignCenter)
                 ph.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.crops_layout.addWidget(ph)
@@ -983,10 +989,10 @@ class ModbusHandlers:
             # --- หน้าหลัก ขวด (Home bottle) ---
             if hasattr(self.gui, 'home_bottle_image_label') and self.gui.home_bottle_image_label:
                 self.gui.home_bottle_image_label.clear()
-                self.gui.home_bottle_image_label.setText("ยังไม่มีภาพจากกล้อง USB")
+                self.gui.home_bottle_image_label.setText("No image from USB camera yet")
                 self.gui.home_bottle_image_label.setStyleSheet("border: 2px solid #bdc3c7; background-color: #ecf0f1; border-radius: 5px;")
             if hasattr(self.gui, 'home_bottle_image_info_label') and self.gui.home_bottle_image_info_label:
-                self.gui.home_bottle_image_info_label.setText("ข้อมูลภาพ: -")
+                self.gui.home_bottle_image_info_label.setText("Image info: -")
             if hasattr(self.gui, 'home_bottle_results_text') and self.gui.home_bottle_results_text:
                 self.gui.home_bottle_results_text.clear()
             if hasattr(self.gui, 'home_bottle_crops_layout') and self.gui.home_bottle_crops_layout:
@@ -994,7 +1000,7 @@ class ModbusHandlers:
                     w = self.gui.home_bottle_crops_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
-                ph = QLabel("ยังไม่มีภาพที่ครอป")
+                ph = QLabel("No cropped image yet")
                 ph.setAlignment(Qt.AlignCenter)
                 ph.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_bottle_crops_layout.addWidget(ph)
@@ -1007,20 +1013,24 @@ class ModbusHandlers:
                     w = self.gui.cap_results_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
+                cap_ph = QLabel("No cap detection results yet")
+                cap_ph.setAlignment(Qt.AlignCenter)
+                cap_ph.setStyleSheet("color: #7f8c8d; padding: 20px; font-size: 14px;")
+                self.gui.cap_results_layout.addWidget(cap_ph)
             if hasattr(self.gui, 'sentech_image_label') and self.gui.sentech_image_label:
                 self.gui.sentech_image_label.clear()
-                self.gui.sentech_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+                self.gui.sentech_image_label.setText("No Sentech camera image yet")
                 self.gui.sentech_image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
             if hasattr(self.gui, 'sentech_image_info_label') and self.gui.sentech_image_info_label:
-                self.gui.sentech_image_info_label.setText("ข้อมูลภาพ: -")
+                self.gui.sentech_image_info_label.setText("Image info: -")
             
             # --- หน้าหลัก ฝา (Home cap) ---
             if hasattr(self.gui, 'home_cap_image_label') and self.gui.home_cap_image_label:
                 self.gui.home_cap_image_label.clear()
-                self.gui.home_cap_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+                self.gui.home_cap_image_label.setText("No Sentech camera image yet")
                 self.gui.home_cap_image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
             if hasattr(self.gui, 'home_cap_image_info_label') and self.gui.home_cap_image_info_label:
-                self.gui.home_cap_image_info_label.setText("ข้อมูลภาพ: -")
+                self.gui.home_cap_image_info_label.setText("Image info: -")
             if hasattr(self.gui, 'home_cap_results_layout') and self.gui.home_cap_results_layout:
                 for i in reversed(range(self.gui.home_cap_results_layout.count())):
                     w = self.gui.home_cap_results_layout.itemAt(i).widget()
@@ -1032,16 +1042,16 @@ class ModbusHandlers:
             # ----- Home tab: clear bottle section -----
             if hasattr(self.gui, 'home_bottle_image_label') and self.gui.home_bottle_image_label:
                 self.gui.home_bottle_image_label.clear()
-                self.gui.home_bottle_image_label.setText("ยังไม่มีภาพจากกล้อง USB")
+                self.gui.home_bottle_image_label.setText("No image from USB camera yet")
             if hasattr(self.gui, 'home_bottle_image_info_label') and self.gui.home_bottle_image_info_label:
-                self.gui.home_bottle_image_info_label.setText("ข้อมูลภาพ: -")
+                self.gui.home_bottle_image_info_label.setText("Image info: -")
             if hasattr(self.gui, 'home_bottle_crops_layout') and self.gui.home_bottle_crops_layout:
                 # ล้างภาพครอปบนหน้าหลัก แล้วใส่ placeholder ใหม่
                 for i in reversed(range(self.gui.home_bottle_crops_layout.count())):
                     w = self.gui.home_bottle_crops_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
-                placeholder = QLabel("ยังไม่มีภาพที่ครอป")
+                placeholder = QLabel("No cropped image yet")
                 placeholder.setAlignment(Qt.AlignCenter)
                 placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_bottle_crops_layout.addWidget(placeholder)
@@ -1057,15 +1067,15 @@ class ModbusHandlers:
             # ----- Home tab: clear cap section -----
             if hasattr(self.gui, 'home_cap_image_label') and self.gui.home_cap_image_label:
                 self.gui.home_cap_image_label.clear()
-                self.gui.home_cap_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+                self.gui.home_cap_image_label.setText("No Sentech camera image yet")
             if hasattr(self.gui, 'home_cap_image_info_label') and self.gui.home_cap_image_info_label:
-                self.gui.home_cap_image_info_label.setText("ข้อมูลภาพ: -")
+                self.gui.home_cap_image_info_label.setText("Image info: -")
             if hasattr(self.gui, 'home_cap_results_layout') and self.gui.home_cap_results_layout:
                 for i in reversed(range(self.gui.home_cap_results_layout.count())):
                     w = self.gui.home_cap_results_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
-                cap_placeholder = QLabel("ยังไม่มีผลการตรวจจับฝา")
+                cap_placeholder = QLabel("No cap detection results yet")
                 cap_placeholder.setAlignment(Qt.AlignCenter)
                 cap_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_cap_results_layout.addWidget(cap_placeholder)
@@ -1154,14 +1164,14 @@ class ModbusHandlers:
                     w = self.gui.home_bottle_crops_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
-                placeholder = QLabel("กำลังประมวลผล... ยังไม่มีภาพที่ครอป")
+                placeholder = QLabel("Processing… no cropped image yet")
                 placeholder.setAlignment(Qt.AlignCenter)
                 placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_bottle_crops_layout.addWidget(placeholder)
             
             # เคลียร์ผลขวดบนหน้าหลักให้รอผล
             if hasattr(self.gui, "home_bottle_verdict_label") and self.gui.home_bottle_verdict_label:
-                self.gui.home_bottle_verdict_label.setText("กำลังประมวลผล...")
+                self.gui.home_bottle_verdict_label.setText("Processing…")
                 self.gui.home_bottle_verdict_label.setStyleSheet(
                     "font-size: 22px; font-weight: bold; padding: 10px; "
                     "border-radius: 8px; background-color: #fef9e7; color: #f39c12;"
@@ -1175,18 +1185,22 @@ class ModbusHandlers:
                     w = self.gui.cap_results_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
+                cap_tab_ph = QLabel("Processing… no cap detection results yet")
+                cap_tab_ph.setAlignment(Qt.AlignCenter)
+                cap_tab_ph.setStyleSheet("color: #7f8c8d; padding: 20px; font-size: 14px;")
+                self.gui.cap_results_layout.addWidget(cap_tab_ph)
             if hasattr(self.gui, "home_cap_results_layout") and self.gui.home_cap_results_layout:
                 for i in reversed(range(self.gui.home_cap_results_layout.count())):
                     w = self.gui.home_cap_results_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
-                cap_placeholder = QLabel("กำลังประมวลผล... ยังไม่มีผลการตรวจจับฝา")
+                cap_placeholder = QLabel("Processing… no cap detection results yet")
                 cap_placeholder.setAlignment(Qt.AlignCenter)
                 cap_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
                 self.gui.home_cap_results_layout.addWidget(cap_placeholder)
             
             if hasattr(self.gui, "home_cap_verdict_label") and self.gui.home_cap_verdict_label:
-                self.gui.home_cap_verdict_label.setText("กำลังประมวลผล...")
+                self.gui.home_cap_verdict_label.setText("Processing…")
                 self.gui.home_cap_verdict_label.setStyleSheet(
                     "font-size: 22px; font-weight: bold; padding: 10px; "
                     "border-radius: 8px; background-color: #fef9e7; color: #f39c12;"

@@ -12,6 +12,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QDateTime
 from PyQt5.QtGui import QFont
 
+from gui.components.history_tab import bottle_type_flavor_label
+
 
 class ControlCard(QFrame):
     """Card widget สำหรับแสดงข้อมูลและควบคุม"""
@@ -549,7 +551,8 @@ def create_control_panel():
     taste_card.add_layout(taste_selection_layout)
     
     # Taste mode status
-    taste_status = QLabel("Current mode: 3 tastes (Original, Less sugar 2%, Basil seed mix)")
+    _t3 = ", ".join(bottle_type_flavor_label(c) for c in ("M100", "M110", "M120"))
+    taste_status = QLabel(f"Current mode: 3 tastes ({_t3})")
     taste_status.setStyleSheet("""
         QLabel {
             color: #4CAF50;
@@ -656,8 +659,8 @@ def create_control_panel():
     date_type_label.setStyleSheet("color: #333333; font-size: 13px;")
     date_type_layout.addWidget(date_type_label)
     expiry_date_type_combo = QComboBox()
-    expiry_date_type_combo.addItem("BBF", "BBF")
-    expiry_date_type_combo.addItem("MFG", "MFG")
+    expiry_date_type_combo.addItem("Best before (BBF)", "BBF")
+    expiry_date_type_combo.addItem("Manufacturing date (MFG)", "MFG")
     expiry_date_type_combo.setCurrentIndex(0)
     expiry_date_type_combo.setStyleSheet("""
         QComboBox {
@@ -684,7 +687,7 @@ def create_control_panel():
     range_date_layout = QHBoxLayout()
     range_date_layout.setSpacing(10)
     
-    range_start_label = QLabel("จากวันที่:")
+    range_start_label = QLabel("From date:")
     range_start_label.setStyleSheet("color: #333333; font-size: 12px;")
     range_date_layout.addWidget(range_start_label)
     
@@ -707,7 +710,7 @@ def create_control_panel():
     range_date_layout.addWidget(expiry_start_date)
     widgets_dict['expiry_start_date_edit'] = expiry_start_date
     
-    range_end_label = QLabel("ถึงวันที่:")
+    range_end_label = QLabel("To date:")
     range_end_label.setStyleSheet("color: #333333; font-size: 12px;")
     range_date_layout.addWidget(range_end_label)
     
@@ -738,7 +741,7 @@ def create_control_panel():
     specific_date_layout = QHBoxLayout()
     specific_date_layout.setSpacing(10)
     
-    specific_date_label = QLabel("วันที่เฉพาะ:")
+    specific_date_label = QLabel("Specific date:")
     specific_date_label.setStyleSheet("color: #333333; font-size: 12px;")
     specific_date_layout.addWidget(specific_date_label)
     
@@ -972,9 +975,9 @@ def create_control_panel():
     progress_card.add_widget(processing_status)
     widgets_dict['processing_status_label'] = processing_status
     
-    # Add Progress & Status card to main layout so widgets stay alive (parent required).
-    # Keep it in tree; can hide with setVisible(False) if not wanted in UI.
-    main_layout.addWidget(progress_card)
+    # Progress & Status widgets kept for handler updates; card hidden (not shown in control panel).
+    progress_card.setParent(main_widget)
+    progress_card.hide()
     main_layout.addStretch()
     
     scroll_area.setWidget(main_widget)

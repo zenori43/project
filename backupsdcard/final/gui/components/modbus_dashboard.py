@@ -169,7 +169,7 @@ def create_modbus_dashboard():
             ]
         },
         {
-            "title": "โหมด & รสชาติ",
+            "title": "Mode & flavors",
             "icon": "🎯",
             "coils": [
                 ("M90", "โหมด"), ("M720", "รส1"), ("M721", "รส2"), ("M722", "รส3")

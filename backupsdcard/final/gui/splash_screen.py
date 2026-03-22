@@ -50,7 +50,7 @@ class LoadingSplashScreen(QSplashScreen):
         # Progress tracking
         self.current_step = 0
         self.total_steps = 0
-        self.status_text = "กำลังเริ่มระบบ..."
+        self.status_text = "Starting system..."
     
     def _update_rotation(self):
         """อัพเดท rotation angle และวาดใหม่"""
@@ -110,7 +110,7 @@ class LoadingSplashScreen(QSplashScreen):
             font_th = QFont("Arial", 18)
             painter.setFont(font_th)
             painter.setPen(QColor(200, 200, 200))
-            painter.drawText(header_x, 130, "ระบบตรวจจับขวดและ OCR")
+            painter.drawText(header_x, 130, "Bottle Detection and OCR System")
             
             # วาด loading bar background
             painter.setPen(QColor(100, 100, 100))
@@ -121,7 +121,7 @@ class LoadingSplashScreen(QSplashScreen):
             font_status = QFont("Arial", 12)
             painter.setFont(font_status)
             painter.setPen(QColor(150, 150, 150))
-            painter.drawText(50, 300, "กำลังโหลดโมดูล...")
+            painter.drawText(50, 300, "Loading modules...")
             
             # วาด version/copyright
             font_small = QFont("Arial", 10)
@@ -143,7 +143,7 @@ class LoadingSplashScreen(QSplashScreen):
         if status:
             self.status_text = status
         else:
-            self.status_text = f"กำลังโหลด... ({current}/{total})"
+            self.status_text = f"Loading... ({current}/{total})"
             
         # วาด progress ใหม่
         pixmap = QPixmap(600, 400)
@@ -191,7 +191,7 @@ class LoadingSplashScreen(QSplashScreen):
             font_th = QFont("Arial", 18)
             painter.setFont(font_th)
             painter.setPen(QColor(200, 200, 200))
-            painter.drawText(header_x, 130, "ระบบตรวจจับขวดและ OCR")
+            painter.drawText(header_x, 130, "Bottle Detection and OCR System")
             
             # คำนวณ progress percentage
             if total > 0:

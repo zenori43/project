@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Cap Detection Tab Component
-สร้าง UI สำหรับ Cap Detection Tab
+Builds the Cap detection tab UI.
 """
 
 from PyQt5.QtWidgets import (
@@ -14,11 +14,9 @@ from PyQt5 import QtWidgets
 
 def create_cap_tab():
     """
-    สร้าง Cap Detection Tab
+    Create the Cap detection tab.
     Returns:
         tuple: (cap_tab_widget, widgets_dict)
-            - cap_tab_widget: QWidget สำหรับ tab
-            - widgets_dict: dict ที่เก็บ widgets ทั้งหมดที่ main window ต้องการอ้างอิง
     """
     cap_tab = QWidget()
     cap_layout = QVBoxLayout(cap_tab)
@@ -30,7 +28,7 @@ def create_cap_tab():
     sentech_image_widget = QWidget()
     sentech_image_layout = QVBoxLayout(sentech_image_widget)
     
-    sentech_image_title = QLabel("ภาพจากกล้อง Sentech")
+    sentech_image_title = QLabel("Sentech camera image")
     sentech_image_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #8e44ad;")
     sentech_image_title.setAlignment(Qt.AlignCenter)
     sentech_image_layout.addWidget(sentech_image_title)
@@ -40,13 +38,13 @@ def create_cap_tab():
     sentech_image_label.setMinimumSize(200, 180)
     sentech_image_label.setAlignment(Qt.AlignCenter)
     sentech_image_label.setStyleSheet("border: 2px solid #8e44ad; background-color: #f4f3f4;")
-    sentech_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+    sentech_image_label.setText("No Sentech camera image yet")
     sentech_image_label.setScaledContents(False)
     sentech_image_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
     sentech_image_layout.addWidget(sentech_image_label)
     
     # Sentech image info
-    sentech_image_info_label = QLabel("ข้อมูลภาพ: -")
+    sentech_image_info_label = QLabel("Image info: -")
     sentech_image_info_label.setStyleSheet("color: #7f8c8d; padding: 5px;")
     sentech_image_layout.addWidget(sentech_image_info_label)
     
@@ -56,7 +54,7 @@ def create_cap_tab():
     cap_results_widget = QWidget()
     cap_results_layout = QVBoxLayout(cap_results_widget)
     
-    cap_results_title = QLabel("ผลการตรวจจับฝาและข้อความ")
+    cap_results_title = QLabel("Cap detection and text results")
     cap_results_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e67e22;")
     cap_results_title.setAlignment(Qt.AlignCenter)
     cap_results_layout.addWidget(cap_results_title)
@@ -116,7 +114,7 @@ def create_cap_tab():
     cap_results_container_layout.setContentsMargins(10, 10, 10, 10)
     
     # Add placeholder text
-    cap_placeholder_label = QLabel("ยังไม่มีผลการตรวจจับฝา")
+    cap_placeholder_label = QLabel("No cap detection results yet")
     cap_placeholder_label.setAlignment(Qt.AlignCenter)
     cap_placeholder_label.setStyleSheet("color: #7f8c8d; padding: 20px; font-size: 14px;")
     cap_results_container_layout.addWidget(cap_placeholder_label)
@@ -130,7 +128,7 @@ def create_cap_tab():
     cap_detection_widget = QWidget()
     cap_detection_layout = QVBoxLayout(cap_detection_widget)
     
-    cap_detection_title = QLabel("ผลการประมวลผลฝา")
+    cap_detection_title = QLabel("Cap processing results")
     cap_detection_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
     cap_detection_title.setAlignment(Qt.AlignCenter)
     cap_detection_layout.addWidget(cap_detection_title)
@@ -172,7 +170,7 @@ def create_cap_tab():
     cap_splitter.setStretchFactor(1, 1)
     cap_splitter.setStretchFactor(2, 1)
 
-    # Set splitter sizes (รวมแล้วไม่บังคับกว้างเกินหน้าจอเล็ก)
+    # Set splitter sizes
     cap_splitter.setSizes([280, 240, 260])
     
     # Add control buttons for cap detection
@@ -190,7 +188,7 @@ def create_cap_tab():
     btn_process_cap.setEnabled(False)  # Disabled by default, enabled when image is available
     btn_process_cap.setVisible(True)
     btn_process_cap.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #95a5a6; color: white; border-radius: 5px; }")
-    btn_process_cap.setToolTip("ประมวลผลฝา (ใช้ค่ากลางที่วิเคราะห์ได้ - brightness: 33)")
+    btn_process_cap.setToolTip("Run cap processing (default analysis parameters — brightness: 33)")
     cap_control_layout.addWidget(btn_process_cap)
     
     # Save Sentech image button
@@ -207,7 +205,7 @@ def create_cap_tab():
     # Select multiple images button for batch processing
     btn_select_multiple_cap_images = QPushButton('📁 Select multiple cap images')
     btn_select_multiple_cap_images.setStyleSheet("QPushButton { padding: 10px; font-size: 12px; background-color: #16a085; color: white; border-radius: 5px; }")
-    btn_select_multiple_cap_images.setToolTip("เลือกหลายไฟล์เพื่อประมวลผลและบันทึกลงประวัติ")
+    btn_select_multiple_cap_images.setToolTip("Select multiple files for batch processing and history")
     cap_control_layout.addWidget(btn_select_multiple_cap_images)
     
     cap_control_group.setLayout(cap_control_layout)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Home Tab Component
-สร้าง UI สำหรับ Home Tab ที่แสดงผลการตรวจจับทั้งขวดและฝา
+Builds the Home tab UI for combined bottle and cap detection.
 """
 
 from PyQt5.QtWidgets import (
@@ -14,11 +14,9 @@ from PyQt5 import QtWidgets
 
 def create_home_tab():
     """
-    สร้าง Home Tab ที่แสดงผลการตรวจจับทั้งขวดและฝา
+    Create the Home tab showing bottle and cap detection side by side.
     Returns:
         tuple: (home_tab_widget, widgets_dict)
-            - home_tab_widget: QWidget สำหรับ tab
-            - widgets_dict: dict ที่เก็บ widgets ทั้งหมดที่ main window ต้องการอ้างอิง
     """
     home_tab = QWidget()
     home_layout = QVBoxLayout(home_tab)
@@ -26,7 +24,7 @@ def create_home_tab():
     home_layout.setSpacing(10)
     
     # Title
-    title_label = QLabel("🏠 หน้าหลัก - การตรวจจับขวดและฝา")
+    title_label = QLabel("🏠 Home - Bottle and cap detection")
     title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #2c3e50; padding: 10px;")
     title_label.setAlignment(Qt.AlignCenter)
     home_layout.addWidget(title_label)
@@ -35,7 +33,7 @@ def create_home_tab():
     main_splitter = QSplitter(Qt.Vertical)
     
     # ========== Top Section: Bottle Detection ==========
-    bottle_group = QGroupBox("🔍 การตรวจจับขวด (Bottle Detection)")
+    bottle_group = QGroupBox("🔍 Bottle Detection")
     bottle_group.setStyleSheet("""
         QGroupBox {
             font-size: 16px; 
@@ -63,7 +61,7 @@ def create_home_tab():
     bottle_image_layout = QVBoxLayout(bottle_image_widget)
     bottle_image_layout.setContentsMargins(5, 5, 5, 5)
     
-    bottle_image_title = QLabel("ภาพจากกล้อง USB")
+    bottle_image_title = QLabel("USB camera image")
     bottle_image_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #2980b9;")
     bottle_image_title.setAlignment(Qt.AlignCenter)
     bottle_image_layout.addWidget(bottle_image_title)
@@ -72,12 +70,12 @@ def create_home_tab():
     bottle_image_label.setMinimumSize(200, 160)
     bottle_image_label.setAlignment(Qt.AlignCenter)
     bottle_image_label.setStyleSheet("border: 2px solid #bdc3c7; background-color: #ecf0f1; border-radius: 5px;")
-    bottle_image_label.setText("ยังไม่มีภาพจากกล้อง USB")
+    bottle_image_label.setText("No image from USB camera yet")
     bottle_image_label.setScaledContents(False)
     bottle_image_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
     bottle_image_layout.addWidget(bottle_image_label)
     
-    bottle_image_info_label = QLabel("ข้อมูลภาพ: -")
+    bottle_image_info_label = QLabel("Image info: -")
     bottle_image_info_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
     bottle_image_layout.addWidget(bottle_image_info_label)
     
@@ -88,7 +86,7 @@ def create_home_tab():
     bottle_crops_layout = QVBoxLayout(bottle_crops_widget)
     bottle_crops_layout.setContentsMargins(5, 5, 5, 5)
     
-    bottle_crops_title = QLabel("ภาพที่ครอป (Type Regions)")
+    bottle_crops_title = QLabel("Cropped image (Type Regions)")
     bottle_crops_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e67e22;")
     bottle_crops_title.setAlignment(Qt.AlignCenter)
     bottle_crops_layout.addWidget(bottle_crops_title)
@@ -104,7 +102,7 @@ def create_home_tab():
     bottle_crops_container_layout = QVBoxLayout(bottle_crops_container)
     bottle_crops_container_layout.setAlignment(Qt.AlignTop)
     
-    bottle_crops_placeholder = QLabel("ยังไม่มีภาพที่ครอป")
+    bottle_crops_placeholder = QLabel("No cropped image yet")
     bottle_crops_placeholder.setAlignment(Qt.AlignCenter)
     bottle_crops_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
     bottle_crops_container_layout.addWidget(bottle_crops_placeholder)
@@ -119,12 +117,12 @@ def create_home_tab():
     bottle_results_layout = QVBoxLayout(bottle_results_widget)
     bottle_results_layout.setContentsMargins(5, 5, 5, 5)
     
-    bottle_results_title = QLabel("ผลการตรวจจับและ OCR")
+    bottle_results_title = QLabel("Detection results and OCR")
     bottle_results_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
     bottle_results_title.setAlignment(Qt.AlignCenter)
     bottle_results_layout.addWidget(bottle_results_title)
     
-    # ป้ายผลขวด (NG/Good) ให้เห็นชัดเจน
+    # Bottle verdict banner (NG / Good)
     bottle_verdict_label = QLabel("—")
     bottle_verdict_label.setMinimumHeight(56)
     bottle_verdict_label.setAlignment(Qt.AlignCenter)
@@ -150,7 +148,7 @@ def create_home_tab():
     main_splitter.addWidget(bottle_group)
     
     # ========== Bottom Section: Cap Detection ==========
-    cap_group = QGroupBox("🔍 การตรวจจับฝา (Cap Detection)")
+    cap_group = QGroupBox("🔍 Cap Detection")
     cap_group.setStyleSheet("""
         QGroupBox {
             font-size: 16px; 
@@ -178,7 +176,7 @@ def create_home_tab():
     cap_image_layout = QVBoxLayout(cap_image_widget)
     cap_image_layout.setContentsMargins(5, 5, 5, 5)
     
-    cap_image_title = QLabel("ภาพจากกล้อง Sentech")
+    cap_image_title = QLabel("Sentech camera image")
     cap_image_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #8e44ad;")
     cap_image_title.setAlignment(Qt.AlignCenter)
     cap_image_layout.addWidget(cap_image_title)
@@ -187,12 +185,12 @@ def create_home_tab():
     cap_image_label.setMinimumSize(200, 160)
     cap_image_label.setAlignment(Qt.AlignCenter)
     cap_image_label.setStyleSheet("border: 2px solid #8e44ad; background-color: #f4f3f4; border-radius: 5px;")
-    cap_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+    cap_image_label.setText("No Sentech camera image yet")
     cap_image_label.setScaledContents(False)
     cap_image_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
     cap_image_layout.addWidget(cap_image_label)
     
-    cap_image_info_label = QLabel("ข้อมูลภาพ: -")
+    cap_image_info_label = QLabel("Image info: -")
     cap_image_info_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-size: 11px;")
     cap_image_layout.addWidget(cap_image_info_label)
     
@@ -203,7 +201,7 @@ def create_home_tab():
     cap_results_layout = QVBoxLayout(cap_results_widget)
     cap_results_layout.setContentsMargins(5, 5, 5, 5)
     
-    cap_results_title = QLabel("ผลการตรวจจับฝาและข้อความ")
+    cap_results_title = QLabel("Cap detection and text results")
     cap_results_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e67e22;")
     cap_results_title.setAlignment(Qt.AlignCenter)
     cap_results_layout.addWidget(cap_results_title)
@@ -217,7 +215,7 @@ def create_home_tab():
     cap_results_container_layout = QVBoxLayout(cap_results_container)
     cap_results_container_layout.setAlignment(Qt.AlignTop)
     
-    cap_results_placeholder = QLabel("ยังไม่มีผลการตรวจจับฝา")
+    cap_results_placeholder = QLabel("No cap detection results yet")
     cap_results_placeholder.setAlignment(Qt.AlignCenter)
     cap_results_placeholder.setStyleSheet("color: #7f8c8d; padding: 20px;")
     cap_results_container_layout.addWidget(cap_results_placeholder)
@@ -232,12 +230,12 @@ def create_home_tab():
     cap_text_layout = QVBoxLayout(cap_text_widget)
     cap_text_layout.setContentsMargins(5, 5, 5, 5)
     
-    cap_text_title = QLabel("ผลการตรวจสอบฝา")
+    cap_text_title = QLabel("Cap inspection results")
     cap_text_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c;")
     cap_text_title.setAlignment(Qt.AlignCenter)
     cap_text_layout.addWidget(cap_text_title)
     
-    # ป้ายผลฝา (PASS/NG) ให้เห็นชัดเจน
+    # Cap verdict banner (PASS/NG)
     cap_verdict_label = QLabel("—")
     cap_verdict_label.setMinimumHeight(56)
     cap_verdict_label.setAlignment(Qt.AlignCenter)
@@ -262,7 +260,7 @@ def create_home_tab():
     cap_group_layout.addWidget(cap_splitter)
     main_splitter.addWidget(cap_group)
     
-    # Set main splitter sizes (ลดความสูงแต่ละส่วนให้พอดีหน้าจอ)
+    # Set main splitter sizes
     main_splitter.setSizes([420, 360])
     
     home_layout.addWidget(main_splitter)

@@ -64,7 +64,7 @@ class LoginDialog(QDialog):
         
         # Title - positioned at the very top
         layout.addSpacing(0)  # ไม่มี spacing ด้านบน
-        title_label = QLabel('เข้าสู่ระบบ Admin')
+        title_label = QLabel('Admin Login')
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #ecf0f1; padding: 8px 10px; min-height: 38px;")
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)

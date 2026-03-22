@@ -103,8 +103,8 @@ from gui.components.cap_tab import create_cap_tab
 from gui.components.status_tab import create_status_tab
 from gui.components.ocr_test_tab import create_ocr_test_tab
 from gui.components.settings_tab import create_settings_tab
-from gui.components.arean_tab import create_arean_tab
 from gui.components.history_tab import (
+    bottle_type_flavor_label,
     create_history_tab, create_history_item, create_history_compact_item,
     is_history_entry_good, is_history_entry_ng
 )
@@ -508,7 +508,7 @@ class InitWorker(QThread):
     def run(self):
         # USB camera
         try:
-            self.progress_msg.emit("กำลังโหลดกล้อง USB...")
+            self.progress_msg.emit("Loading USB camera...")
             from core.camera_manager import USBCamera
             cam = USBCamera()
             ok = cam.open_camera()
@@ -518,7 +518,7 @@ class InitWorker(QThread):
             self.camera_ready.emit(None, False)
         # Sentech camera
         try:
-            self.progress_msg.emit("กำลังโหลดกล้อง Sentech...")
+            self.progress_msg.emit("Loading Sentech camera...")
             from core.camera_manager import SentechCamera
             sc = SentechCamera()
             ok = sc.initialize()
@@ -529,7 +529,7 @@ class InitWorker(QThread):
         # Cap detection models - โหลดทีละโมเดล และถ้าโหลดไม่ได้ก็ใส่ None แทน
         d = {}
         try:
-            self.progress_msg.emit("กำลังโหลดโมเดลฝา/OCR...")
+            self.progress_msg.emit("Loading cap/OCR models...")
             from config.settings import CAP_DETECTION_AVAILABLE, CAP_MODEL_PATH, CRAFT_MODEL_PATH, CRAFT_REFINER_PATH, ROTATION_MODEL_PATH, OCR_MODEL_PATH, YOLO_AVAILABLE
             
             if not CAP_DETECTION_AVAILABLE:
@@ -539,7 +539,7 @@ class InitWorker(QThread):
             
             # โหลด cap_detector (จำเป็น)
             try:
-                self.progress_msg.emit("กำลังโหลดโมเดลตรวจจับฝา...")
+                self.progress_msg.emit("Loading cap detection model...")
                 from libs.detection.capmodel import initialize_detector
                 d['cap_detector'] = initialize_detector(CAP_MODEL_PATH)
                 print("✅ Cap detector loaded successfully")
@@ -549,7 +549,7 @@ class InitWorker(QThread):
             
             # โหลด craft_detector (ไม่จำเป็น - ถ้าไม่มีก็ข้าม)
             try:
-                self.progress_msg.emit("กำลังโหลดโมเดล CRAFT...")
+                self.progress_msg.emit("Loading CRAFT model...")
                 from libs.processing.rotationCRAFT import initialize_detector as initialize_craft_detector
                 d['craft_detector'] = initialize_craft_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
                 print("✅ CRAFT detector loaded successfully")
@@ -559,7 +559,7 @@ class InitWorker(QThread):
             
             # โหลด rotation_model (ไม่จำเป็น - ถ้าไม่มีก็ข้าม)
             try:
-                self.progress_msg.emit("กำลังโหลดโมเดลหมุนภาพ...")
+                self.progress_msg.emit("Loading rotation model...")
                 from libs.processing.rotationmodel import initialize_model
                 d['rotation_model'] = initialize_model(ROTATION_MODEL_PATH)
                 # พยายาม init craft detector ใน rotation model (ถ้ามี)
@@ -575,7 +575,7 @@ class InitWorker(QThread):
             
             # โหลด line_detector (ไม่จำเป็น - ถ้าไม่มีก็ข้าม)
             try:
-                self.progress_msg.emit("กำลังโหลดโมเดลตรวจจับบรรทัด...")
+                self.progress_msg.emit("Loading line detection model...")
                 from libs.processing.craft_line_detection import initialize_detector as initialize_line_detector
                 d['line_detector'] = initialize_line_detector(CRAFT_MODEL_PATH, CRAFT_REFINER_PATH)
                 print("✅ Line detector loaded successfully")
@@ -587,7 +587,7 @@ class InitWorker(QThread):
             d['ocr_model'] = None
             if os.path.exists(OCR_MODEL_PATH):
                 try:
-                    self.progress_msg.emit("กำลังโหลดโมเดล OCR...")
+                    self.progress_msg.emit("Loading OCR model...")
                     from libs.processing.deep_ocr import initialize_ocr_model
                     d['ocr_model'] = initialize_ocr_model(OCR_MODEL_PATH)
                     print("✅ OCR model loaded successfully")
@@ -617,7 +617,7 @@ class InitWorker(QThread):
             self.models_ready.emit(d if d else {})
         # Defect model (Good/NG ขวด) — โหลดในหน้า loading เพื่อพร้อมก่อนแสดง GUI
         try:
-            self.progress_msg.emit("กำลังโหลด Defect model (ขวด Good/NG)...")
+            self.progress_msg.emit("Loading defect model (bottle Good/NG)...")
             from libs.detection.defect_model import _load_defect_model
             if _load_defect_model() is not None:
                 print("✅ Defect model โหลดในหน้า loading แล้ว (พร้อมก่อนประมวลผล)")
@@ -628,7 +628,7 @@ class InitWorker(QThread):
 
         # Cap fade model (ฝาจาง) — โหลดในหน้า loading เพื่อพร้อมก่อนประมวลผลฝา (ไม่ต้องโหลดตอนรัน)
         try:
-            self.progress_msg.emit("กำลังโหลด Cap fade model (ฝาจาง)...")
+            self.progress_msg.emit("Loading cap fade model...")
             from libs.detection.cap_fade_model import _load_cap_fade_model
             if _load_cap_fade_model() is not None:
                 print("✅ Cap fade model โหลดในหน้า loading แล้ว (พร้อมก่อนประมวลผล)")
@@ -1452,19 +1452,7 @@ class BottleDetectionGUI(QWidget):
         self.btn_process_cap.clicked.connect(self.cap_handlers.process_cap_detection)
         self.tab_widget.addTab(cap_tab, "🔍 Cap")
         
-        # Tab 3: Area Navigation - Use component
-        arean_tab, arean_widgets = create_arean_tab()
-        # Map buttons to self for event handlers
-        self.arean_buttons = {}
-        for key, btn in arean_widgets.items():
-            self.arean_buttons[key] = btn
-            # Extract M code from button text (e.g., "M900" -> 900)
-            m_code = int(btn.text().replace('M', ''))
-            # Connect button to handler
-            btn.clicked.connect(lambda checked, code=m_code: self.on_arean_button_clicked(code))
-        self.tab_widget.addTab(arean_tab, "📍 Area Navigation")
-        
-        # Tab 4: Modbus Status - Use component
+        # Tab 3: Modbus Status - Use component
         status_tab, status_widgets = create_status_tab()
         # Map widgets to self for event handlers
         self.modbus_connection_lamp = status_widgets['modbus_connection_lamp']
@@ -1518,7 +1506,7 @@ class BottleDetectionGUI(QWidget):
         # Store widget for admin-only Modbus Status tab
         self.modbus_status_tab_widget = status_tab
         
-        # Tab 5: OCR Test - Use component (admin only, tab added on login)
+        # Tab 4: OCR Test - Use component (admin only, tab added on login)
         ocr_test_tab, ocr_test_widgets = create_ocr_test_tab()
         # Map widgets to self for event handlers
         self.ocr_test_splitter = ocr_test_widgets['ocr_test_splitter']
@@ -1541,7 +1529,7 @@ class BottleDetectionGUI(QWidget):
         # Store widget for admin-only OCR Test tab
         self.ocr_test_tab_widget = ocr_test_tab
         
-        # Tab 6: History - Use component
+        # Tab 5: History - Use component
         history_tab, history_widgets = create_history_tab()
         # Map widgets to self for event handlers
         self.history_scroll = history_widgets['history_scroll']
@@ -1583,7 +1571,7 @@ class BottleDetectionGUI(QWidget):
         # Store widget for admin-only Register D Test tab
         self.robot_test_tab_widget = robot_test_tab
         
-        # Tab 8: Settings - Use component (will be added when admin logs in)
+        # Tab 7: Settings - Use component (will be added when admin logs in)
         settings_tab, settings_widgets = create_settings_tab()
         self.settings_tab_widget = settings_tab
         # Map widgets to self for event handlers
@@ -2364,7 +2352,7 @@ class BottleDetectionGUI(QWidget):
         try:
             from PyQt5.QtWidgets import QDialog, QVBoxLayout
             dlg = QDialog(self)
-            dlg.setWindowTitle("รายละเอียดประวัติ")
+            dlg.setWindowTitle("History details")
             dlg.resize(1000, 700)
             layout = QVBoxLayout(dlg)
             
@@ -2545,7 +2533,7 @@ class BottleDetectionGUI(QWidget):
     def _on_init_worker_finished(self):
         """โหลด Modbus บน main thread หลังกล้อง/โมเดลพร้อม"""
         self._init_worker = None
-        self.init_progress.emit("กำลังเชื่อมต่อ Modbus...")
+        self.init_progress.emit("Connecting to Modbus...")
         if hasattr(self, 'status_label'):
             self.status_label.setText('⏳ Connecting Modbus...')
         QtWidgets.QApplication.processEvents()
@@ -2858,7 +2846,7 @@ class BottleDetectionGUI(QWidget):
         """Handle login button click"""
         if self.is_admin_logged_in:
             # Logout
-            reply = QMessageBox.question(self, "Logout", "คุณต้องการออกจากระบบหรือไม่?",
+            reply = QMessageBox.question(self, "Logout", "Do you want to log out?",
                                        QMessageBox.Yes | QMessageBox.No,
                                        QMessageBox.No)
             if reply == QMessageBox.Yes:
@@ -2901,9 +2889,13 @@ class BottleDetectionGUI(QWidget):
                 if self.robot_test_tab_widget is not None and self.robot_test_tab_index < 0:
                     self.robot_test_tab_index = self.tab_widget.addTab(self.robot_test_tab_widget, self.robot_test_tab_label)
                 print("✅ LOGIN SUCCESS: Admin logged in - Settings tab enabled")
-                QMessageBox.information(self, "Login Success", "เข้าสู่ระบบสำเร็จ!\nAdmin-only tabs are now enabled.")
+                QMessageBox.information(self, "Login successful", "You are signed in.\nAdmin-only tabs are now enabled.")
             else:
-                QMessageBox.warning(self, "Login Failed", "Username หรือ Password ไม่ถูกต้อง!\n\nUsername: admin\nPassword: admin")
+                QMessageBox.warning(
+                    self,
+                    "Login failed",
+                    "Invalid username or password.\n\nDefault credentials:\nUsername: admin\nPassword: admin",
+                )
                 print("❌ LOGIN FAILED: Invalid credentials")
     
     def logout(self):
@@ -2939,37 +2931,6 @@ class BottleDetectionGUI(QWidget):
             self.tab_widget.removeTab(self.robot_test_tab_index)
             self.robot_test_tab_index = -1
         print("✅ LOGOUT: Admin logged out - admin-only tabs disabled")
-    
-    def on_arean_button_clicked(self, m_code):
-        """Handle area navigation button click"""
-        try:
-            print(f"📍 AREAN: กดปุ่ม M{m_code}")
-            
-            if not hasattr(self, 'modbus_thread') or self.modbus_thread is None:
-                QMessageBox.warning(self, "ข้อผิดพลาด", "Modbus thread ยังไม่ได้เริ่มต้น")
-                return
-            
-            # ส่งคำสั่ง Modbus ตาม M code (ใช้ write_coil)
-            success = self.modbus_thread.write_coil(m_code, True)
-            
-            if success:
-                self.status_label.setText(f'✅ M{m_code} sent OK')
-                self.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
-                print(f"✅ AREAN: ส่งคำสั่ง M{m_code} สำเร็จ")
-            else:
-                self.status_label.setText(f'❌ Failed to send M{m_code}')
-                self.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
-                print(f"❌ AREAN: ไม่สามารถส่งคำสั่ง M{m_code} ได้")
-                QMessageBox.warning(self, "ข้อผิดพลาด", f"ไม่สามารถส่งคำสั่ง M{m_code} ได้")
-                
-        except Exception as e:
-            error_msg = f"เกิดข้อผิดพลาดในการส่งคำสั่ง M{m_code}: {str(e)}"
-            self.status_label.setText(f'❌ {error_msg}')
-            self.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
-            QMessageBox.critical(self, "ข้อผิดพลาด", error_msg)
-            print(f"❌ AREAN ERROR: {str(e)}")
-            import traceback
-            traceback.print_exc()
     
     def on_image_enhancement_changed(self):
         """Update image enhancement config when settings change"""
@@ -3268,14 +3229,16 @@ class BottleDetectionGUI(QWidget):
                 self.results_text.clear()
             if hasattr(self, 'image_label') and self.image_label:
                 self.image_label.clear()
-                self.image_label.setText("📷 ไม่มีภาพ")
+                self.image_label.setText("📷 No image")
                 self.image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
             if hasattr(self, 'bottle_handlers') and self.bottle_handlers:
                 self.bottle_handlers.clear_cropped_images_display()
             if hasattr(self, 'sentech_image_label') and self.sentech_image_label:
                 self.sentech_image_label.clear()
-                self.sentech_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+                self.sentech_image_label.setText("No Sentech camera image yet")
                 self.sentech_image_label.setStyleSheet("color: #7f8c8d; padding: 20px; border: 2px dashed #7f8c8d;")
+            if hasattr(self, 'sentech_image_info_label') and self.sentech_image_info_label:
+                self.sentech_image_info_label.setText("Image info: -")
             if hasattr(self, 'cap_detection_text') and self.cap_detection_text:
                 self.cap_detection_text.clear()
             if hasattr(self, 'cap_results_layout') and self.cap_results_layout:
@@ -3283,14 +3246,18 @@ class BottleDetectionGUI(QWidget):
                     w = self.cap_results_layout.itemAt(i).widget()
                     if w:
                         w.setParent(None)
+                ph = QLabel("No cap detection results yet")
+                ph.setAlignment(Qt.AlignCenter)
+                ph.setStyleSheet("color: #7f8c8d; padding: 20px; font-size: 14px;")
+                self.cap_results_layout.addWidget(ph)
             if hasattr(self, 'home_bottle_results_text') and self.home_bottle_results_text:
                 self.home_bottle_results_text.clear()
             if hasattr(self, 'home_bottle_image_label') and self.home_bottle_image_label:
                 self.home_bottle_image_label.clear()
-                self.home_bottle_image_label.setText("ยังไม่มีภาพจากกล้อง USB")
+                self.home_bottle_image_label.setText("No image from USB camera yet")
             if hasattr(self, 'home_cap_image_label') and self.home_cap_image_label:
                 self.home_cap_image_label.clear()
-                self.home_cap_image_label.setText("ยังไม่มีภาพจากกล้อง Sentech")
+                self.home_cap_image_label.setText("No Sentech camera image yet")
         except Exception as e:
             print(f"⚠️ _clear_display_fallback: {e}")
     
@@ -3991,11 +3958,11 @@ class BottleDetectionGUI(QWidget):
                                 home_faded_container = QWidget()
                                 home_faded_container.setStyleSheet("border: 2px solid #f39c12; margin: 5px; padding: 5px; background-color: white;")
                                 home_faded_layout = QVBoxLayout(home_faded_container)
-                                home_faded_title = QLabel(f"{emoji} Step 2a.5: ตรวจฝาจางที่ {cap_index+1}")
+                                home_faded_title = QLabel(f"{emoji} Step 2a.5: Faded-cap check (cap {cap_index+1})")
                                 home_faded_title.setStyleSheet(f"font-weight: bold; color: {color}; font-size: 11px;")
                                 home_faded_title.setAlignment(Qt.AlignCenter)
                                 home_faded_layout.addWidget(home_faded_title)
-                                home_faded_info = QLabel(f"สถานะ: {result_label or status.upper()}" + (f"\nScore: {score}" if score is not None else ""))
+                                home_faded_info = QLabel(f"Status: {result_label or status.upper()}" + (f"\nScore: {score}" if score is not None else ""))
                                 home_faded_info.setStyleSheet(f"color: {color}; font-size: 10px; padding: 5px;")
                                 home_faded_info.setAlignment(Qt.AlignCenter)
                                 home_faded_layout.addWidget(home_faded_info)
@@ -4539,9 +4506,9 @@ class BottleDetectionGUI(QWidget):
             
         except Exception as e:
             print(f"❌ Error displaying cap detection results: {e}")
-            self.cap_detection_text.setText(f"ข้อผิดพลาดในการแสดงผล: {str(e)}")
+            self.cap_detection_text.setText(f"Display error: {str(e)}")
             if hasattr(self, 'home_cap_detection_text'):
-                self.home_cap_detection_text.setText(f"ข้อผิดพลาดในการแสดงผล: {str(e)}")
+                self.home_cap_detection_text.setText(f"Display error: {str(e)}")
             if hasattr(self, 'home_cap_verdict_label'):
                 self.home_cap_verdict_label.setText("—")
                 self.home_cap_verdict_label.setStyleSheet("font-size: 22px; font-weight: bold; padding: 10px; border-radius: 8px; background-color: #ecf0f1; color: #7f8c8d;")
@@ -4588,11 +4555,11 @@ class BottleDetectionGUI(QWidget):
             # Update cap detection text
             if hasattr(self, 'cap_detection_text') and self.cap_detection_text:
                 if self.current_bottle_type in ["M100", "M110", "M120"]:
-                    self.cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.current_bottle_type}")
+                    self.cap_detection_text.setText(f"✅ Cap processing finished — sending signal {self.current_bottle_type}")
                     if hasattr(self, 'home_cap_detection_text'):
-                        self.home_cap_detection_text.setText(f"✅ การประมวลผลฝาเสร็จสิ้น - กำลังส่งสัญญาณ {self.current_bottle_type}")
+                        self.home_cap_detection_text.setText(f"✅ Cap processing finished — sending signal {self.current_bottle_type}")
                 else:
-                    self.cap_detection_text.setText("✅ การประมวลผลฝาเสร็จสิ้น")
+                    self.cap_detection_text.setText("✅ Cap processing finished")
                 self.cap_detection_text.setStyleSheet("""
                     QTextEdit {
                         background-color: #d5f4e6;
@@ -4630,7 +4597,7 @@ class BottleDetectionGUI(QWidget):
             # Validate selection count
             if self.current_taste_mode == 1 and len(self.selected_tastes) != 1:
                 if len(self.selected_tastes) > 1:
-                    QMessageBox.warning(self, "คำเตือน", "กรุณาเลือกรสชาติเพียง 1 รสชาติ")
+                    QMessageBox.warning(self, "Warning", "Select exactly one flavor.")
                     # Uncheck the last checked checkbox
                     if hasattr(self, 'taste_m100') and self.taste_m100.isChecked():
                         self.taste_m100.setChecked(False)
@@ -4642,7 +4609,7 @@ class BottleDetectionGUI(QWidget):
                     return
             elif self.current_taste_mode == 2 and len(self.selected_tastes) != 2:
                 if len(self.selected_tastes) > 2:
-                    QMessageBox.warning(self, "คำเตือน", "กรุณาเลือกรสชาติเพียง 2 รสชาติ")
+                    QMessageBox.warning(self, "Warning", "Select exactly two flavors.")
                     # Uncheck the last checked checkbox
                     if hasattr(self, 'taste_m100') and self.taste_m100.isChecked():
                         self.taste_m100.setChecked(False)
@@ -4653,26 +4620,20 @@ class BottleDetectionGUI(QWidget):
                     self.update_selected_tastes()  # Recursive call
                     return
             
-            # Helper to map internal taste codes to display names
             def _format_taste_names(codes):
-                name_map = {
-                    "M100": "Original",
-                    "M110": "Less sugar 2%",
-                    "M120": "Basil seed mix",
-                }
-                return [name_map.get(c, c) for c in codes]
+                return [bottle_type_flavor_label(c) for c in codes]
             
             # Update status and send signals
             if self.current_taste_mode == 1:
                 display_names = _format_taste_names(self.selected_tastes)
-                self.taste_mode_status.setText(f"โหมดปัจจุบัน: 1 รสชาติ ({', '.join(display_names)})")
+                self.taste_mode_status.setText(f"Current mode: 1 taste ({', '.join(display_names)})")
                 
                 # Send appropriate signal for 1-taste mode
                 if len(self.selected_tastes) == 1:
                     self.send_one_taste_signal()
             elif self.current_taste_mode == 2:
                 display_names = _format_taste_names(self.selected_tastes)
-                self.taste_mode_status.setText(f"โหมดปัจจุบัน: 2 รสชาติ ({', '.join(display_names)})")
+                self.taste_mode_status.setText(f"Current mode: 2 tastes ({', '.join(display_names)})")
                 
                 # Send appropriate signal for 2-taste mode
                 if len(self.selected_tastes) == 2:
@@ -4858,14 +4819,14 @@ class BottleDetectionGUI(QWidget):
                 if new_mode == 1:
                     self.modbus_handlers.show_taste_selection()
                     if hasattr(self, 'taste_mode_status'):
-                        self.taste_mode_status.setText("โหมดปัจจุบัน: 1 รสชาติ - กรุณาเลือกรสชาติ")
+                        self.taste_mode_status.setText("Current mode: 1 taste — select a flavor")
                         self.taste_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
                     if hasattr(self, 'modbus_thread') and self.modbus_thread:
                         self.modbus_thread.write_register(9006, 30)
                 elif new_mode == 2:
                     self.modbus_handlers.show_taste_selection()
                     if hasattr(self, 'taste_mode_status'):
-                        self.taste_mode_status.setText("โหมดปัจจุบัน: 2 รสชาติ - กรุณาเลือกรสชาติ")
+                        self.taste_mode_status.setText("Current mode: 2 tastes — select flavors")
                         self.taste_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
                     if hasattr(self, 'modbus_thread') and self.modbus_thread:
                         self.modbus_thread.write_register(9006, 20)
@@ -4873,7 +4834,10 @@ class BottleDetectionGUI(QWidget):
                     self.modbus_handlers.hide_taste_selection()
                     self.selected_tastes = ["M100", "M110", "M120"]
                     if hasattr(self, 'taste_mode_status'):
-                        self.taste_mode_status.setText("โหมดปัจจุบัน: 3 รสชาติ (Original, Less sugar 2%, Basil seed mix)")
+                        _three = ", ".join(
+                            bottle_type_flavor_label(c) for c in ("M100", "M110", "M120")
+                        )
+                        self.taste_mode_status.setText(f"Current mode: 3 tastes ({_three})")
                         self.taste_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
                     if hasattr(self, 'modbus_thread') and self.modbus_thread:
                         self.modbus_thread.write_register(9006, 10)
@@ -4900,7 +4864,7 @@ class BottleDetectionGUI(QWidget):
                 self.current_expiry_mode = "normal"
                 self.hide_expiry_filter_controls()
                 if hasattr(self, 'expiry_mode_status'):
-                    self.expiry_mode_status.setText("โหมดปัจจุบัน: ปกติ (ไม่คัดกรองวันหมดอายุ)")
+                    self.expiry_mode_status.setText("Current mode: Normal (no expiry date filter)")
                     self.expiry_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
             else:
                 # Filter mode
@@ -4955,7 +4919,7 @@ class BottleDetectionGUI(QWidget):
                 
                 self.current_expiry_mode = "normal"
                 self.hide_expiry_filter_controls()
-                self.expiry_mode_status.setText("โหมดปัจจุบัน: ปกติ (ไม่คัดกรองวันหมดอายุ)")
+                self.expiry_mode_status.setText("Current mode: Normal (no expiry date filter)")
                 self.expiry_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
                 
             elif sender == self.expiry_mode_filter:
@@ -5038,7 +5002,7 @@ class BottleDetectionGUI(QWidget):
             if hasattr(self, 'expiry_date_type_combo') and self.expiry_date_type_combo is not None:
                 self.expiry_date_type = self.expiry_date_type_combo.currentData() or "BBF"
                 self.update_expiry_mode_status()
-                print(f"🔄 EXPIRY DATE TYPE: ใช้วันที่ {self.expiry_date_type}")
+                print(f"🔄 EXPIRY DATE TYPE: using {self.expiry_date_type}")
         except Exception as e:
             print(f"❌ Error in on_expiry_date_type_changed: {e}")
     
@@ -5152,17 +5116,22 @@ class BottleDetectionGUI(QWidget):
         """Update expiry mode status label"""
         try:
             if self.current_expiry_mode == "normal":
-                self.expiry_mode_status.setText("โหมดปัจจุบัน: ปกติ (ไม่คัดกรองวันหมดอายุ)")
+                self.expiry_mode_status.setText("Current mode: Normal (no expiry date filter)")
                 self.expiry_mode_status.setStyleSheet("color: #27ae60; padding: 5px; font-size: 11px; font-weight: bold;")
             elif self.current_expiry_mode == "filter":
-                date_type = getattr(self, 'expiry_date_type', 'BBF')
+                dt_raw = getattr(self, 'expiry_date_type', 'BBF') or 'BBF'
+                date_type_en = "manufacturing date (MFG)" if str(dt_raw).upper() == "MFG" else "best before (BBF)"
                 if self.expiry_filter_type == "range":
                     start_date = self.expiry_start_date_edit.date().toString("dd/MM/yyyy")
                     end_date = self.expiry_end_date_edit.date().toString("dd/MM/yyyy")
-                    self.expiry_mode_status.setText(f"โหมดปัจจุบัน: คัดกรองช่วงวันที่ ({start_date} - {end_date}) ใช้วันที่ {date_type}")
+                    self.expiry_mode_status.setText(
+                        f"Current mode: Filter by date range ({start_date} - {end_date}) using {date_type_en}"
+                    )
                 else:  # specific
                     specific_date = self.expiry_specific_date_edit.date().toString("dd/MM/yyyy")
-                    self.expiry_mode_status.setText(f"โหมดปัจจุบัน: คัดกรองวันที่เฉพาะ ({specific_date}) ใช้วันที่ {date_type}")
+                    self.expiry_mode_status.setText(
+                        f"Current mode: Filter by specific date ({specific_date}) using {date_type_en}"
+                    )
                 self.expiry_mode_status.setStyleSheet("color: #f39c12; padding: 5px; font-size: 11px; font-weight: bold;")
             
         except Exception as e:
