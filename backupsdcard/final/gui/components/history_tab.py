@@ -26,7 +26,7 @@ def bottle_type_flavor_label(bottle_type):
     mapping = {
         "M100": "Original soy milk",
         "M110": "Less sugar (2%)",
-        "M120": "With lac seeds",
+        "M120": "Basil seed mix",
         "M130": "View 3 (angle3)",
     }
     return mapping.get(code, code)
@@ -166,7 +166,79 @@ def is_history_entry_ng(entry):
     return False
 
 
-def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=None, expiry_date=None, timestamp=None, ocr_text="", faded_status=None, total_area=None, num_chars=None, normalized_area=None, bottle_defect=None, bottle_defect_score=None, cap_status=None, gui_instance=None):
+def format_history_rotation_summary(entry):
+    """
+    สร้างข้อความสั้น ๆ สำหรับมุมหมุนฝา (CRAFT + retry/AI) จาก history entry dict
+    """
+    if not isinstance(entry, dict):
+        return None
+    parts = []
+
+    def _add_float(key, label):
+        v = entry.get(key)
+        if v is None:
+            return
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return
+        parts.append(f"{label} {f:.2f}°")
+
+    _add_float("cap_craft_deskew_deg", "CRAFT จัดแนว")
+    _add_float("cap_craft_edge_deg", "CRAFT ขอบยาว")
+    _add_float("cap_retry_rotation_deg", "หมุน 0/180°")
+    ai_v = entry.get("cap_ai_rotation_deg")
+    if ai_v is not None:
+        try:
+            ai_f = float(ai_v)
+        except (TypeError, ValueError):
+            ai_f = None
+        if ai_f is not None:
+            retry_v = entry.get("cap_retry_rotation_deg")
+            try:
+                retry_f = float(retry_v) if retry_v is not None else None
+            except (TypeError, ValueError):
+                retry_f = None
+            if retry_f is None or abs(ai_f - retry_f) > 0.01:
+                parts.append(f"AI หมุนรวม {ai_f:.2f}°")
+
+    return " | ".join(parts) if parts else None
+
+
+def create_history_item(
+    bottle_image,
+    cap_image,
+    line_image=None,
+    bottle_type=None,
+    expiry_date=None,
+    timestamp=None,
+    ocr_text="",
+    faded_status=None,
+    faded_text_score=None,
+    total_area=None,
+    num_chars=None,
+    normalized_area=None,
+    bottle_defect=None,
+    bottle_defect_score=None,
+    bottle_angle1_confidence=None,
+    bottle_type_confidence=None,
+    type_easyocr_mean_confidence=None,
+    type_easyocr_min_confidence=None,
+    type_easyocr_max_confidence=None,
+    type_easyocr_line_count=None,
+    line_crop_mean_confidence=None,
+    line_crop_min_confidence=None,
+    line_crop_max_confidence=None,
+    line_crop_line_count=None,
+    cap_status=None,
+    cap_ng_reason=None,
+    cap_confidence=None,
+    cap_craft_deskew_deg=None,
+    cap_craft_edge_deg=None,
+    cap_retry_rotation_deg=None,
+    cap_ai_rotation_deg=None,
+    gui_instance=None,
+):
     """
     สร้าง history item widget สำหรับแสดงประวัติแต่ละรายการ
 
@@ -179,12 +251,18 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
         timestamp: str - เวลาที่ประมวลผล
         ocr_text: str - ข้อความ OCR
         faded_status: str - สถานะจาง ('faded', 'normal', 'unknown', None)
+        faded_text_score: float - score จาก cap_fade_model (ถ้ามี)
         total_area: int - พื้นที่รวมของตัวอักษรที่อ่านได้
         num_chars: int - จำนวนตัวอักษรที่ตรวจจับได้
         normalized_area: float - พื้นที่ normalized (เปอร์เซ็นต์ของ unified region)
         bottle_defect: str - ขวด Good/NG จาก defect model (None ถ้าไม่มี)
         bottle_defect_score: float - คะแนน defect 0–1 (None ถ้าไม่มี)
         cap_status: str - ฝา ผ่าน/ไม่ผ่าน (None ถ้าไม่มี)
+        cap_ng_reason: str - เหตุผลที่ฝาไม่ผ่าน (ถ้ามี)
+        type_easyocr_mean_confidence: float - ความมั่นใจเฉลี่ย EasyOCR สำหรับอ่านข้อความขวด (ถ้ามี)
+        type_easyocr_min_confidence: float - ความมั่นใจต่ำสุด EasyOCR (ถ้ามี)
+        type_easyocr_max_confidence: float - ความมั่นใจสูงสุด EasyOCR (ถ้ามี)
+        type_easyocr_line_count: int - จำนวนบรรทัดที่อ่านได้จาก EasyOCR (ถ้ามี)
         gui_instance: BottleDetectionGUI instance - สำหรับเรียก show_image_zoom_popup
     
     Returns:
@@ -267,6 +345,18 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
         """)
     header_layout.addWidget(bottle_type_label)
     item_layout.addLayout(header_layout)
+
+    rot_summary = format_history_rotation_summary({
+        "cap_craft_deskew_deg": cap_craft_deskew_deg,
+        "cap_craft_edge_deg": cap_craft_edge_deg,
+        "cap_retry_rotation_deg": cap_retry_rotation_deg,
+        "cap_ai_rotation_deg": cap_ai_rotation_deg,
+    })
+    if rot_summary:
+        rot_label = QLabel(f"📐 <b>มุมหมุนฝา:</b> {rot_summary}")
+        rot_label.setStyleSheet("color: #8e44ad; font-size: 12px; padding: 2px 0;")
+        rot_label.setWordWrap(True)
+        item_layout.addWidget(rot_label)
     
     # Content area with images and info
     content_layout = QHBoxLayout()
@@ -457,6 +547,70 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
         defect_label = QLabel(" | ".join(defect_lines))
         defect_label.setStyleSheet("color: #2c3e50; font-size: 13px; padding: 3px 5px;")
         info_layout.addWidget(defect_label)
+
+    # YOLO confidence (ขวด angle1/type และฝา)
+    def _format_conf_percent(conf):
+        if conf is None:
+            return None
+        try:
+            f = float(conf)
+        except (TypeError, ValueError):
+            return None
+        # แสดง confidence เป็นทศนิยม 4 ตำแหน่ง (เช่น 0.9612) โดยไม่แปลงเป็นเปอร์เซ็นต์
+        return f"{f:.4f}"
+
+    conf_parts = []
+    a1_conf_txt = _format_conf_percent(bottle_angle1_confidence)
+    if a1_conf_txt is not None:
+        conf_parts.append(f"ขวด angle1: {a1_conf_txt}")
+    ty_conf_txt = _format_conf_percent(bottle_type_confidence)
+    if ty_conf_txt is not None:
+        conf_parts.append(f"ขวด type: {ty_conf_txt}")
+    cap_conf_txt = _format_conf_percent(cap_confidence)
+    if cap_conf_txt is not None:
+        conf_parts.append(f"ฝา: {cap_conf_txt}")
+
+    eo_mean_txt = _format_conf_percent(type_easyocr_mean_confidence)
+    if eo_mean_txt is not None:
+        # แสดงเฉพาะค่า mean ในหน้า detail เพื่อไม่ให้ยาวเกิน
+        eo_line_txt = ""
+        if type_easyocr_line_count is not None:
+            try:
+                eo_line_txt = f" ({int(type_easyocr_line_count)} lines)"
+            except (TypeError, ValueError):
+                eo_line_txt = ""
+        conf_parts.append(f"EasyOCR: {eo_mean_txt}{eo_line_txt}")
+
+    lc_mean_txt = _format_conf_percent(line_crop_mean_confidence)
+    if lc_mean_txt is not None:
+        lc_line_txt = ""
+        if line_crop_line_count is not None:
+            try:
+                lc_line_txt = f" ({int(line_crop_line_count)} lines)"
+            except (TypeError, ValueError):
+                lc_line_txt = ""
+        lc_extra = ""
+        if (
+            line_crop_min_confidence is not None
+            and line_crop_max_confidence is not None
+            and line_crop_line_count is not None
+            and int(line_crop_line_count) > 1
+        ):
+            mn = _format_conf_percent(line_crop_min_confidence)
+            mx = _format_conf_percent(line_crop_max_confidence)
+            if mn is not None and mx is not None:
+                lc_extra = f" [min {mn}–max {mx}]"
+        conf_parts.append(f"ครอปบรรทัด: {lc_mean_txt}{lc_line_txt}{lc_extra}")
+
+    if conf_parts:
+        conf_label = QLabel("🎯 <b>ความมั่นใจ (Confidence):</b> " + " | ".join(conf_parts))
+        conf_label.setStyleSheet("color: #34495e; font-size: 12px; padding: 3px 5px;")
+        info_layout.addWidget(conf_label)
+    if cap_status == "ไม่ผ่าน" and cap_ng_reason:
+        cap_reason_label = QLabel(f"⚠️ <b>เหตุผลฝา NG:</b> {cap_ng_reason}")
+        cap_reason_label.setStyleSheet("color: #e74c3c; font-size: 12px; padding: 3px 5px;")
+        cap_reason_label.setWordWrap(True)
+        info_layout.addWidget(cap_reason_label)
     
     # Faded status (สถานะจาง/ไม่จาง) และ Area
     if faded_status is not None:
@@ -476,6 +630,13 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
             area_info_text += f"<br>📊 <b>Area:</b> <span style='color: {status_color};'>{total_area}</span>"
         if num_chars is not None:
             area_info_text += f" | <b>ตัวอักษร:</b> <span style='color: {status_color};'>{num_chars}</span>"
+        if faded_text_score is not None:
+            try:
+                fs = float(faded_text_score)
+                fs_txt = f"{fs:.4f}"
+            except (TypeError, ValueError):
+                fs_txt = str(faded_text_score)
+            area_info_text += f"<br>🎯 <b>Score ฝาจาง:</b> <span style='color: {status_color};'>{fs_txt}</span>"
         
         faded_info = QLabel(area_info_text)
         faded_info.setStyleSheet("color: #2c3e50; font-size: 14px; padding: 5px; font-weight: bold;")
@@ -494,13 +655,6 @@ def create_history_item(bottle_image, cap_image, line_image=None, bottle_type=No
         expiry_info = QLabel("<b>วันหมดอายุ:</b> -")
         expiry_info.setStyleSheet("color: #95a5a6; font-size: 14px; padding: 5px;")
         info_layout.addWidget(expiry_info)
-    
-    # OCR text (if available)
-    if ocr_text:
-        ocr_info = QLabel(f"<b>ข้อความ OCR:</b><br>{ocr_text[:100]}...")
-        ocr_info.setStyleSheet("color: #34495e; font-size: 12px; padding: 5px;")
-        ocr_info.setWordWrap(True)
-        info_layout.addWidget(ocr_info)
     
     info_layout.addStretch()
     content_layout.addLayout(info_layout)
@@ -552,6 +706,13 @@ def create_history_compact_item(history_entry, gui_instance=None):
     bottle_defect = history_entry.get('bottle_defect')
     cap_status = history_entry.get('cap_status')
     faded_status = history_entry.get('faded_status')
+    cap_ng_reason = history_entry.get('cap_ng_reason')
+    bottle_angle1_confidence = history_entry.get('bottle_angle1_confidence')
+    bottle_type_confidence = history_entry.get('bottle_type_confidence')
+    cap_confidence = history_entry.get('cap_confidence')
+    faded_text_score = history_entry.get('faded_text_score')
+    type_easyocr_mean_confidence = history_entry.get('type_easyocr_mean_confidence')
+    line_crop_mean_confidence = history_entry.get('line_crop_mean_confidence')
     
     if bottle_defect is not None:
         if bottle_defect == "Good":
@@ -565,20 +726,53 @@ def create_history_compact_item(history_entry, gui_instance=None):
             status_parts.append("ข้อความจาง")
         elif faded_status == 'normal':
             status_parts.append("ข้อความไม่จาง")
+    if cap_status == "ไม่ผ่าน" and cap_ng_reason:
+        status_parts.append(f"เหตุผล: {cap_ng_reason}")
+
+    # Confidence summary (แสดงแบบสั้นในรายการย่อ)
+    def _format_conf_percent(conf):
+        if conf is None:
+            return None
+        try:
+            f = float(conf)
+        except (TypeError, ValueError):
+            return None
+        return f"{f:.4f}"
+
+    a1_conf_txt = _format_conf_percent(bottle_angle1_confidence)
+    ty_conf_txt = _format_conf_percent(bottle_type_confidence)
+    cap_conf_txt = _format_conf_percent(cap_confidence)
+    conf_bits = []
+    if a1_conf_txt is not None:
+        conf_bits.append(f"a1 {a1_conf_txt}")
+    if ty_conf_txt is not None:
+        conf_bits.append(f"type {ty_conf_txt}")
+    if cap_conf_txt is not None:
+        conf_bits.append(f"cap {cap_conf_txt}")
+    eo_conf_txt = _format_conf_percent(type_easyocr_mean_confidence)
+    if eo_conf_txt is not None:
+        conf_bits.append(f"easyocr {eo_conf_txt}")
+    lc_conf_txt = _format_conf_percent(line_crop_mean_confidence)
+    if lc_conf_txt is not None:
+        conf_bits.append(f"lines {lc_conf_txt}")
+    faded_conf_txt = _format_conf_percent(faded_text_score)
+    if faded_conf_txt is not None and faded_status == 'faded':
+        conf_bits.append(f"fade {faded_conf_txt}")
+    if conf_bits:
+        status_parts.append(" | ".join(conf_bits))
     
     status_text = " | ".join(status_parts) if status_parts else "รายละเอียดพร้อมดู"
     status_label = QLabel(status_text)
     status_label.setStyleSheet("color: #34495e; font-size: 11px;")
     middle_layout.addWidget(status_label)
+
+    rot_compact = format_history_rotation_summary(history_entry)
+    if rot_compact:
+        rot_label = QLabel(f"📐 {rot_compact}")
+        rot_label.setStyleSheet("color: #8e44ad; font-size: 10px;")
+        rot_label.setWordWrap(True)
+        middle_layout.addWidget(rot_label)
     
-    ocr_preview = (history_entry.get('ocr_text') or "").strip()
-    if ocr_preview:
-        if len(ocr_preview) > 50:
-            ocr_preview = ocr_preview[:50] + "..."
-        ocr_label = QLabel(ocr_preview)
-        ocr_label.setStyleSheet("color: #7f8c8d; font-size: 10px;")
-        ocr_label.setWordWrap(True)
-        middle_layout.addWidget(ocr_label)
     item_layout.addLayout(middle_layout, 1)
     
     # Right: "ดูรายละเอียด" label (clickable)

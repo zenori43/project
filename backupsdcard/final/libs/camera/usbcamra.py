@@ -15,6 +15,154 @@ class USBCamera:
         self.cap = None
         self.is_running = False
         self._thread = None
+        self._control_window_name = "USB Camera Controls"
+        self._preview_window_name = "USB Camera Preview"
+        self._trackbar_defs = []
+        self._trackbar_values = {}
+
+    # ---------------- Camera controls ----------------
+    @staticmethod
+    def _build_default_trackbar_defs():
+        """
+        กำหนดรายการ control ที่พยายามสร้างให้ปรับได้
+        หมายเหตุ: บางกล้อง/driver ไม่รองรับบางค่า
+        """
+        return [
+            {"name": "Brightness", "prop": cv2.CAP_PROP_BRIGHTNESS, "min": 0, "max": 255, "default": 128},
+            {"name": "Contrast", "prop": cv2.CAP_PROP_CONTRAST, "min": 0, "max": 255, "default": 128},
+            {"name": "Saturation", "prop": cv2.CAP_PROP_SATURATION, "min": 0, "max": 255, "default": 128},
+            {"name": "Hue", "prop": cv2.CAP_PROP_HUE, "min": 0, "max": 255, "default": 0},
+            {"name": "Gain", "prop": cv2.CAP_PROP_GAIN, "min": 0, "max": 255, "default": 64},
+            {"name": "Sharpness", "prop": cv2.CAP_PROP_SHARPNESS, "min": 0, "max": 255, "default": 128},
+            {"name": "Gamma", "prop": cv2.CAP_PROP_GAMMA, "min": 0, "max": 255, "default": 100},
+            # Exposure/Fokus มักไม่เป็นสเกลเดียวกันทุกกล้อง จึงให้ช่วงกว้าง
+            {"name": "Exposure", "prop": cv2.CAP_PROP_EXPOSURE, "min": 0, "max": 1000, "default": 100},
+            # หลายกล้องรองรับช่วง focus กว้างกว่า 255 (เช่น 1023/4095)
+            {"name": "Focus", "prop": cv2.CAP_PROP_FOCUS, "min": 0, "max": 4095, "default": 0},
+            {"name": "WB Temp", "prop": cv2.CAP_PROP_WB_TEMPERATURE, "min": 2000, "max": 7500, "default": 4500},
+            {"name": "Zoom", "prop": cv2.CAP_PROP_ZOOM, "min": 0, "max": 400, "default": 100},
+        ]
+
+    def _set_camera_prop_safe(self, prop_id: int, value: float, name: str = "") -> bool:
+        """พยายาม set property และคืนผลสำเร็จ/ล้มเหลวแบบไม่ throw"""
+        if not self.cap or not self.cap.isOpened():
+            return False
+        try:
+            ok = self.cap.set(prop_id, float(value))
+            if not ok and name:
+                print(f"⚠️ ไม่รองรับการปรับ: {name}")
+            return bool(ok)
+        except Exception as e:
+            if name:
+                print(f"⚠️ ปรับ {name} ไม่ได้: {e}")
+            return False
+
+    def _get_camera_prop_safe(self, prop_id: int, default_value: float = 0.0) -> float:
+        """อ่านค่า property แบบปลอดภัย"""
+        if not self.cap or not self.cap.isOpened():
+            return float(default_value)
+        try:
+            value = self.cap.get(prop_id)
+            if value is None:
+                return float(default_value)
+            return float(value)
+        except Exception:
+            return float(default_value)
+
+    def disable_auto_controls(self):
+        """
+        พยายามปิด auto controls ที่กระทบการปรับ manual
+        (บางรุ่นกล้องไม่รองรับ)
+        """
+        if not self.cap or not self.cap.isOpened():
+            return
+        # V4L2/MJPEG บางตัวใช้ค่า 1=manual, 3=auto
+        self._set_camera_prop_safe(cv2.CAP_PROP_AUTOFOCUS, 0.0, "Auto Focus")
+        self._set_camera_prop_safe(cv2.CAP_PROP_AUTO_EXPOSURE, 1.0, "Auto Exposure")
+
+    def get_camera_controls(self) -> dict:
+        """คืนค่า control สำคัญของกล้องในรูป dict"""
+        controls = {}
+        for d in self._build_default_trackbar_defs():
+            controls[d["name"]] = self._get_camera_prop_safe(d["prop"], d["default"])
+        return controls
+
+    def set_camera_control(self, control_name: str, value: float) -> bool:
+        """ตั้งค่า control ตามชื่อ (เช่น Brightness, Exposure, Focus)"""
+        defs = self._build_default_trackbar_defs()
+        for d in defs:
+            if d["name"].lower() == control_name.lower():
+                return self._set_camera_prop_safe(d["prop"], float(value), d["name"])
+        print(f"⚠️ ไม่พบ control ชื่อ: {control_name}")
+        return False
+
+    def create_camera_control_panel(self, window_name: str = "USB Camera Controls") -> bool:
+        """
+        สร้าง panel ปรับกล้องด้วย OpenCV Trackbar
+        เรียกได้หลัง open_camera()
+        """
+        if not self.cap or not self.cap.isOpened():
+            print("❌ ยังไม่ได้เปิดกล้อง - ไม่สามารถสร้าง panel ได้")
+            return False
+
+        self._control_window_name = window_name
+        cv2.namedWindow(self._control_window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self._control_window_name, 560, 520)
+        self._trackbar_defs = self._build_default_trackbar_defs()
+        self._trackbar_values = {}
+
+        self.disable_auto_controls()
+
+        def _make_callback(defn):
+            def _on_change(v):
+                self._trackbar_values[defn["name"]] = int(v)
+                self._set_camera_prop_safe(defn["prop"], float(v), defn["name"])
+            return _on_change
+
+        for d in self._trackbar_defs:
+            cur = int(round(self._get_camera_prop_safe(d["prop"], d["default"])))
+            # ถ้ากล้องรายงานค่าปัจจุบันเกิน max ที่ตั้งไว้ ให้ขยายช่วง slider อัตโนมัติ
+            slider_max = int(d["max"])
+            if cur > slider_max:
+                slider_max = min(65535, max(cur + 100, cur * 2))
+            cur = max(d["min"], min(cur, slider_max))
+            self._trackbar_values[d["name"]] = cur
+            cv2.createTrackbar(d["name"], self._control_window_name, cur, slider_max, _make_callback(d))
+            if d["min"] > 0:
+                cv2.setTrackbarMin(d["name"], self._control_window_name, d["min"])
+
+        print("🎛️ เปิด Camera Control Panel แล้ว (กด q เพื่อปิด preview)")
+        return True
+
+    def show_preview_with_control_panel(self, preview_size: Tuple[int, int] = (1280, 720)):
+        """
+        แสดง preview + panel ปรับกล้องแบบ realtime
+        ใช้งานสะดวกสำหรับจูนค่าในหน้างาน
+        """
+        if not self.cap or not self.cap.isOpened():
+            print("❌ ยังไม่ได้เปิดกล้อง")
+            return
+
+        self._preview_window_name = "USB Camera Preview"
+        cv2.namedWindow(self._preview_window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self._preview_window_name, preview_size[0], preview_size[1])
+        self.create_camera_control_panel(self._control_window_name)
+
+        print("🎬 เริ่ม preview พร้อม panel ปรับกล้อง (กด q หรือ ESC เพื่อออก)")
+        while True:
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                continue
+
+            display_frame = cv2.resize(frame, preview_size)
+            cv2.imshow(self._preview_window_name, display_frame)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q') or key == 27:
+                break
+
+        cv2.destroyWindow(self._preview_window_name)
+        cv2.destroyWindow(self._control_window_name)
         
     def open_camera(self) -> bool:
         """
@@ -345,7 +493,10 @@ def open_usb_camera() -> Optional[USBCamera]:
 
 # ตัวอย่างการใช้งาน
 if __name__ == "__main__":
-    print("🎬 เริ่มการสตรีมภาพ (กด 'q' เพื่อออก, 's' เพื่อบันทึก)")
+    print("🎬 โหมดทดสอบกล้อง USB")
+    print("   - กด 'q' ออก")
+    print("   - กด 's' บันทึกภาพ")
+    print("   - กด 'c' เปิด Camera Control Panel")
     
     with USBCamera() as camera:
         def frame_callback(frame):
@@ -354,6 +505,8 @@ if __name__ == "__main__":
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 camera.stop_streaming()
+            elif key == ord('c'):
+                camera.show_preview_with_control_panel(display_size)
             elif key == ord('s'):
                 import datetime
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -366,7 +519,8 @@ if __name__ == "__main__":
                 else:
                     print("❌ ไม่สามารถบันทึกภาพได้")
         
-        camera.start_streaming(frame_callback, display_size=(1280, 720))
+        display_size = (1280, 720)
+        camera.start_streaming(frame_callback, display_size=display_size)
         
         while camera.is_running:
             time.sleep(0.1)

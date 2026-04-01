@@ -538,7 +538,7 @@ def check_line_overlap(line1_polys, line2_polys):
     
     return y_overlap > (min_height * 0.3)
 
-def crop_line(image, line_polys, padding=0, max_height_ratio=0.08, uniform_height=True, shrink_x_percent=0.02, shrink_y_percent=0.10):
+def crop_line(image, line_polys, padding=0, max_height_ratio=0.10, uniform_height=True, shrink_x_percent=0.0, shrink_y_percent=0.10):
     """ครอปบรรทัดจาก polys ที่อยู่ในบรรทัดเดียวกัน"""
     if line_polys is None or (hasattr(line_polys, '__len__') and len(line_polys) == 0):
         return None, None
@@ -562,7 +562,7 @@ def crop_line(image, line_polys, padding=0, max_height_ratio=0.08, uniform_heigh
     height = y_max_raw - y_min_raw
     
     # ครอปเข้าไปใน bounding box เล็กน้อย
-    shrink_x = max(1, int(width * shrink_x_percent))  # ใช้ shrink_x_percent แทน hardcode
+    shrink_x = max(0, int(width * shrink_x_percent))  # 0% = ไม่หดแนวนอน
     shrink_y = max(2, int(height * shrink_y_percent))  # ใช้ shrink_y_percent แทน hardcode
     
     # ปรับ bounding box แบบเดิมก่อน (ไม่ใช้ shrink_y ตอนนี้)
@@ -731,8 +731,8 @@ class CRAFTLineDetector:
             'padding': 0,
             'tolerance': 10,
             'uniform_height': True,
-            'max_height_ratio': 0.08,  # 8% ของความสูง
-            'shrink_x_percent': 0.02,  # 2% ของความกว้าง
+            'max_height_ratio': 0.10,  # ตรงแท็บตั้งค่าโปรแกรมหลัก (10%)
+            'shrink_x_percent': 0.0,
             'shrink_y_percent': 0.10,  # 10% ของความสูง
             'horizontal_splitting': True,
             'min_width': 65,
@@ -886,7 +886,7 @@ class CRAFTLineDetector:
                     self.settings['padding'], 
                     self.settings['max_height_ratio'], 
                     self.settings['uniform_height'],
-                    self.settings.get('shrink_x_percent', 0.02),
+                    self.settings.get('shrink_x_percent', 0.0),
                     self.settings.get('shrink_y_percent', 0.10)
                 )
                 

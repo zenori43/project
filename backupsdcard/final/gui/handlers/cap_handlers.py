@@ -163,6 +163,9 @@ class CapDetectionHandlers:
                         self.gui.home_cap_image_info_label.setText(f"Size: {image.shape[1]}x{image.shape[0]} | File: {file_path.split('/')[-1]}")
                     self.gui.btn_process_cap.setEnabled(True)  # ENABLED - cap processing turned on
                     self.gui.btn_save_sentech_image.setEnabled(True)  # Enable save button when image is loaded
+                    # Keep "Process both" state in sync when user selects cap image manually
+                    if hasattr(self.gui, 'bottle_handlers') and self.gui.bottle_handlers:
+                        self.gui.bottle_handlers._update_process_paired_button_state()
                     # Manual rotation buttons removed
                     self.gui.status_label.setText('✅ โหลดภาพฝาสำเร็จ - พร้อมประมวลผล')
                     self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
@@ -291,7 +294,8 @@ class CapDetectionHandlers:
                 self.gui.line_detector,
                 self.gui.ocr_model,
                 getattr(self.gui, 'faded_text_yolo_model', None),
-                bottle_type=None
+                bottle_type=None,
+                enable_cap_fade_inspection=getattr(self.gui, 'enable_cap_fade_detection', True),
             )
             result_container = {'result': None, 'completed': False}
             loop = QEventLoop()
@@ -601,7 +605,8 @@ class CapDetectionHandlers:
                     self.gui.line_detector,
                     self.gui.ocr_model,
                     getattr(self.gui, 'faded_text_yolo_model', None),
-                    bottle_type=bottle_type
+                    bottle_type=bottle_type,
+                    enable_cap_fade_inspection=getattr(self.gui, 'enable_cap_fade_detection', True),
                 )
                 self.gui.cap_processing_thread.result_ready.connect(self.on_cap_processing_complete)
                 self.gui.cap_processing_thread.start()
@@ -875,7 +880,8 @@ class CapDetectionHandlers:
             self.gui.line_detector,
             self.gui.ocr_model,
             getattr(self.gui, 'faded_text_yolo_model', None),
-            bottle_type=None  # ไม่ใช้แล้ว - ใช้ค่ากลางที่วิเคราะห์ได้โดยตรง
+            bottle_type=None,  # ไม่ใช้แล้ว - ใช้ค่ากลางที่วิเคราะห์ได้โดยตรง
+            enable_cap_fade_inspection=getattr(self.gui, 'enable_cap_fade_detection', True),
         )
         self.gui.cap_processing_thread.result_ready.connect(self.on_cap_processing_complete)
         self.gui.cap_processing_thread.status_updated.connect(self.update_cap_progress)
@@ -1173,9 +1179,12 @@ class CapDetectionHandlers:
             self.silent_mode = False
             return
         
-        # ตรวจสอบว่าเป็นข้อความจางหรือไม่ - แสดงผลลัพธ์ก่อน (ภาพและค่า area) และส่ง Modbus เหมือนขวด NG
-        if "error" in result and result["error"] == "faded_text_detected":
-            print("❌ CAP PROCESS COMPLETE: ตรวจพบข้อความจาง - แสดงผลลัพธ์ (ภาพและค่า area)")
+        # ตรวจสอบกรณี NG พิเศษ - แสดงผลลัพธ์ก่อน และส่ง Modbus เหมือนขวด NG
+        if "error" in result and result["error"] in ("faded_text_detected", "invalid_line_count"):
+            is_faded_ng = result["error"] == "faded_text_detected"
+            total_lines = (result.get('line_detection_result') or {}).get('total_lines')
+            ng_reason = "ตรวจพบข้อความจาง" if is_faded_ng else f"พบบรรทัดข้อความ {total_lines} บรรทัด (ต้องเป็น 3)"
+            print(f"❌ CAP PROCESS COMPLETE: {ng_reason} - แสดงผลลัพธ์")
             
             # เก็บผลลัพธ์ไว้
             self.gui.current_cap_result = result
@@ -1188,7 +1197,7 @@ class CapDetectionHandlers:
                     m600_ok = self.gui.modbus_thread.on_m600()
                     if m600_ok:
                         self.gui.status_handlers.update_coil_lamp("m600", True)
-                        self.gui.status_label.setText('❌ ฝาจาง → M140, M600 ส่งแล้ว')
+                        self.gui.status_label.setText('❌ ฝาจาง → M140, M600 ส่งแล้ว' if is_faded_ng else '❌ จำนวนบรรทัดไม่เท่ากับ 3 → M140, M600 ส่งแล้ว')
                         # เก็บสถานะ Modbus ที่ส่งไปแล้ว
                         self.gui.last_sent_modbus_signal = "M140"
                         # เก็บผลที่ส่งล่าสุด
@@ -1196,33 +1205,34 @@ class CapDetectionHandlers:
                         if bottle_result is not None:
                             self.gui._last_sent_bottle_cap_result = (bottle_result, result)
                     else:
-                        self.gui.status_label.setText('❌ ฝาจาง แต่ไม่สามารถ ON M600 ได้')
+                        self.gui.status_label.setText('❌ ฝาจาง แต่ไม่สามารถ ON M600 ได้' if is_faded_ng else '❌ จำนวนบรรทัดไม่เท่ากับ 3 แต่ไม่สามารถ ON M600 ได้')
                 else:
-                    self.gui.status_label.setText('❌ ฝาจาง แต่ไม่สามารถON M140 ได้')
+                    self.gui.status_label.setText('❌ ฝาจาง แต่ไม่สามารถON M140 ได้' if is_faded_ng else '❌ จำนวนบรรทัดไม่เท่ากับ 3 แต่ไม่สามารถ ON M140 ได้')
                 self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             else:
-                self.gui.status_label.setText('❌ ฝาจาง แต่ Modbus ไม่พร้อม')
+                self.gui.status_label.setText('❌ ฝาจาง แต่ Modbus ไม่พร้อม' if is_faded_ng else '❌ จำนวนบรรทัดไม่เท่ากับ 3 แต่ Modbus ไม่พร้อม')
                 self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
             
             # Update status tab
-            self.gui.status_handlers.update_cap_detection_status("ข้อความจาง - แสดงผลลัพธ์", False)
+            self.gui.status_handlers.update_cap_detection_status("ข้อความจาง - แสดงผลลัพธ์" if is_faded_ng else "จำนวนบรรทัดไม่เท่ากับ 3 - NG", False)
             
-            # Display cap detection results (แสดงผลลัพธ์ฝาที่เจอข้อความจาง - รวมภาพและค่า area)
+            # Display cap detection results (แสดงผลลัพธ์ฝา NG)
             self.display_cap_detection_results(result)
             
             faded_text_result = result.get('faded_text_result', {})
             status = faded_text_result.get('status', 'unknown')
             result_label = faded_text_result.get('result', '')
             score = faded_text_result.get('score')
-            total_area = faded_text_result.get('total_area', 0)
-            num_chars = faded_text_result.get('num_chars', 0)
             
-            detail = f"result: {result_label}"
-            if score is not None:
-                detail += f", score: {score}"
+            if is_faded_ng:
+                detail = f"result: {result_label}"
+                if score is not None:
+                    detail += f", score: {score}"
+            else:
+                detail = f"result: invalid_line_count, total_lines: {total_lines}"
             if not (hasattr(self.gui, 'modbus_thread') and self.gui.modbus_thread):
-                self.gui.status_label.setText(f'❌ ตรวจพบฝาจาง - {detail}')
-            print(f"📊 CAP PROCESS COMPLETE: ฝาจาง - {detail}, status: {status}")
+                self.gui.status_label.setText(f'❌ {ng_reason} - {detail}')
+            print(f"📊 CAP PROCESS COMPLETE: NG - {detail}, status: {status}")
             
             if hasattr(self.gui, 'add_to_history'):
                 if hasattr(self.gui, 'current_result') and self.gui.current_result:
@@ -1230,8 +1240,8 @@ class CapDetectionHandlers:
                 else:
                     bottle_result = {
                         'image': None,
-                        'bottle_type': 'ฝาจาง (NG Fade)',
-                        'combined_ocr_text': f'ฝาจาง - {result_label}' + (f', score: {score}' if score is not None else '')
+                        'bottle_type': 'ฝา NG',
+                        'combined_ocr_text': (f'ฝาจาง - {result_label}' + (f', score: {score}' if score is not None else '')) if is_faded_ng else f'จำนวนบรรทัดไม่เท่ากับ 3 (พบ {total_lines})'
                     }
                 
                 # บันทึกลงประวัติ

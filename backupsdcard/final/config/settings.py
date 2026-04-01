@@ -36,6 +36,12 @@ BOTTLE_YOLO_CONF_FALLBACK = 0.25
 # ความเร็ว YOLO ขวด: YOLO_IMGSZ เล็กลง = เร็วขึ้น (อาจแม่นน้อยลง), YOLO_MAX_EDGE = ย่อภาพก่อนรันถ้าใหญ่กว่านี้
 YOLO_IMGSZ = 640
 YOLO_MAX_EDGE = 1280
+# Bottle preprocessing: เพิ่มความคมก่อนเข้าโมเดลขวด
+BOTTLE_ENABLE_SHARPEN = True
+# unsharp amount (0.0-3.0): ยิ่งสูงยิ่งคม แต่อาจเกิด noise/halo
+BOTTLE_SHARPEN_AMOUNT = 1.0
+# Gaussian blur sigma สำหรับ unsharp (0.5-3.0 แนะนำ)
+BOTTLE_SHARPEN_SIGMA = 1.2
 # Sentech: จำนวนเฟรมที่ flush ก่อนดึงเฟรมล่าสุด (น้อยลง = เร็วขึ้น), เวลารอเฟรมใหม่ (วินาที)
 SENTECH_FLUSH_MAX = 20
 SENTECH_WAIT_NEW_FRAME = 0.35
@@ -163,6 +169,7 @@ FADED_TEXT_CONFIG = {
 # =============================================================================
 # MODBUS CONFIGURATION
 # =============================================================================
+# โรบอต / PLC — อ่านเขียน coils, D5500 (Program ID), D5001/D5002 ฯลฯ ผ่าน TCP ที่ IP นี้
 MODBUS_IP = "192.168.1.5"
 MODBUS_PORT = 502
 

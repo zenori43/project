@@ -415,30 +415,28 @@ class RotationModel:
             if not line_results:
                 return False
             
-            # Check if any line matches expected patterns
-            for line_result in line_results:
-                text = line_result.get('recognized_text', '').strip()
-                if not text:
-                    continue
-                
-                # Pattern 1: MFG/BBF date format (MM/DD/YY or DD/MM/YY)
-                if any(prefix in text.upper() for prefix in ['MFG', 'BBF']):
-                    if '/' in text and len(text.split('/')) >= 3:
-                        return True
-                
-                # Pattern 2: Time and batch format (HH:MMS##)
-                if ':' in text and 'S' in text:
-                    parts = text.split(':')
-                    if len(parts) == 2 and 'S' in parts[1]:
-                        return True
-                
-                # Pattern 3: Date format (DD/MM/YY or MM/DD/YY)
-                if '/' in text and len(text.split('/')) == 3:
-                    date_parts = text.split('/')
-                    if all(part.isdigit() for part in date_parts):
-                        return True
-            
-            return False
+            import re
+            parts_text = " ".join(
+                (line_result.get('recognized_text') or "").strip()
+                for line_result in line_results
+                if (line_result.get('recognized_text') or "").strip()
+            )
+            if not parts_text:
+                return False
+            # ต้องมี MFG วัน/เดือน/ปี, BBF วัน/เดือน/ปี, และเวลา xx:xxSxx (ไม่ยอมแค่บรรทัดเดียวหรือไม่มีปี)
+            mfg = re.search(
+                r'(?i)MFG\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:\D|$)',
+                parts_text,
+            )
+            bbf = re.search(
+                r'(?i)BBF\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:\D|$)',
+                parts_text,
+            )
+            time_m = re.search(
+                r'(?i)(?:^|[\s;|])(\d{1,2})\s*:\s*(\d{1,2})\s*S\s*(\d{1,2})(?:\D|$)',
+                parts_text,
+            )
+            return bool(mfg and bbf and time_m)
             
         except Exception as e:
             print(f"❌ Error validating OCR format: {e}")

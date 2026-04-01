@@ -55,6 +55,9 @@ from config.settings import (
     CRAFT_REFINER_PATH,
     OCR_MODEL_PATH,
     FADED_TEXT_CONFIG,
+    BOTTLE_ENABLE_SHARPEN,
+    BOTTLE_SHARPEN_AMOUNT,
+    BOTTLE_SHARPEN_SIGMA,
     MODBUS_IP,
     MODBUS_PORT,
     CAP_DETECTION_AVAILABLE,
@@ -645,7 +648,7 @@ class BottleDetectionGUI(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Bottle Detection & OCR - USB Camera + Modbus + Sentech Camera')
+        self.setWindowTitle('Inspection System using Digital Image Processing')
         _logo_path = os.path.join(os.path.dirname(__file__), "gui icon", "Logo1.png")
         if os.path.isfile(_logo_path):
             self.setWindowIcon(QIcon(_logo_path))
@@ -718,6 +721,9 @@ class BottleDetectionGUI(QWidget):
         self.settings_tab_index = -1  # Store Settings tab index
         self.settings_tab_widget = None  # Store Settings tab widget
         self.settings_tab_label = "⚙️ Settings"  # Store Settings tab label
+        # Defect inspection toggles (default ON)
+        self.enable_bottle_defect_detection = True
+        self.enable_cap_fade_detection = True
         # Admin-only tabs (hidden until login)
         self.modbus_status_tab_index = -1
         self.modbus_status_tab_widget = None
@@ -823,7 +829,7 @@ class BottleDetectionGUI(QWidget):
         layout = QVBoxLayout(main_widget)
         
         # Title - อยู่บนสุดสุด
-        title_label = QLabel("Bottle Detection & OCR - USB Camera + Modbus + Sentech Camera")
+        title_label = QLabel("Inspection System using Digital Image Processing")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px; color: #333333; background-color: #e5e5e5; border-bottom: 2px solid #cccccc;")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setWordWrap(True)
@@ -905,9 +911,11 @@ class BottleDetectionGUI(QWidget):
         top_panel_layout.addWidget(mode_label)
         
         self.mode_combo = QComboBox()
-        self.mode_combo.addItem("ID 7 full auto")
-        self.mode_combo.addItem("ID 5 capture only")
-        self.mode_combo.addItem("ID 8 reset modbus")
+        # UserData = ค่า D5500 (เลขบน PLC = ID โปรแกรม)
+        self.mode_combo.addItem("ID 7 full auto", 7)
+        self.mode_combo.addItem("ID 5 capture only", 5)
+        self.mode_combo.addItem("ID 8 reset modbus", 8)
+        self.mode_combo.addItem("ID 9 refill", 9)
         self.mode_combo.setMinimumWidth(110)
         self.mode_combo.setMaximumWidth(200)
         self.mode_combo.setStyleSheet("""
@@ -1592,13 +1600,37 @@ class BottleDetectionGUI(QWidget):
         self.select_reference_btn = settings_widgets['select_reference_btn']
         self.matching_method_combo = settings_widgets['matching_method_combo']
         self.prevent_saturation_check = settings_widgets['prevent_saturation_check']
+        # OCR normalize format toggle
+        self.normalize_format_check = settings_widgets['normalize_format_check']
+        # Defect inspection toggles
+        self.bottle_defect_check = settings_widgets['bottle_defect_check']
+        self.cap_defect_check = settings_widgets['cap_defect_check']
+        # Bottle sharpen settings
+        self.bottle_sharpen_enable_check = settings_widgets['bottle_sharpen_enable_check']
+        self.bottle_sharpen_amount_spinbox = settings_widgets['bottle_sharpen_amount_spinbox']
+        self.bottle_sharpen_sigma_spinbox = settings_widgets['bottle_sharpen_sigma_spinbox']
+        self.bottle_sharpen_enable_check.setChecked(bool(BOTTLE_ENABLE_SHARPEN))
+        self.bottle_sharpen_amount_spinbox.setValue(float(BOTTLE_SHARPEN_AMOUNT))
+        self.bottle_sharpen_sigma_spinbox.setValue(float(BOTTLE_SHARPEN_SIGMA))
         # Connect histogram matching handlers
         self.select_reference_btn.clicked.connect(self.on_select_reference_cap)
         self.use_histogram_matching_check.stateChanged.connect(self.on_histogram_matching_settings_changed)
         self.matching_method_combo.currentIndexChanged.connect(self.on_histogram_matching_settings_changed)
         self.prevent_saturation_check.stateChanged.connect(self.on_histogram_matching_settings_changed)
+        # Connect OCR normalize format handler
+        self.normalize_format_check.stateChanged.connect(self.on_ocr_normalize_format_settings_changed)
+        # Connect defect inspection handlers
+        self.bottle_defect_check.stateChanged.connect(self.on_defect_inspection_settings_changed)
+        self.cap_defect_check.stateChanged.connect(self.on_defect_inspection_settings_changed)
+        self.bottle_sharpen_enable_check.stateChanged.connect(self.on_bottle_sharpen_settings_changed)
+        self.bottle_sharpen_amount_spinbox.valueChanged.connect(self.on_bottle_sharpen_settings_changed)
+        self.bottle_sharpen_sigma_spinbox.valueChanged.connect(self.on_bottle_sharpen_settings_changed)
         # Load existing reference cap path if available
         self.load_reference_cap_path()
+        # Initialize internal toggles from UI state
+        self.on_defect_inspection_settings_changed()
+        self.on_bottle_sharpen_settings_changed()
+        self.on_ocr_normalize_format_settings_changed()
         # Connect event handlers
         self.padding_spinbox.valueChanged.connect(self.on_crop_settings_changed)
         self.shrink_x_spinbox.valueChanged.connect(self.on_crop_settings_changed)
@@ -1997,8 +2029,14 @@ class BottleDetectionGUI(QWidget):
             cap_image = None
             line_image = None  # ภาพรวมบรรทัด (สูงสุด 3 บรรทัด) สำหรับช่องภาพบรรทัดในประวัติ
             faded_status = None
+            faded_text_score = None  # score from cap_fade_model (ฝาจาง)
             total_area = None  # Initialize total_area
             num_chars = None   # Initialize num_chars
+            # ความมั่นใจ OCR หลังครอปบรรทัดฝา (Deep OCR ต่อบรรทัด)
+            line_crop_mean_confidence = None
+            line_crop_min_confidence = None
+            line_crop_max_confidence = None
+            line_crop_line_count = None
             
             if cap_result:
                 # Try to get OCR results from different possible locations
@@ -2021,16 +2059,46 @@ class BottleDetectionGUI(QWidget):
                     elif isinstance(ocr_results, list):
                         line_results = ocr_results
                 
+                # รวมความมั่นใจ OCR ต่อบรรทัดหลัง CRAFT ครอป (confidence_score)
+                _line_confs = []
+                for _lr in line_results:
+                    if isinstance(_lr, dict) and _lr.get('confidence_score') is not None:
+                        try:
+                            _line_confs.append(float(_lr['confidence_score']))
+                        except (TypeError, ValueError):
+                            pass
+                if _line_confs:
+                    line_crop_mean_confidence = sum(_line_confs) / len(_line_confs)
+                    line_crop_min_confidence = min(_line_confs)
+                    line_crop_max_confidence = max(_line_confs)
+                    line_crop_line_count = len(_line_confs)
+                elif isinstance(ocr_results, dict) and ocr_results.get('overall_confidence') is not None:
+                    try:
+                        line_crop_mean_confidence = float(ocr_results['overall_confidence'])
+                    except (TypeError, ValueError):
+                        pass
+                
                 # Get lines 1-3 for expiry date display (แสดงบรรทัดที่ 1-3 ที่อ่านได้)
                 expiry_lines = []
                 for i, line in enumerate(line_results[:3]):  # Get first 3 lines only
+                    line_conf = None
                     if isinstance(line, dict):
                         line_text = line.get('recognized_text', '')
+                        # Deep OCR ให้ confidence_score ต่อบรรทัด (ต่อบรรทัดหลัง CRAFT crop)
+                        line_conf = line.get('confidence_score', None)
                     else:
                         line_text = str(line)
                     
                     if line_text:
-                        expiry_lines.append(line_text)
+                        # แสดงความมั่นใจของโมเดลในบรรทัดเดียวกัน
+                        if line_conf is not None:
+                            try:
+                                line_conf_f = float(line_conf)
+                                expiry_lines.append(f"{line_text} (ความมั่นใจ {line_conf_f:.4f})")
+                            except (TypeError, ValueError):
+                                expiry_lines.append(line_text)
+                        else:
+                            expiry_lines.append(line_text)
                         print(f"✅ HISTORY: Line {i+1}: {line_text}")
                 
                 # Join lines 1-3 with newline
@@ -2143,31 +2211,37 @@ class BottleDetectionGUI(QWidget):
                 
                 # สร้างภาพรวมบรรทัด (สูงสุด 3 บรรทัด) สำหรับช่อง "ภาพบรรทัด" ในประวัติ
                 line_image = None
+                # ใช้ภาพครอปจาก CRAFT โดยตรง (เหมือน Step 3) — ไม่ใช้ภาพจาก OCR line_results
+                line_images = []
                 if line_detection_result and line_detection_result.get('cropped_lines'):
                     cropped_lines = line_detection_result['cropped_lines']
-                    line_images = []
                     for ld in cropped_lines[:3]:
                         if isinstance(ld, dict) and ld.get('image') is not None and hasattr(ld['image'], 'shape'):
                             line_images.append(np.asarray(ld['image'], dtype=np.uint8))
-                    if line_images:
-                        try:
-                            max_width = max(img.shape[1] for img in line_images)
-                            total_height = sum(img.shape[0] for img in line_images) + (len(line_images) - 1) * 5
-                            combined = np.ones((total_height, max_width, 3), dtype=np.uint8) * 255
-                            y_offset = 0
-                            for line_img in line_images:
+                if not line_images and line_results and isinstance(line_results, list):
+                    for ld in line_results[:3]:
+                        if isinstance(ld, dict) and ld.get('image') is not None and hasattr(ld['image'], 'shape'):
+                            line_images.append(np.asarray(ld['image'], dtype=np.uint8))
+
+                if line_images:
+                    try:
+                        max_width = max(img.shape[1] for img in line_images)
+                        total_height = sum(img.shape[0] for img in line_images) + (len(line_images) - 1) * 5
+                        combined = np.ones((total_height, max_width, 3), dtype=np.uint8) * 255
+                        y_offset = 0
+                        for line_img in line_images:
+                            h, w = line_img.shape[:2]
+                            if len(line_img.shape) == 2:
+                                line_img = cv2.cvtColor(line_img, cv2.COLOR_GRAY2BGR)
+                            if w > max_width:
+                                line_img = cv2.resize(line_img, (max_width, int(h * max_width / w)))
                                 h, w = line_img.shape[:2]
-                                if len(line_img.shape) == 2:
-                                    line_img = cv2.cvtColor(line_img, cv2.COLOR_GRAY2BGR)
-                                if w > max_width:
-                                    line_img = cv2.resize(line_img, (max_width, int(h * max_width / w)))
-                                    h, w = line_img.shape[:2]
-                                x_offset = (max_width - w) // 2
-                                combined[y_offset:y_offset+h, x_offset:x_offset+w] = line_img[:, :, :3]
-                                y_offset += h + 5
-                            line_image = combined
-                        except Exception as e:
-                            print(f"⚠️ HISTORY: Build line image failed: {e}")
+                            x_offset = (max_width - w) // 2
+                            combined[y_offset:y_offset+h, x_offset:x_offset+w] = line_img[:, :, :3]
+                            y_offset += h + 5
+                        line_image = combined
+                    except Exception as e:
+                        print(f"⚠️ HISTORY: Build line image failed: {e}")
                 
                 # Extract faded status and area from cap result
                 if 'cap_processing_results' in cap_result and len(cap_result['cap_processing_results']) > 0:
@@ -2175,6 +2249,7 @@ class BottleDetectionGUI(QWidget):
                     if 'faded_text_result' in first_cap:
                         faded_text_result = first_cap['faded_text_result']
                         faded_status = faded_text_result.get('status', None)
+                        faded_text_score = faded_text_result.get('score', None)
                         total_area = faded_text_result.get('total_area', None)
                         num_chars = faded_text_result.get('num_chars', None)
                         normalized_area = faded_text_result.get('normalized_area', None)
@@ -2182,6 +2257,7 @@ class BottleDetectionGUI(QWidget):
                 elif 'faded_text_result' in cap_result:
                     faded_text_result = cap_result['faded_text_result']
                     faded_status = faded_text_result.get('status', None)
+                    faded_text_score = faded_text_result.get('score', None)
                     total_area = faded_text_result.get('total_area', None)
                     num_chars = faded_text_result.get('num_chars', None)
                     normalized_area = faded_text_result.get('normalized_area', None)
@@ -2254,17 +2330,95 @@ class BottleDetectionGUI(QWidget):
             # ขวด: Good/NG และ score จาก defect_inspection (angle1)
             bottle_defect = None
             bottle_defect_score = None
+            bottle_angle1_confidence = None
+            bottle_type_confidence = None
+            type_easyocr_mean_confidence = None
+            type_easyocr_min_confidence = None
+            type_easyocr_max_confidence = None
+            type_easyocr_line_count = None
+            try:
+                if isinstance(bottle_result, dict):
+                    summary = bottle_result.get('summary') or {}
+                    bottle_angle1_confidence = summary.get('angle1_confidence')
+                    bottle_type_confidence = summary.get('type_confidence')
+                    type_easyocr_mean_confidence = bottle_result.get('type_easyocr_mean_confidence')
+                    type_easyocr_min_confidence = bottle_result.get('type_easyocr_min_confidence')
+                    type_easyocr_max_confidence = bottle_result.get('type_easyocr_max_confidence')
+                    type_easyocr_line_count = bottle_result.get('type_easyocr_line_count')
+            except Exception:
+                pass
             if bottle_result.get('defect_inspection'):
                 di = bottle_result['defect_inspection']
                 bottle_defect = di.get('result')  # "Good" or "NG"
                 if 'score' in di:
                     bottle_defect_score = di['score']
-            # ฝา: ผ่าน/ไม่ผ่าน จาก faded_status (normal=ผ่าน, faded=ไม่ผ่าน)
+            # ฝา: ผ่าน/ไม่ผ่าน + เหตุผล NG
             cap_status = None
-            if cap_result and faded_status is not None:
+            cap_ng_reason = None
+            cap_error = None
+            cap_confidence = None
+            if cap_result and isinstance(cap_result, dict):
+                cap_error = cap_result.get('error')
+            if cap_result and cap_error:
+                cap_status = "ไม่ผ่าน"
+                if cap_error == "faded_text_detected":
+                    cap_ng_reason = "ข้อความจาง"
+                elif cap_error == "Timeout":
+                    cap_ng_reason = "หมดเวลาประมวลผล"
+                elif cap_error == "Cap detector model not loaded":
+                    cap_ng_reason = "โมเดลตรวจจับฝายังไม่พร้อม"
+                else:
+                    cap_ng_reason = str(cap_error)
+            elif cap_result and faded_status is not None:
                 cap_status = "ผ่าน" if faded_status == 'normal' else "ไม่ผ่าน"
+                if faded_status != 'normal':
+                    cap_ng_reason = "ข้อความจาง"
             elif cap_result:
-                cap_status = "ผ่าน"  # มีผลฝาแต่ไม่มี faded_status ให้ถือว่าผ่าน
+                cap_status = "ผ่าน"  # มีผลฝาและไม่มี error ให้ถือว่าผ่าน
+            
+            # Cap detection confidence (จาก cap_detector; เก็บไว้เป็น cap_confidence ใน cap_processing_results)
+            try:
+                if cap_result and isinstance(cap_result, dict):
+                    cap_processing_results = cap_result.get('cap_processing_results') or []
+                    if isinstance(cap_processing_results, list) and len(cap_processing_results) > 0:
+                        first_cap = cap_processing_results[0]
+                        if isinstance(first_cap, dict):
+                            cap_confidence = first_cap.get('cap_confidence')
+                    if cap_confidence is None:
+                        cap_confidence = cap_result.get('cap_confidence')
+            except Exception:
+                pass
+
+            # มุมหมุนฝา (CRAFT + retry/AI) สำหรับ History
+            cap_craft_deskew_deg = None
+            cap_craft_edge_deg = None
+            cap_retry_rotation_deg = None
+            cap_ai_rotation_deg = None
+            try:
+                if cap_result and isinstance(cap_result, dict):
+                    cap_craft_deskew_deg = cap_result.get("craft_deskew_rotation_deg")
+                    cap_craft_edge_deg = cap_result.get("craft_angle_edge_deg")
+                    cr_top = cap_result.get("combined_result")
+                    if isinstance(cr_top, dict):
+                        if cr_top.get("rotation_angle") is not None:
+                            cap_retry_rotation_deg = cr_top.get("rotation_angle")
+                        if cr_top.get("ai_rotation_angle") is not None:
+                            cap_ai_rotation_deg = cr_top.get("ai_rotation_angle")
+                    cpr = cap_result.get("cap_processing_results") or []
+                    if isinstance(cpr, list) and len(cpr) > 0 and isinstance(cpr[0], dict):
+                        fc = cpr[0]
+                        if cap_craft_deskew_deg is None:
+                            cap_craft_deskew_deg = fc.get("craft_deskew_rotation_deg")
+                        if cap_craft_edge_deg is None:
+                            cap_craft_edge_deg = fc.get("craft_angle_edge_deg")
+                        cmb = fc.get("combined_result")
+                        if isinstance(cmb, dict):
+                            if cap_retry_rotation_deg is None and cmb.get("rotation_angle") is not None:
+                                cap_retry_rotation_deg = cmb.get("rotation_angle")
+                            if cap_ai_rotation_deg is None and cmb.get("ai_rotation_angle") is not None:
+                                cap_ai_rotation_deg = cmb.get("ai_rotation_angle")
+            except Exception:
+                pass
             
             # Initialize normalized_area if not already set
             if 'normalized_area' not in locals():
@@ -2279,12 +2433,29 @@ class BottleDetectionGUI(QWidget):
                 'expiry_date': expiry_date,
                 'ocr_text': ocr_text,
                 'faded_status': faded_status,
+                'faded_text_score': faded_text_score,
                 'total_area': total_area,
                 'num_chars': num_chars,
                 'normalized_area': normalized_area,
                 'bottle_defect': bottle_defect,
                 'bottle_defect_score': bottle_defect_score,
-                'cap_status': cap_status
+                'bottle_angle1_confidence': bottle_angle1_confidence,
+                'bottle_type_confidence': bottle_type_confidence,
+                'type_easyocr_mean_confidence': type_easyocr_mean_confidence,
+                'type_easyocr_min_confidence': type_easyocr_min_confidence,
+                'type_easyocr_max_confidence': type_easyocr_max_confidence,
+                'type_easyocr_line_count': type_easyocr_line_count,
+                'line_crop_mean_confidence': line_crop_mean_confidence,
+                'line_crop_min_confidence': line_crop_min_confidence,
+                'line_crop_max_confidence': line_crop_max_confidence,
+                'line_crop_line_count': line_crop_line_count,
+                'cap_status': cap_status,
+                'cap_ng_reason': cap_ng_reason,
+                'cap_confidence': cap_confidence,
+                'cap_craft_deskew_deg': cap_craft_deskew_deg,
+                'cap_craft_edge_deg': cap_craft_edge_deg,
+                'cap_retry_rotation_deg': cap_retry_rotation_deg,
+                'cap_ai_rotation_deg': cap_ai_rotation_deg,
             }
             
             # Add to history list (จำกัดจำนวน — ดึงของเก่าออกเมื่อเกิน)
@@ -2368,12 +2539,29 @@ class BottleDetectionGUI(QWidget):
                 timestamp=history_entry.get('timestamp'),
                 ocr_text=history_entry.get('ocr_text', ''),
                 faded_status=history_entry.get('faded_status'),
+                faded_text_score=history_entry.get('faded_text_score'),
                 total_area=history_entry.get('total_area'),
                 num_chars=history_entry.get('num_chars'),
                 normalized_area=history_entry.get('normalized_area'),
                 bottle_defect=history_entry.get('bottle_defect'),
                 bottle_defect_score=history_entry.get('bottle_defect_score'),
+                bottle_angle1_confidence=history_entry.get('bottle_angle1_confidence'),
+                bottle_type_confidence=history_entry.get('bottle_type_confidence'),
+                type_easyocr_mean_confidence=history_entry.get('type_easyocr_mean_confidence'),
+                type_easyocr_min_confidence=history_entry.get('type_easyocr_min_confidence'),
+                type_easyocr_max_confidence=history_entry.get('type_easyocr_max_confidence'),
+                type_easyocr_line_count=history_entry.get('type_easyocr_line_count'),
+                line_crop_mean_confidence=history_entry.get('line_crop_mean_confidence'),
+                line_crop_min_confidence=history_entry.get('line_crop_min_confidence'),
+                line_crop_max_confidence=history_entry.get('line_crop_max_confidence'),
+                line_crop_line_count=history_entry.get('line_crop_line_count'),
                 cap_status=history_entry.get('cap_status'),
+                cap_ng_reason=history_entry.get('cap_ng_reason'),
+                cap_confidence=history_entry.get('cap_confidence'),
+                cap_craft_deskew_deg=history_entry.get('cap_craft_deskew_deg'),
+                cap_craft_edge_deg=history_entry.get('cap_craft_edge_deg'),
+                cap_retry_rotation_deg=history_entry.get('cap_retry_rotation_deg'),
+                cap_ai_rotation_deg=history_entry.get('cap_ai_rotation_deg'),
                 gui_instance=self
             )
             layout.addWidget(item_widget)
@@ -2524,7 +2712,7 @@ class BottleDetectionGUI(QWidget):
             print(f"❌ ERROR: cap_detector is None after initialization!")
         if self.line_detector and hasattr(self, 'padding_spinbox'):
             self.padding_spinbox.setValue(self.line_detector.settings.get('padding', 0))
-            shrink_x = self.line_detector.settings.get('shrink_x_percent', 0.02) * 100.0
+            shrink_x = self.line_detector.settings.get('shrink_x_percent', 0.0) * 100.0
             shrink_y = self.line_detector.settings.get('shrink_y_percent', 0.10) * 100.0
             max_hr = self.line_detector.settings.get('max_height_ratio', 0.1) * 100.0
             self.shrink_x_spinbox.setValue(shrink_x)
@@ -2618,7 +2806,7 @@ class BottleDetectionGUI(QWidget):
             # Update settings UI with current values
             if self.line_detector and hasattr(self, 'padding_spinbox'):
                 self.padding_spinbox.setValue(self.line_detector.settings.get('padding', 0))
-                shrink_x_percent = self.line_detector.settings.get('shrink_x_percent', 0.02) * 100.0
+                shrink_x_percent = self.line_detector.settings.get('shrink_x_percent', 0.0) * 100.0
                 shrink_y_percent = self.line_detector.settings.get('shrink_y_percent', 0.10) * 100.0
                 max_height_ratio = self.line_detector.settings.get('max_height_ratio', 0.1) * 100.0
                 self.shrink_x_spinbox.setValue(shrink_x_percent)
@@ -2637,6 +2825,14 @@ class BottleDetectionGUI(QWidget):
             
             # Optimize OCR settings for better number recognition
             self.optimize_ocr_for_numbers()
+
+            # Apply normalize format toggle to OCR model (if model loaded)
+            try:
+                if getattr(self, 'ocr_model', None) is not None and hasattr(self, 'enable_normalize_format'):
+                    self.ocr_model.update_settings(enable_normalize_format=self.enable_normalize_format)
+                    print(f"✅ OCR normalize_format applied: {self.enable_normalize_format}")
+            except Exception as e:
+                print(f"⚠️ Could not apply OCR normalize_format setting: {e}")
             
             # ฝาจางใช้ cap_fade_model.h5 (libs.detection.cap_fade_model) แทน YOLO
             self.faded_text_yolo_model = None
@@ -2765,46 +2961,7 @@ class BottleDetectionGUI(QWidget):
             
             # รอให้ Modbus เชื่อมต่อสำเร็จก่อน
             QTimer.singleShot(2000, self.modbus_handlers.initialize_modbus_state)
-            
-            # ตั้งค่าโหมดเริ่มต้น - เขียนค่า ID ที่เลือกอยู่ไปที่ D5500
-            def write_initial_mode():
-                """Write initial mode ID to D5500"""
-                try:
-                    if self.modbus_thread and self.modbus_thread.modbus_client and self.modbus_thread.modbus_client.is_socket_open():
-                        mode_text = self.mode_combo.currentText()
-                        if mode_text == "ID 7 full auto":
-                            success = self.modbus_thread.write_register(5500, 7)
-                            if success:
-                                print("✅ INITIAL MODE: D5500 = 7 (ID 7 full auto mode)")
-                                self.modbus_thread.capture_only_mode = False
-                            else:
-                                print("❌ INITIAL MODE: Failed to write D5500 = 7")
-                        elif mode_text == "ID 5 capture only":
-                            success = self.modbus_thread.write_register(5500, 5)
-                            if success:
-                                print("✅ INITIAL MODE: D5500 = 5 (ID 5 capture only mode)")
-                                self.modbus_thread.capture_only_mode = True
-                                self.modbus_handlers.create_capture_folders()
-                            else:
-                                print("❌ INITIAL MODE: Failed to write D5500 = 5")
-                        elif mode_text == "ID 8 reset modbus":
-                            success = self.modbus_thread.write_register(5500, 8)
-                            if success:
-                                print("✅ INITIAL MODE: D5500 = 8 (ID 8 reset modbus mode)")
-                                # Reset modbus to initial state
-                                print("🔄 INITIAL MODE: Resetting Modbus to initial state...")
-                                self.modbus_handlers.reset_to_initial_state()
-                                print("✅ INITIAL MODE: Modbus reset completed")
-                            else:
-                                print("❌ INITIAL MODE: Failed to write D5500 = 8")
-                            self.modbus_thread.capture_only_mode = False
-                    else:
-                        # ถ้ายังไม่พร้อม ให้ลองอีกครั้งใน 500ms
-                        QTimer.singleShot(500, write_initial_mode)
-                except Exception as e:
-                    print(f"❌ INITIAL MODE ERROR: {e}")
-            
-            QTimer.singleShot(2500, write_initial_mode)
+            # โหมดโปรแกรมตาม D5500 บน PLC — Modbus thread อ่าน D5500 แล้วส่ง d5500_program_id_updated มาซิงก์ combo (ไม่เขียนทับค่า PLC ตอนเปิดแอป)
             
             print("⏸️ โปรแกรมพร้อมทำงาน (รอ M511 เพื่อเริ่มการทำงาน)")
         except Exception as e:
@@ -3021,6 +3178,51 @@ class BottleDetectionGUI(QWidget):
             
         except Exception as e:
             print(f"❌ Error updating histogram matching settings: {e}")
+
+    def on_defect_inspection_settings_changed(self):
+        """Update defect inspection enable/disable flags for next processing."""
+        try:
+            self.enable_bottle_defect_detection = bool(self.bottle_defect_check.isChecked())
+            self.enable_cap_fade_detection = bool(self.cap_defect_check.isChecked())
+            print("✅ Defect Inspection Settings Updated:")
+            print(f"   Enable bottle defect: {self.enable_bottle_defect_detection}")
+            print(f"   Enable cap fade: {self.enable_cap_fade_detection}")
+        except Exception as e:
+            print(f"❌ Error updating defect inspection settings: {e}")
+
+    def on_bottle_sharpen_settings_changed(self):
+        """Update bottle sharpen settings for next bottle processing."""
+        try:
+            from config import settings as config_settings
+            enable = bool(self.bottle_sharpen_enable_check.isChecked())
+            amount = float(self.bottle_sharpen_amount_spinbox.value())
+            sigma = float(self.bottle_sharpen_sigma_spinbox.value())
+
+            config_settings.BOTTLE_ENABLE_SHARPEN = enable
+            config_settings.BOTTLE_SHARPEN_AMOUNT = amount
+            config_settings.BOTTLE_SHARPEN_SIGMA = sigma
+
+            print("✅ Bottle Sharpen Settings Updated:")
+            print(f"   Enable sharpen: {enable}")
+            print(f"   Sharpen amount: {amount:.2f}")
+            print(f"   Sharpen sigma: {sigma:.2f}")
+        except Exception as e:
+            print(f"❌ Error updating bottle sharpen settings: {e}")
+
+    def on_ocr_normalize_format_settings_changed(self):
+        """Toggle normalize_cap_format in DeepOCR (จัดรูปแบบ 3 บรรทัดสำหรับฝา)."""
+        try:
+            self.enable_normalize_format = bool(self.normalize_format_check.isChecked())
+            print("✅ OCR Normalize Format Settings Updated:")
+            print(f"   Enable normalize format: {self.enable_normalize_format}")
+            if getattr(self, 'ocr_model', None) is not None:
+                try:
+                    self.ocr_model.update_settings(enable_normalize_format=self.enable_normalize_format)
+                    print("   ✅ Applied to active ocr_model")
+                except Exception as e:
+                    print(f"❌ Error applying to ocr_model: {e}")
+        except Exception as e:
+            print(f"❌ Error updating OCR normalize format settings: {e}")
     
     def on_crop_settings_changed(self):
         """Handle crop settings change"""
@@ -3512,6 +3714,26 @@ class BottleDetectionGUI(QWidget):
             print(f"❌ CAP VALIDATION ERROR: {e}")
             return False
     
+    def _strict_cap_expiry_format(self, ocr_text) -> bool:
+        """
+        ฝา 3 บรรทัดมาตรฐาน: MFG วัน/เดือน/ปี, BBF วัน/เดือน/ปี, เวลา xx:xxSxx
+        ต้องมีปี (2 หรือ 4 หลัก) ครบทั้ง MFG และ BBF — ไม่ยอมรับแค่ MFG25/09 หรือ BBF13/10/
+        """
+        import re
+        if not ocr_text or not isinstance(ocr_text, str):
+            return False
+        t = self._normalize_ocr_date_text(ocr_text.strip())
+        mfg = re.search(r'(?i)MFG\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:\D|$)', t)
+        bbf = re.search(r'(?i)BBF\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:\D|$)', t)
+        time_m = re.search(r'(?i)(?:^|[\s;|])(\d{1,2})\s*:\s*(\d{1,2})\s*S\s*(\d{1,2})(?:\D|$)', t)
+        ok = bool(mfg and bbf and time_m)
+        if not ok:
+            print(
+                f"🔍 STRICT CAP FORMAT: fail — mfg={bool(mfg)}, bbf={bool(bbf)}, time={bool(time_m)} "
+                f"(preview: {t[:70]!r}{'...' if len(t) > 70 else ''})"
+            )
+        return ok
+    
     def _compute_cap_verdict_for_display(self, cap_result):
         """คำนวณผลฝาเพื่อแสดงป้าย PASS/NG บนหน้าหลัก (ไม่ส่ง Modbus)"""
         try:
@@ -3550,35 +3772,10 @@ class BottleDetectionGUI(QWidget):
         try:
             print(f"🔍 DATE TIME VALIDATION: Checking format for text: '{ocr_text[:50]}...'")  # แสดงแค่ 50 ตัวอักษรแรก
             
-            # รูปแบบที่ยอมรับ: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
-            date_patterns = [
-                r'\d{1,2}[/-]\d{1,2}[/-]\d{4}',  # DD/MM/YYYY หรือ DD-MM-YYYY
-                r'\d{1,2}\.\d{1,2}\.\d{4}',      # DD.MM.YYYY
-                r'\d{4}[/-]\d{1,2}[/-]\d{1,2}',  # YYYY/MM/DD หรือ YYYY-MM-DD
-                r'\d{4}\.\d{1,2}\.\d{1,2}',      # YYYY.MM.DD
-            ]
-            
-            # รูปแบบเวลาที่ยอมรับ: HH:MM, HH:MM:SS
-            time_patterns = [
-                r'\d{1,2}:\d{2}(:\d{2})?',       # HH:MM หรือ HH:MM:SS
-            ]
-            
-            import re
-            from datetime import datetime
-            
-            # ตรวจสอบว่ามีรูปแบบวันที่หรือไม่
-            has_date = any(re.search(pattern, ocr_text) for pattern in date_patterns)
-            
-            # ตรวจสอบว่ามีรูปแบบเวลาหรือไม่
-            has_time = any(re.search(pattern, ocr_text) for pattern in time_patterns)
-            
-            # ต้องมีอย่างน้อยรูปแบบวันที่หรือเวลา
-            format_valid = has_date or has_time
-            
-            print(f"🔍 DATE TIME VALIDATION: has_date={has_date}, has_time={has_time}, format_valid={format_valid}")
-            
-            # ถ้ารูปแบบไม่ถูกต้อง ให้ return False
-            if not format_valid:
+            # บังคับ MFG + BBF มี วัน/เดือน/ปี ครบ และบรรทัดเวลา xx:xxSxx (ไม่ผ่านถ้ามีแค่เวลาหรือวันที่ไม่มีปี)
+            if not self._strict_cap_expiry_format(ocr_text):
+                self._last_cap_fail_reason = "รูปแบบวันที่ไม่ครบ (ต้อง MFG/BBF วัน/เดือน/ปี + เวลา xx:xxSxx)"
+                print("❌ DATE TIME VALIDATION: strict cap format failed (NG)")
                 return False
             
             # ล้างเหตุผลฝาไม่ผ่านจากรอบก่อน (จะตั้งใหม่ถ้าไม่ผ่านเพราะวันที่)
@@ -3609,7 +3806,7 @@ class BottleDetectionGUI(QWidget):
                 
                 return filter_result
             
-            return format_valid
+            return True
             
         except Exception as e:
             print(f"❌ DATE TIME VALIDATION ERROR: {e}")
@@ -3767,6 +3964,26 @@ class BottleDetectionGUI(QWidget):
             import traceback
             traceback.print_exc()
     
+    def _format_craft_rotation_gui_text(self, src: dict) -> str:
+        """
+        ข้อความมุมจาก CRAFT / apply_craft_rotation สำหรับแสดงใน GUI
+        (craft_deskew_rotation_deg = มุมที่ warp ให้ข้อความราบ, craft_angle_edge_deg = มุมขอบยาวสุดของกรอบ)
+        """
+        parts = []
+        deskew = src.get("craft_deskew_rotation_deg")
+        edge = src.get("craft_angle_edge_deg")
+        if deskew is not None:
+            try:
+                parts.append(f"หมุนจัดแนวราบ: {float(deskew):.2f}°")
+            except (TypeError, ValueError):
+                parts.append(f"หมุนจัดแนวราบ: {deskew}°")
+        if edge is not None:
+            try:
+                parts.append(f"มุมขอบยาวสุด (กรอบ CRAFT): {float(edge):.2f}°")
+            except (TypeError, ValueError):
+                parts.append(f"มุมขอบยาวสุด (กรอบ CRAFT): {edge}°")
+        return "  |  ".join(parts) if parts else ""
+
     def display_cap_detection_results(self, result):
         """Display cap detection results with step-by-step images"""
         try:
@@ -3911,6 +4128,7 @@ class BottleDetectionGUI(QWidget):
                 # Track which caps we've already rendered OCR/Step3 for (บาง flow อาจมี cap_index ซ้ำใน cap_processing_results)
                 rendered_ocr_caps = set()
                 rendered_line_caps = set()
+                rendered_craft_caps = set()
                 # Display full pipeline results for each cap
                 for cap_index, cap_result in enumerate(result['cap_processing_results']):
                         print(f"🔍 DEBUG: Cap {cap_index+1} result keys: {list(cap_result.keys())}")
@@ -4040,9 +4258,63 @@ class BottleDetectionGUI(QWidget):
                                 debug_layout.addLayout(debug_images_layout)
                                 self.cap_results_layout.addWidget(debug_container)
                         
-                        # CRAFT rotated image ใช้ภายใน pipeline เท่านั้น ไม่ต้องแสดงซ้ำใน UI
-                        if cap_result.get('craft_rotated_image') is not None:
-                            pass
+                        # Step 2a: ภาพหมุนจาก CRAFT (กรอบ + deskew) — แสดงครั้งเดียวต่อ cap_index
+                        if (
+                            cap_result.get("craft_rotated_image") is not None
+                            and hasattr(cap_result["craft_rotated_image"], "shape")
+                            and cap_index not in rendered_craft_caps
+                        ):
+                            craft_container = QWidget()
+                            craft_container.setStyleSheet(
+                                "border: 2px solid #8e44ad; margin: 5px; padding: 5px; background-color: white;"
+                            )
+                            craft_layout = QVBoxLayout(craft_container)
+                            craft_title = QLabel(
+                                f"🔄 Step 2a: ภาพที่ CRAFT หมุนแล้ว (ฝาที่ {cap_index + 1})"
+                            )
+                            craft_title.setStyleSheet(
+                                "font-weight: bold; color: #8e44ad; font-size: 12px;"
+                            )
+                            craft_title.setAlignment(Qt.AlignCenter)
+                            craft_layout.addWidget(craft_title)
+                            craft_angle_txt = self._format_craft_rotation_gui_text(cap_result)
+                            if craft_angle_txt:
+                                craft_angle_lbl = QLabel(f"📐 {craft_angle_txt}")
+                                craft_angle_lbl.setStyleSheet(
+                                    "font-size: 10px; color: #6c3483; padding: 2px;"
+                                )
+                                craft_angle_lbl.setAlignment(Qt.AlignCenter)
+                                craft_angle_lbl.setWordWrap(True)
+                                craft_layout.addWidget(craft_angle_lbl)
+                            craft_image = cap_result["craft_rotated_image"]
+                            h, w = craft_image.shape[:2]
+                            max_size = 200
+                            if h > max_size or w > max_size:
+                                scale = max_size / max(h, w)
+                                new_w, new_h = int(w * scale), int(h * scale)
+                                craft_image = cuda_resize(craft_image, (new_w, new_h))
+                            rgb_craft = cuda_cvtColor(craft_image, cv2.COLOR_BGR2RGB)
+                            h, w, c = rgb_craft.shape
+                            bytes_per_line = c * w
+                            qimg = QtGui.QImage(
+                                rgb_craft.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888
+                            )
+                            pixmap = QtGui.QPixmap.fromImage(qimg)
+                            craft_label = QLabel()
+                            craft_label.setPixmap(pixmap)
+                            craft_label.setAlignment(Qt.AlignCenter)
+                            craft_label.setCursor(Qt.PointingHandCursor)
+                            craft_full = cap_result.get("craft_rotated_image")
+                            craft_label.mouseDoubleClickEvent = (
+                                lambda e, img=craft_full: self.show_image_zoom_popup(
+                                    img, f"CRAFT rotated cap {cap_index + 1}"
+                                )
+                                if img is not None
+                                else None
+                            )
+                            craft_layout.addWidget(craft_label)
+                            self.cap_results_layout.addWidget(craft_container)
+                            rendered_craft_caps.add(cap_index)
                         
                         # ภาพที่หมุนสำหรับ OCR (rotated_image) ถูกแสดงในส่วนรวมด้านล่างแล้ว
                         # ไม่ต้องแสดงซ้ำในบล็อก per-cap นี้
@@ -4084,6 +4356,7 @@ class BottleDetectionGUI(QWidget):
                                     line_layout.addWidget(lines_title)
 
                                     for line_idx, line_data in enumerate(line_result['cropped_lines'][:3]):  # Show max 3 lines
+                                        line_image = None
                                         if isinstance(line_data, dict) and 'image' in line_data:
                                             line_image = line_data['image']
                                         elif hasattr(line_data, 'shape'):
@@ -4184,6 +4457,14 @@ class BottleDetectionGUI(QWidget):
                     craft_title.setStyleSheet("font-weight: bold; color: #8e44ad; font-size: 12px;")
                     craft_title.setAlignment(Qt.AlignCenter)
                     craft_layout.addWidget(craft_title)
+
+                    craft_angle_txt = self._format_craft_rotation_gui_text(result)
+                    if craft_angle_txt:
+                        craft_angle_lbl = QLabel(f"📐 {craft_angle_txt}")
+                        craft_angle_lbl.setStyleSheet("font-size: 10px; color: #6c3483; padding: 2px;")
+                        craft_angle_lbl.setAlignment(Qt.AlignCenter)
+                        craft_angle_lbl.setWordWrap(True)
+                        craft_layout.addWidget(craft_angle_lbl)
                     
                     # Display CRAFT rotated image
                     craft_image = result['craft_rotated_image']
@@ -4289,6 +4570,9 @@ class BottleDetectionGUI(QWidget):
                         # CRAFT rotation
                         if cap_result.get('craft_rotated_image') is not None:
                             cap_text += f"\n  ✅ Step 2a: CRAFT rotation - สำเร็จ"
+                            _craft_ang = self._format_craft_rotation_gui_text(cap_result)
+                            if _craft_ang:
+                                cap_text += f"\n     📐 {_craft_ang}"
                             
                             # AI rotation
                             if cap_result.get('ai_rotated_image') is not None:
@@ -4372,6 +4656,9 @@ class BottleDetectionGUI(QWidget):
                 # Step 2a: CRAFT
                 if result.get('craft_rotated_image') is not None:
                     cap_text += f"\n✅ Step 2a: ตรวจจับข้อความด้วย CRAFT - เสร็จสิ้น"
+                    _craft_full = self._format_craft_rotation_gui_text(result)
+                    if _craft_full:
+                        cap_text += f"\n   📐 {_craft_full}"
                     
                     # Step 2b: AI Rotation
                     if result.get('rotated_image') is not None:

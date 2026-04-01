@@ -216,6 +216,48 @@ def normalize_cap_format(line_results: List[Dict]) -> List[Dict]:
         out[0]['recognized_text'] = _normalize_cap_line1(texts[0], ref_yy=yy2)
     elif yy2 in small and yy1 in big and yy1[1] == yy2[1]:
         out[1]['recognized_text'] = _normalize_cap_line2(texts[1], ref_yy=yy1)
+
+    # ใช้ความสัมพันธ์วันผลิต → วันหมดอายุ (BBF = MFG + shelf_life_days)
+    # เพื่อแก้กรณี OCR อ่านวันหมดอายุคลาดเคลื่อน (เช่น เดือน/ปีเพี้ยน)
+    shelf_life_days = 18
+    try:
+        import datetime as _dt
+
+        def _parse_dd_mm_yy(s: str, prefix: str) -> Optional[_dt.date]:
+            if not s or not isinstance(s, str):
+                return None
+            # normalized format: MFGdd/mm/yy และ BBFdd/mm/yy
+            m = re.search(
+                rf'(?:{prefix})\s*(\d{{1,2}})/(\d{{1,2}})/(\d{{2,4}})',
+                s,
+                re.IGNORECASE,
+            )
+            if not m:
+                return None
+            day = int(m.group(1))
+            month = int(m.group(2))
+            year = int(m.group(3))
+            if year < 100:
+                year = year + 2000 if year < 50 else year + 1900
+            try:
+                return _dt.datetime(year, month, day).date()
+            except ValueError:
+                return None
+
+        mfg_date = _parse_dd_mm_yy(out[0].get('recognized_text', ''), 'MFG')
+        bbf_date_ocr = _parse_dd_mm_yy(out[1].get('recognized_text', ''), 'BBF')
+
+        if mfg_date is not None:
+            bbf_date_expected = mfg_date + _dt.timedelta(days=shelf_life_days)
+            yy = bbf_date_expected.year % 100
+            corrected_bbf_text = f"BBF{bbf_date_expected.day:02d}/{bbf_date_expected.month:02d}/{yy:02d}"
+
+            # ถ้า OCR อ่านมาไม่ตรงกับค่าที่คำนวณได้ ให้แทนด้วยค่าคำนวณจากความสัมพันธ์
+            if bbf_date_ocr is None or bbf_date_ocr != bbf_date_expected:
+                out[1]['recognized_text'] = corrected_bbf_text
+    except Exception:
+        # ถ้าคำนวณไม่ได้ ให้ใช้ค่าที่ OCR normalize ไว้แล้ว
+        pass
     return out
 
 # Import CUDA image utilities
@@ -326,7 +368,9 @@ class DeepOCRModel:
             'PAD': False,
             'batch_size': 1,
             'workers': 0,
-            'num_class': 67
+            'num_class': 67,
+            # Normalize cap OCR results into 3 lines (MFG/BBF/date) for downstream validation
+            'enable_normalize_format': True,
         }
         
         # Global variables for storing results (จำกัด ocr_history ป้องกัน memory เติบโตเมื่อรัน full auto นาน)
@@ -770,7 +814,7 @@ class DeepOCRModel:
                 'confidence_score': 0.0,
                 'image_path': image_path
             }
-    
+
     def recognize_text_from_craft_lines(self, craft_result: Dict) -> Dict:
         """
         Recognize text from CRAFT line detection result
@@ -796,19 +840,25 @@ class DeepOCRModel:
                     'total_lines': 0
                 }
             
+            # โปรแกรมหลักต้องการ "ภาพ 3 บรรทัด" ก่อนส่ง OCR
+            # (CRAFT มักจะ return <= max_lines อยู่แล้ว แต่กันไว้ก่อน)
+            cropped_lines = cropped_lines[:3]
+
             # Process each line
             line_results = []
             for line_data in cropped_lines:
                 line_idx = line_data['line_index']
                 line_image = line_data['image']
                 
-                # Recognize text for this line
+                # OCR จากภาพครอป CRAFT โดยตรง (ไม่ preprocess ก่อน — ให้ GUI ตรงกับขั้นตรวจจับบรรทัด)
                 ocr_result = self.recognize_text_from_image_array(line_image)
                 
                 raw_text = ocr_result.get('recognized_text', '')
+
                 line_results.append({
                     'line_index': line_idx,
                     'image': line_image,
+                    'raw_image': line_image,
                     'bbox': line_data.get('bbox'),
                     'num_characters': line_data.get('num_characters', 0),
                     'recognized_text': correct_ocr_duplicate_slash(raw_text),
@@ -817,7 +867,8 @@ class DeepOCRModel:
                 })
             
             # บังคับรูปแบบ cap 3 บรรทัด (MFGxx/xx/xx, BBFxx/xx/xx, xx:xxSxx) ถ้าเป็น cap; เกินตัด
-            line_results = normalize_cap_format(line_results)
+            if self.settings.get('enable_normalize_format', True):
+                line_results = normalize_cap_format(line_results)
             
             # Create combined result
             combined_result = {

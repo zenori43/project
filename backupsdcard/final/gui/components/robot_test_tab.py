@@ -82,7 +82,7 @@ def create_robot_test_tab():
     value_layout.addLayout(value_header_layout)
     
     # Value description
-    value_desc_label = QLabel("D5012: 1=Press, 0=Release | D5500: 7=ID7, 5=ID5, 8=ID8")
+    value_desc_label = QLabel("D5012: 1=Press, 0=Release | D5500: 7=ID7, 5=ID5, 8=ID8, 9=ID9 refill")
     value_desc_label.setStyleSheet("color: #7f8c8d; font-size: 10px; padding-left: 120px;")
     value_desc_label.setWordWrap(True)
     value_layout.addWidget(value_desc_label)

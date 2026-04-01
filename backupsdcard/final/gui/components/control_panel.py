@@ -175,12 +175,12 @@ def create_control_panel():
     widgets_dict['queue_status_indicator'] = queue_status
     
     # D5002 status
-    d5002_status = StatusIndicator("D5002: Waiting", "waiting")
+    d5002_status = StatusIndicator("Status: Waiting", "waiting")
     status_grid.addWidget(d5002_status, 2, 0)
     widgets_dict['d5002_status_indicator'] = d5002_status
     
     # D5001 status
-    d5001_status = StatusIndicator("D5001: Waiting", "waiting")
+    d5001_status = StatusIndicator("Alarm: Waiting", "waiting")
     status_grid.addWidget(d5001_status, 2, 1)
     widgets_dict['d5001_status_indicator'] = d5001_status
     

@@ -91,6 +91,12 @@ def apply_craft_rotation(image_bgr, craft_result):
 
     angle_edge, p1, p2 = compute_longest_edge_angle_and_points(box)
 
+    # เมื่อมุมขอบยาวสุดใกล้ ~80° กรอบ CRAFT มักคลาดเคลื่อน — ลด |มุม| ลง 5° ก่อนหมุนจริง
+    _ae_abs = abs(angle_edge)
+    if 72.0 <= _ae_abs <= 88.0:
+        _sign = 1.0 if angle_edge >= 0.0 else -1.0
+        angle_edge = angle_edge - _sign * 5.0
+
     a = angle_edge
     if a > 90.0:
         rotate_deg = 180.0 - a

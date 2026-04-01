@@ -17,6 +17,7 @@ import time
 import sys
 import os
 import platform
+import numpy as np
 
 from config.settings import (
     HARVESTERS_AVAILABLE,
@@ -82,6 +83,35 @@ except ImportError as e:
             return None
 
 
+def _sentech_buffer_to_image_array(component):
+    """
+    แปลง payload จาก Harvesters เป็น numpy (H,W) Mono8 — ต้อง copy ก่อนออกจาก with fetch()
+    เพราะบัฟเฟอร์จะถูก reuse ไม่งั้นภาพจะเพี้ยน/ดำทั้งกรอบหรือเหลือแถบบนๆ
+    """
+    image_data = component.data
+    if image_data is None:
+        return None
+    height = int(component.height)
+    width = int(component.width)
+    if len(image_data.shape) == 1:
+        need = height * width
+        if image_data.size < need:
+            print(f"⚠️ Sentech: buffer เล็กกว่า {width}x{height} ({image_data.size} < {need})")
+            return None
+        image = image_data.reshape((height, width))
+    else:
+        image = np.asarray(image_data)
+    if image.ndim == 2 and image.shape[1] > width:
+        image = image[:, :width]
+    try:
+        dih = int(component.delivered_image_height)
+    except Exception:
+        dih = 0
+    if dih > 0 and image.ndim >= 2 and dih < image.shape[0]:
+        image = image[:dih, ...]
+    return np.ascontiguousarray(image).copy()
+
+
 class SentechCamera:
     """Sentech camera class for cap detection - using Harvesters only"""
     
@@ -103,23 +133,8 @@ class SentechCamera:
                 time.sleep(0.1)
                 
                 with self._ia.fetch() as buffer:
-                    # Get image data
                     component = buffer.payload.components[0]
-                    image_data = component.data
-                    
-                    # Get dimensions
-                    height = component.height
-                    width = component.width
-                    
-                    # Reshape image data
-                    if len(image_data.shape) == 1:
-                        # 1D array - reshape to 2D
-                        # For Mono8, reshape to 2D grayscale
-                        image = image_data.reshape((height, width))
-                    else:
-                        image = image_data
-                    
-                    return image
+                    return _sentech_buffer_to_image_array(component)
             except Exception as e:
                 print(f"❌ Error getting image: {e}")
         return None
@@ -218,27 +233,18 @@ class SentechCamera:
                     pass
                 time.sleep(SENTECH_WAIT_NEW_FRAME)
                 with self._ia.fetch(timeout=1.5) as buffer:
-                    # Get image data
                     component = buffer.payload.components[0]
                     image_data = component.data
-                    
-                    # Get dimensions
-                    height = component.height
-                    width = component.width
-                    
-                    print(f"  Image data shape: {image_data.shape}")
+                    height = int(component.height)
+                    width = int(component.width)
+                    print(f"  Image data shape: {getattr(image_data, 'shape', None)}")
                     print(f"  Image dimensions: {width}x{height}")
-                    print(f"  Data type: {image_data.dtype}")
-                    print(f"  Min value: {image_data.min()}, Max value: {image_data.max()}")
-                    
-                    # Reshape image data
-                    if len(image_data.shape) == 1:
-                        # 1D array - reshape to 2D
-                        # For Mono8, reshape to 2D grayscale
-                        image = image_data.reshape((height, width))
-                    else:
-                        image = image_data
-                    
+                    if image_data is not None:
+                        print(f"  Data type: {image_data.dtype}")
+                        print(f"  Min value: {image_data.min()}, Max value: {image_data.max()}")
+                    image = _sentech_buffer_to_image_array(component)
+                    if image is not None:
+                        print(f"  Output array: {image.shape} (copy จากบัฟเฟอร์แล้ว)")
                     return image
                     
             except Exception as e:

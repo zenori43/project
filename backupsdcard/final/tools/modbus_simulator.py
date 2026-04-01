@@ -236,6 +236,7 @@ class ModbusSimulatorWindow(QMainWindow):
         self._add_toggle_btn(main_layout, 1, 0, "M401", 401, "M401 ON (reset M600 / แสดงผล)")
         self._add_toggle_btn(main_layout, 1, 1, "M402", 402, "M402 (ถ่ายซ้ำ angle3)")
         self._add_toggle_btn(main_layout, 1, 2, "M512", 512, "M512 (พร้อมรับ M513)")
+        self._add_toggle_btn(main_layout, 2, 0, "M453 ID9", 453, "ID 9 refill: หยุดโปรแกรม (main จะ reset coil)")
         layout.addWidget(main_group)
 
         # --- ประเภทขวด (M403-M406) ---
@@ -257,6 +258,7 @@ class ModbusSimulatorWindow(QMainWindow):
         self.mode_combo.addItem("5 - Capture only (ถ่ายอย่างเดียว)", 5)
         self.mode_combo.addItem("7 - Auto", 7)
         self.mode_combo.addItem("8 - ID 8 reset modbus", 8)
+        self.mode_combo.addItem("9 - ID 9 refill (main idle)", 9)
         self.btn_apply_mode = QPushButton("ตั้ง D5500")
         self.btn_apply_mode.clicked.connect(self.apply_d5500)
         mode_layout.addWidget(self.mode_combo)

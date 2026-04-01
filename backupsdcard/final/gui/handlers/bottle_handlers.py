@@ -74,6 +74,7 @@ class BottleBatchWorker(QThread):
         self.handler = handler
         # ใช้ selected_tastes จาก GUI
         self.selected_tastes = getattr(handler.gui, 'selected_tastes', ["M100", "M110", "M120"])
+        self.enable_bottle_defect_inspection = getattr(handler.gui, 'enable_bottle_defect_detection', True)
 
     def run(self):
         from libs.detection.bottledetect import process_bottle_image_simple
@@ -101,7 +102,10 @@ class BottleBatchWorker(QThread):
                     continue
                 
                 # ใช้ process_bottle_image_simple (รับ file_path)
-                result = process_bottle_image_simple(file_path)
+                result = process_bottle_image_simple(
+                    file_path,
+                    enable_defect_inspection=self.enable_bottle_defect_inspection,
+                )
                 
                 if result and "error" not in result:
                     # เพิ่ม image info
@@ -455,6 +459,9 @@ class BottleDetectionHandlers:
                         self.gui.btn_process_bottle_tab.setEnabled(True)
                     if hasattr(self.gui, 'btn_save_bottle_image_tab'):
                         self.gui.btn_save_bottle_image_tab.setEnabled(True)
+                    # Keep "Process both" state in sync when user selects bottle image manually
+                    if hasattr(self, '_update_process_paired_button_state'):
+                        self._update_process_paired_button_state()
                     self.gui.status_label.setText('✅ โหลดภาพสำเร็จ - พร้อมประมวลผล')
                     self.gui.status_label.setStyleSheet("color: #27ae60; padding: 5px;")
                     print(f"✅ IMAGE SELECTION: Successfully loaded image with shape: {image.shape}")
@@ -856,7 +863,11 @@ class BottleDetectionHandlers:
         self.silent_mode = True
         self._current_bottle_started_silent = True
         self.gui.progress_bar.setVisible(False)
-        self.gui.processing_thread = BottleDetectionThread(usb_image, selected_tastes=self.gui.selected_tastes)
+        self.gui.processing_thread = BottleDetectionThread(
+            usb_image,
+            selected_tastes=self.gui.selected_tastes,
+            enable_bottle_defect_inspection=getattr(self.gui, 'enable_bottle_defect_detection', True),
+        )
         self.gui.processing_thread.result_ready.connect(self.on_processing_complete)
         self.gui.processing_thread.start()
         print("🔇 SILENT PROCESS: ขวดเริ่มประมวลผล (ฝาจะเริ่มเมื่อขวด OK)")
@@ -949,7 +960,11 @@ class BottleDetectionHandlers:
                 print("🔇 SILENT PROCESS: Starting silent processing...")
                 self.gui.progress_bar.setVisible(False)
                 self._current_bottle_started_silent = True
-                self.gui.processing_thread = BottleDetectionThread(captured_image, selected_tastes=self.gui.selected_tastes)
+                self.gui.processing_thread = BottleDetectionThread(
+                    captured_image,
+                    selected_tastes=self.gui.selected_tastes,
+                    enable_bottle_defect_inspection=getattr(self.gui, 'enable_bottle_defect_detection', True),
+                )
                 self.gui.processing_thread.result_ready.connect(self.on_processing_complete)
                 self.gui.processing_thread.start()
                 print("🔇 SILENT PROCESS: Processing thread started")
@@ -983,9 +998,11 @@ class BottleDetectionHandlers:
                 if result.get('image') is not None:
                     self.display_result_image(result['image'])
             
-            # Display cropped images with OCR
+            # Display cropped images with OCR — ไม่มีครอปให้เคลียร์ภาพเก่า (ไม่ค้าง Type Region)
             if result.get('type_crops'):
                 self.display_cropped_images(result['type_crops'])
+            else:
+                self.clear_cropped_images_display()
             
             # Update status tab
             self.gui.status_handlers.update_bottle_detection_status("เสร็จสิ้น", False)
@@ -1251,7 +1268,11 @@ class BottleDetectionHandlers:
         self.gui.btn_process_cap.setEnabled(False)
         self.gui.btn_stop_processing.setEnabled(True)
         
-        self.gui.processing_thread = BottleDetectionThread(self.gui.current_image, selected_tastes=self.gui.selected_tastes)
+        self.gui.processing_thread = BottleDetectionThread(
+            self.gui.current_image,
+            selected_tastes=self.gui.selected_tastes,
+            enable_bottle_defect_inspection=getattr(self.gui, 'enable_bottle_defect_detection', True),
+        )
         self.gui.processing_thread.result_ready.connect(self.on_processing_complete)
         self.gui.processing_thread.status_updated.connect(self.gui.status_label.setText)
         self.gui.processing_thread.progress_updated.connect(self.update_bottle_progress_bar)
@@ -1375,13 +1396,14 @@ class BottleDetectionHandlers:
                     self.display_result_image(result['image'])
                     print("✅ PROCESS COMPLETE: Original image displayed")
             
-            # Display cropped images with OCR
+            # Display cropped images with OCR — ไม่มีครอปให้เคลียร์ของเก่า (NG / ไม่มี type crop)
             if result.get('type_crops'):
                 print(f"🔄 PROCESS COMPLETE: Displaying {len(result['type_crops'])} cropped images...")
                 self.display_cropped_images(result['type_crops'])
                 print("✅ PROCESS COMPLETE: Cropped images displayed")
             else:
-                print("⚠️ PROCESS COMPLETE: No cropped images to display")
+                print("⚠️ PROCESS COMPLETE: No cropped images — เคลียร์ภาพครอปเก่า (แท็บขวด + หน้าหลัก)")
+                self.clear_cropped_images_display()
             
             # Update status tab
             self.gui.status_handlers.update_bottle_detection_status("เสร็จสิ้น", False)
@@ -1961,7 +1983,10 @@ class BottleDetectionHandlers:
                     aggregate_easyocr_confidences_from_type_crops,
                 )
 
-                bottle_result = process_bottle_image_simple(path_b)
+                bottle_result = process_bottle_image_simple(
+                    path_b,
+                    enable_defect_inspection=getattr(self.gui, 'enable_bottle_defect_detection', True),
+                )
                 if isinstance(bottle_result, dict) and bottle_result.get("error"):
                     QMessageBox.warning(self.gui, "ข้อผิดพลาด", str(bottle_result.get("error")))
                     return
@@ -2046,7 +2071,10 @@ class BottleDetectionHandlers:
                             aggregate_easyocr_confidences_from_type_crops,
                         )
 
-                        bottle_result = process_bottle_image_simple(bottle_path)
+                        bottle_result = process_bottle_image_simple(
+                            bottle_path,
+                            enable_defect_inspection=getattr(self.handlers.gui, 'enable_bottle_defect_detection', True),
+                        )
                         selected_tastes = getattr(
                             self.handlers.gui, "selected_tastes", ["M100", "M110", "M120"]
                         )
@@ -2124,6 +2152,68 @@ class BottleDetectionHandlers:
         self.gui.status_label.setText(f'🔄 Processing {current}/{total}...')
         QtWidgets.QApplication.processEvents()
     
+    def _sync_ui_after_paired_pair(self, bottle_result, cap_result):
+        """
+        หลังประมวลผลคู่ (Process both / โฟลเดอร์) อัปเดตแท็บ Home, Bottle, Cap
+        ให้มีภาพ ขั้นตอน และครอปเหมือนตอนกดประมวลผลปกติ (ไม่ส่ง Modbus)
+        """
+        try:
+            br = bottle_result
+            cap_ok = (
+                cap_result is not None
+                and isinstance(cap_result, dict)
+                and not cap_result.get("error")
+                and hasattr(self.gui, "cap_handlers")
+                and self.gui.cap_handlers
+            )
+            if not br or not isinstance(br, dict) or br.get("error"):
+                if cap_ok:
+                    self.gui.cap_handlers.display_result_from_queue(cap_result)
+                return
+
+            if br.get("image") is not None:
+                self.gui.current_image = br["image"]
+            self.gui.last_bottle_result = br
+
+            self.gui.total_images_processed_count += 1
+            self.gui.status_handlers.update_performance_stats(
+                images_processed=self.gui.total_images_processed_count
+            )
+
+            self.display_result_from_queue(br)
+
+            bottle_ng = bool(
+                br.get("defect_inspection")
+                and br.get("defect_inspection", {}).get("result") == "NG"
+            )
+            if (
+                br.get("bottle_type")
+                and br.get("combined_ocr_text")
+                and not bottle_ng
+            ):
+                self.handle_bottle_type_detection(
+                    br["bottle_type"],
+                    br["combined_ocr_text"],
+                    from_queue=True,
+                    bottle_result=br,
+                )
+            elif br.get("bottle_type"):
+                self.gui.current_bottle_type = br["bottle_type"]
+                summary = br.get("summary") or {}
+                self.gui.status_handlers.update_bottle_type_status(
+                    br["bottle_type"],
+                    type_conf=summary.get("type_confidence"),
+                    angle1_conf=summary.get("angle1_confidence"),
+                    type_easyocr_mean=br.get("type_easyocr_mean_confidence"),
+                )
+
+            if cap_ok:
+                self.gui.cap_handlers.display_result_from_queue(cap_result)
+        except Exception as e:
+            print(f"❌ Error in _sync_ui_after_paired_pair: {e}")
+            import traceback
+            traceback.print_exc()
+
     def _on_paired_done(self, bottle_path, cap_path, bottle_result, cap_result):
         """เมื่อประมวลผลคู่หนึ่งเสร็จ"""
         try:
@@ -2133,6 +2223,7 @@ class BottleDetectionHandlers:
             print(f"✅ Processed pair: {os.path.basename(bottle_path)} + {os.path.basename(cap_path) if cap_path else 'None'}")
         except Exception as e:
             print(f"❌ Error in _on_paired_done: {e}")
+        self._sync_ui_after_paired_pair(bottle_result, cap_result)
     
     def _on_paired_finished(self, success_count, error_count):
         """เมื่อประมวลผลทั้งหมดเสร็จ"""

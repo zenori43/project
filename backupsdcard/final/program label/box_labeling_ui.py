@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
+import sys
 import json
 from PIL import Image, ImageTk, ImageDraw
 import glob
@@ -11,9 +12,14 @@ import numpy as np
 import threading
 from datetime import datetime
 
-# Import deep OCR
+# โฟลเดอร์ project root (…/final/) — ให้ import libs.processing.deep_ocr ได้เมื่อรันจาก program label/
+_FINAL_ROOT = Path(__file__).resolve().parent.parent
+if str(_FINAL_ROOT) not in sys.path:
+    sys.path.insert(0, str(_FINAL_ROOT))
+
+# Import deep OCR (ไฟล์จริง: final/libs/processing/deep_ocr.py)
 try:
-    from deep_ocr import DeepOCRModel, initialize_ocr_model
+    from libs.processing.deep_ocr import DeepOCRModel, initialize_ocr_model
     OCR_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Deep OCR not available: {e}")

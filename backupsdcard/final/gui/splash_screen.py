@@ -107,12 +107,12 @@ class LoadingSplashScreen(QSplashScreen):
             font = QFont("Arial", 24, QFont.Bold)
             painter.setFont(font)
             header_x = 160 if (hasattr(self, 'logo_pixmap') and self.logo_pixmap) else 150
-            painter.drawText(header_x, 100, "Bottle Detection System")
+            painter.drawText(header_x, 100, "Inspection System")
             
             font_th = QFont("Arial", 18)
             painter.setFont(font_th)
             painter.setPen(QColor(200, 200, 200))
-            painter.drawText(header_x, 130, "Bottle Detection and OCR System")
+            painter.drawText(header_x, 130, "using Digital Image Processing")
             
             # วาด loading bar background
             painter.setPen(QColor(100, 100, 100))
@@ -188,12 +188,12 @@ class LoadingSplashScreen(QSplashScreen):
             font = QFont("Arial", 24, QFont.Bold)
             painter.setFont(font)
             header_x = 160 if (hasattr(self, 'logo_pixmap') and self.logo_pixmap) else 150
-            painter.drawText(header_x, 100, "Bottle Detection System")
+            painter.drawText(header_x, 100, "Inspection System")
             
             font_th = QFont("Arial", 18)
             painter.setFont(font_th)
             painter.setPen(QColor(200, 200, 200))
-            painter.drawText(header_x, 130, "Bottle Detection and OCR System")
+            painter.drawText(header_x, 130, "using Digital Image Processing")
             
             # คำนวณ progress percentage
             if total > 0:

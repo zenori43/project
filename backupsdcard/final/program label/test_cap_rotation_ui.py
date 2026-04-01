@@ -3,15 +3,17 @@
 UI ทดสอบระบบหมุนฝา: เลือกภาพหลายไฟล์, ประมวลผลทีละภาพ, ดูแต่ละ Step, แท็บประวัติ.
 โปรแกรมเลือกกรอบ CRAFT อัตโนมัติ → หาขอบที่ยาวที่สุด → วัดมุมเทียบแนวนอน → หมุนให้สี่เหลี่ยมตรงแนวนอน (ไม่ต้องเลือกจุดเอง).
 
-รันจากโฟลเดอร์ final:
-  python test_cap_rotation_ui.py
+รันจากโฟลเดอร์ final หรือรันไฟล์นี้โดยตรง (จะเพิ่ม final เข้า sys.path อัตโนมัติ):
+  cd .../final && python "program label/test_cap_rotation_ui.py"
 """
 
 import sys
 import os
 from pathlib import Path
 
-FINAL_DIR = Path(__file__).resolve().parent
+_script_dir = Path(__file__).resolve().parent
+# สคริปต์อยู่ใน program label/ — แพ็กเกจ core, libs อยู่ที่โฟลเดอร์ final (parent)
+FINAL_DIR = _script_dir if (_script_dir / "core").is_dir() else _script_dir.parent
 if str(FINAL_DIR) not in sys.path:
     sys.path.insert(0, str(FINAL_DIR))
 os.chdir(FINAL_DIR)

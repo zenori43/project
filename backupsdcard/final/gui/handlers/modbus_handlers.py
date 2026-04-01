@@ -394,74 +394,169 @@ class ModbusHandlers:
             self.gui.status_label.setText('❌ M513: ข้อผิดพลาดในการ reset ระบบ')
             self.gui.status_label.setStyleSheet("color: #e74c3c; padding: 5px;")
     
+    def _mode_combo_program_id(self):
+        """ค่า D5500 จาก combo (Qt.UserRole) — กัน currentData คืนค่าแปลกจาก PyQt"""
+        if not hasattr(self.gui, "mode_combo"):
+            return None
+        cb = self.gui.mode_combo
+        d = cb.currentData(Qt.UserRole)
+        if d is None and cb.currentIndex() >= 0:
+            d = cb.itemData(cb.currentIndex(), Qt.UserRole)
+        if d is None:
+            return None
+        try:
+            return int(d)
+        except (TypeError, ValueError):
+            try:
+                return int(float(d))
+            except (TypeError, ValueError):
+                return None
+
+    def on_d5500_read_from_plc(self, mode_id):
+        """ซิงก์ combo + สถานะเธรดให้ตรงกับ D5500 เมื่อ PLC เปลี่ยนค่า (ไม่เขียนกลับ D5500)"""
+        try:
+            if self.gui.modbus_thread is None or not hasattr(self.gui, "mode_combo"):
+                return
+            cb = self.gui.mode_combo
+            mid = int(mode_id)
+            cur_i = self._mode_combo_program_id()
+            if cur_i == mid:
+                return
+            cb.blockSignals(True)
+            idx = cb.findData(mid, Qt.UserRole, Qt.MatchExactly)
+            if idx < 0:
+                cb.addItem(f"ID {mid} (D5500)", mid)
+                idx = cb.findData(mid, Qt.UserRole, Qt.MatchExactly)
+            if idx >= 0:
+                cb.setCurrentIndex(idx)
+            cb.blockSignals(False)
+            self.apply_d5500_program_id(mid, write_to_plc=False)
+        except Exception as e:
+            print(f"❌ D5500 SYNC FROM PLC: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def apply_d5500_program_id(self, mode_id: int, write_to_plc: bool = True):
+        """
+        ใช้ค่า D5500 = ID โปรแกรม (7/5/8/9 หรือเลขอื่นตาม PLC)
+        write_to_plc=True เมื่อผู้ใช้เลือกจาก combo (เขียนกลับ PLC)
+        write_to_plc=False เมื่ออ่านจาก PLC แล้วซิงก์อย่างเดียว
+        """
+        try:
+            mt = self.gui.modbus_thread
+            if mt is None:
+                print("⚠️ PROGRAM ID: Modbus thread not ready yet")
+                return
+            mid = int(mode_id)
+            print(f"🔄 PROGRAM ID: D5500={mid} (write_to_plc={write_to_plc})")
+
+            if mid == 7:
+                if getattr(mt, "_id9_m701_hold_active", False) or getattr(mt, "_id9_m701_release_at", None) is not None:
+                    mt.cancel_id9_m701_hold()
+                mt.capture_only_mode = False
+                mt.refill_idle_mode = False
+                mt.capture_with_limit_mode = False
+                mt.capture_current_count = 0
+                self.gui.capture_limit_label.setVisible(False)
+                self.gui.capture_limit_spin.setVisible(False)
+                if write_to_plc:
+                    success = mt.write_register(5500, 7)
+                    if success:
+                        print("✅ MODE: D5500 = 7 (ID 7 full auto)")
+                    else:
+                        print("❌ MODE: Failed to write D5500 = 7")
+                self.gui.status_handlers.update_processing_mode_status("Auto")
+            elif mid == 5:
+                if getattr(mt, "_id9_m701_hold_active", False) or getattr(mt, "_id9_m701_release_at", None) is not None:
+                    mt.cancel_id9_m701_hold()
+                mt.refill_idle_mode = False
+                mt.capture_only_mode = True
+                mt.capture_with_limit_mode = True
+                mt.capture_limit_count = self.gui.capture_limit_spin.value()
+                mt.capture_current_count = 0
+                mt.capture_limit_reached = False
+                mt.capture_image_count = 0
+                mt._capture_limit_m301_notice_sent = False
+                self.gui.capture_limit_label.setVisible(True)
+                self.gui.capture_limit_spin.setVisible(True)
+                print(f"✅ MODE: ID 5 capture only (limit: {mt.capture_limit_count} times)")
+                if write_to_plc:
+                    success = mt.write_register(5500, 5)
+                    if success:
+                        print(f"✅ MODE: D5500 = 5 (ID 5 capture only)")
+                    else:
+                        print("❌ MODE: Failed to write D5500 = 5")
+                self.create_capture_folders()
+                self.gui.status_handlers.update_processing_mode_status("Capture only")
+            elif mid == 8:
+                if getattr(mt, "_id9_m701_hold_active", False) or getattr(mt, "_id9_m701_release_at", None) is not None:
+                    mt.cancel_id9_m701_hold()
+                if write_to_plc:
+                    success = mt.write_register(5500, 8)
+                    if success:
+                        print("✅ MODE: D5500 = 8 (ID 8 reset modbus)")
+                    else:
+                        print("❌ MODE: Failed to write D5500 = 8")
+                print("🔄 MODE: Resetting Modbus to initial state...")
+                self.reset_to_initial_state()
+                print("✅ MODE: Modbus reset completed")
+                mt.capture_only_mode = False
+                mt.refill_idle_mode = False
+                mt.capture_with_limit_mode = False
+                self.gui.capture_limit_label.setVisible(False)
+                self.gui.capture_limit_spin.setVisible(False)
+                self.gui.status_handlers.update_processing_mode_status("Auto")
+            elif mid == 9:
+                mt.refill_idle_mode = True
+                mt.capture_only_mode = False
+                mt.capture_with_limit_mode = False
+                mt.capture_current_count = 0
+                mt.pending_m301_count = 0
+                mt.m600_reset_pending = False
+                mt.waiting_for_late_result = False
+                self.gui.capture_limit_label.setVisible(False)
+                self.gui.capture_limit_spin.setVisible(False)
+                if write_to_plc:
+                    success = mt.write_register(5500, 9)
+                    if success:
+                        print("✅ MODE: D5500 = 9 (ID 9 refill — ไม่ถ่าย/ไม่ประมวลผล)")
+                    else:
+                        print("❌ MODE: Failed to write D5500 = 9")
+                self.gui.status_handlers.update_processing_mode_status("ID 9 refill (ไม่ประมวลผล)")
+            else:
+                if getattr(mt, "_id9_m701_hold_active", False) or getattr(mt, "_id9_m701_release_at", None) is not None:
+                    mt.cancel_id9_m701_hold()
+                mt.capture_only_mode = False
+                mt.refill_idle_mode = False
+                mt.capture_with_limit_mode = False
+                mt.capture_current_count = 0
+                self.gui.capture_limit_label.setVisible(False)
+                self.gui.capture_limit_spin.setVisible(False)
+                if write_to_plc:
+                    if mt.write_register(5500, mid):
+                        print(f"✅ MODE: D5500 = {mid} (custom program ID)")
+                    else:
+                        print(f"❌ MODE: Failed to write D5500 = {mid}")
+                self.gui.status_handlers.update_processing_mode_status(f"Program ID {mid} (D5500)")
+        except Exception as e:
+            print(f"❌ APPLY PROGRAM ID ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+
     def on_mode_changed(self, index):
-        """Handle mode selection change"""
+        """Handle mode selection change — เขียน D5500 และตั้งสถานะเธรด"""
         try:
             if self.gui.modbus_thread is None:
                 print("⚠️ MODE CHANGE: Modbus thread not ready yet")
                 return
-            
-            mode_text = self.gui.mode_combo.currentText()
-            print(f"🔄 MODE CHANGE: Selected mode = {mode_text} (index: {index})")
-            
-            if mode_text == "ID 7 full auto":
-                # Always disable capture-only mode and hide Count controls when returning to auto
-                self.gui.modbus_thread.capture_only_mode = False
-                self.gui.modbus_thread.capture_with_limit_mode = False
-                self.gui.modbus_thread.capture_current_count = 0
-                self.gui.capture_limit_label.setVisible(False)
-                self.gui.capture_limit_spin.setVisible(False)
-                
-                # Write 7 to D5500 when selecting "ID 7 full auto"
-                success = self.gui.modbus_thread.write_register(5500, 7)
-                if success:
-                    print("✅ MODE CHANGE: D5500 = 7 (ID 7 full auto mode)")
-                else:
-                    print("❌ MODE CHANGE: Failed to write D5500 = 7")
-            elif mode_text == "ID 5 capture only":
-                # Enable capture only mode (no processing)
-                self.gui.modbus_thread.capture_only_mode = True
-                self.gui.modbus_thread.capture_with_limit_mode = True  # เปิดใช้งาน limit mode
-                self.gui.modbus_thread.capture_limit_count = self.gui.capture_limit_spin.value()
-                self.gui.modbus_thread.capture_current_count = 0
-                self.gui.modbus_thread.capture_limit_reached = False
-                self.gui.modbus_thread.capture_image_count = 0
-                self.gui.modbus_thread._capture_limit_m301_notice_sent = False
-                self.gui.capture_limit_label.setVisible(True)
-                self.gui.capture_limit_spin.setVisible(True)
-                print(f"✅ MODE CHANGE: ID 5 capture only mode enabled (limit: {self.gui.modbus_thread.capture_limit_count} times)")
-                # Write 5 to D5500 for ID 5 mode
-                success = self.gui.modbus_thread.write_register(5500, 5)
-                if success:
-                    print(f"✅ MODE CHANGE: D5500 = 5 (ID 5 capture only mode - limit: {self.gui.modbus_thread.capture_limit_count} times)")
-                else:
-                    print("❌ MODE CHANGE: Failed to write D5500 = 5")
-                # สร้างโฟลเดอร์สำหรับเก็บภาพ
-                self.create_capture_folders()
-            elif mode_text == "ID 8 reset modbus":
-                # Write 8 to D5500 for ID 8 reset modbus mode
-                success = self.gui.modbus_thread.write_register(5500, 8)
-                if success:
-                    print("✅ MODE CHANGE: D5500 = 8 (ID 8 reset modbus mode)")
-                    # Reset modbus to initial state
-                    print("🔄 MODE CHANGE: Resetting Modbus to initial state...")
-                    self.reset_to_initial_state()
-                    print("✅ MODE CHANGE: Modbus reset completed")
-                else:
-                    print("❌ MODE CHANGE: Failed to write D5500 = 8")
-                # Disable capture only mode
-                self.gui.modbus_thread.capture_only_mode = False
-                self.gui.modbus_thread.capture_with_limit_mode = False
-                self.gui.capture_limit_label.setVisible(False)
-                self.gui.capture_limit_spin.setVisible(False)
-            else:
-                # For other modes, disable capture only mode
-                self.gui.modbus_thread.capture_only_mode = False
-                self.gui.modbus_thread.capture_with_limit_mode = False
-                self.gui.capture_limit_label.setVisible(False)
-                self.gui.capture_limit_spin.setVisible(False)
-                print(f"⚠️ MODE CHANGE: Unknown mode: {mode_text}")
-                    
+            cb = self.gui.mode_combo
+            mid = cb.itemData(index)
+            if mid is None:
+                mid = cb.itemData(cb.currentIndex())
+            if mid is None:
+                print("⚠️ MODE CHANGE: No program ID on combo item")
+                return
+            self.apply_d5500_program_id(int(mid), write_to_plc=True)
         except Exception as e:
             print(f"❌ MODE CHANGE ERROR: {e}")
             import traceback
@@ -520,7 +615,7 @@ class ModbusHandlers:
         try:
             print("🔧 Initializing Modbus state...")
             
-            # Reset M100, M110, M120, M130, M750, M600
+            # Reset M100, M110, M120, M130, M750, M600 + D10008 = 0
             if self.gui.modbus_thread:
                 success = True
                 success &= self.gui.modbus_thread.reset_m100()
@@ -529,15 +624,16 @@ class ModbusHandlers:
                 success &= self.gui.modbus_thread.reset_m130()
                 success &= self.gui.modbus_thread.reset_m750()
                 success &= self.gui.modbus_thread.reset_m600()
+                success &= self.gui.modbus_thread.write_register(10008, 0)
                 
                 # Stop D6006 monitoring
                 self.gui.modbus_thread.d6006_monitoring = False
                 
                 if success:
-                    print("✅ RESET M100, M110, M120, M130, M750, M600 = 0")
-                    self.gui.modbus_status_label.setText('📡 Modbus: Reset bottle types and M600 completed')
+                    print("✅ RESET M100, M110, M120, M130, M750, M600 = 0; D10008 = 0")
+                    self.gui.modbus_status_label.setText('📡 Modbus: Reset coils + D10008 = 0 completed')
                 else:
-                    print("❌ Failed to reset bottle types and M600")
+                    print("❌ Failed to reset bottle types, M600, and/or D10008")
                 
                 # Set initial taste mode based on current_taste_mode
                 print(f"🔧 Setting initial taste mode: {self.gui.current_taste_mode}")
@@ -828,9 +924,17 @@ class ModbusHandlers:
                 self.gui.modbus_thread.reset_m140()
                 self.gui.modbus_thread.reset_m600()
                 
-                # Reset M700, M701
+                # Reset M700, M701 (ข้าม M701 ถ้า ID 9 M453 กำลังค้าง 3 วิ)
                 self.gui.modbus_thread.reset_m700()
-                self.gui.modbus_thread.reset_m701()
+                if getattr(self.gui.modbus_thread, "_id9_m701_hold_active", False):
+                    print("ℹ️ ข้าม RESET M701 — ID 9 M453 กำลังค้าง 3 วิ (Modbus thread จะปล่อยเอง)")
+                else:
+                    self.gui.modbus_thread.reset_m701()
+                
+                if self.gui.modbus_thread.write_register(10008, 0):
+                    print("✅ D10008 = 0 (Stop / reset ระบบ)")
+                else:
+                    print("⚠️ เขียน D10008 = 0 ไม่สำเร็จ (Stop / reset)")
                 
                 # Reset gripper coils
                 self.gui.modbus_thread.reset_m503()

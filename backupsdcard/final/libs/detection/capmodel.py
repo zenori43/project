@@ -43,7 +43,7 @@ class CapDetector:
     สามารถเรียกใช้จาก code อื่นได้
     """
     
-    def __init__(self, model_path: str = None, conf_threshold: float = 0.5):
+    def __init__(self, model_path: str = None, conf_threshold: float = 0.7):
         """
         Initialize CapDetector
         
@@ -227,6 +227,10 @@ class CapDetector:
                         conf = float(box.conf[0].cpu().numpy())
                         cls = int(box.cls[0].cpu().numpy())
                         
+                        # Enforce threshold at box level as a safety net
+                        if conf < self.conf_threshold:
+                            continue
+
                         # Get class name
                         class_name = self.model.names[cls] if cls in self.model.names else f"class_{cls}"
                         
@@ -445,7 +449,7 @@ def get_global_detector() -> CapDetector:
         _global_cap_detector = CapDetector()
     return _global_cap_detector
 
-def initialize_detector(model_path: str, conf_threshold: float = 0.5) -> CapDetector:
+def initialize_detector(model_path: str, conf_threshold: float = 0.7) -> CapDetector:
     """
     Initialize global detector with YOLOv8 model
     
@@ -484,7 +488,7 @@ def detect_caps_from_path(image_path: str) -> Dict:
         default_model_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/final/cap.pt"
         if os.path.exists(default_model_path):
             print(f"Auto-initializing detector with default model: {default_model_path}")
-            initialize_detector(default_model_path, conf_threshold=0.5)
+            initialize_detector(default_model_path, conf_threshold=0.7)
             detector = get_global_detector()
         else:
             raise ValueError("Global detector not initialized and default model not found. Call initialize_detector() first.")
@@ -524,7 +528,7 @@ def crop_detections_from_path(image_path: str, margin: int = 10) -> List[np.ndar
         default_model_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/final/cap.pt"
         if os.path.exists(default_model_path):
             print(f"Auto-initializing detector with default model: {default_model_path}")
-            initialize_detector(default_model_path, conf_threshold=0.5)
+            initialize_detector(default_model_path, conf_threshold=0.7)
             detector = get_global_detector()
         else:
             raise ValueError("Global detector not initialized and default model not found. Call initialize_detector() first.")
@@ -557,7 +561,7 @@ def save_cropped_detections_from_path(image_path: str, output_dir: str = "croppe
         default_model_path = r"/home/nvidia/Desktop/final_boss/backupsdcard/final/cap.pt"
         if os.path.exists(default_model_path):
             print(f"Auto-initializing detector with default model: {default_model_path}")
-            initialize_detector(default_model_path, conf_threshold=0.5)
+            initialize_detector(default_model_path, conf_threshold=0.7)
             detector = get_global_detector()
         else:
             raise ValueError("Global detector not initialized and default model not found. Call initialize_detector() first.")
@@ -579,7 +583,7 @@ if __name__ == "__main__":
     
     try:
         # Initialize global detector
-        detector = initialize_detector(model_path, conf_threshold=0.5)
+        detector = initialize_detector(model_path, conf_threshold=0.7)
         print("✅ YOLOv8 detector initialized successfully!")
         
         # Example: Detect caps from image path

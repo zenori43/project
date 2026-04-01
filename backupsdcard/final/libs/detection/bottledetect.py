@@ -163,7 +163,11 @@ def _max_confidence_for_label(detections: List[Dict], label: str) -> Optional[fl
 
 
 # ===== MAIN DETECTION FUNCTION =====
-def detect_bottle_and_crop_type(image: np.ndarray, confidence_threshold: float = None) -> Dict:
+def detect_bottle_and_crop_type(
+    image: np.ndarray,
+    confidence_threshold: float = None,
+    enable_defect_inspection: bool = True,
+) -> Dict:
     """
     Main function to detect bottles and crop type regions.
     ตรวจ defect (angle1) ก่อน — ถ้า NG ไม่ครอป type และไม่รัน OCR (ข้ามไปเลย)
@@ -199,7 +203,7 @@ def detect_bottle_and_crop_type(image: np.ndarray, confidence_threshold: float =
     
     # เรียก defect model ล่วงหน้า (ใช้ภาพ angle1 ตัวแรก)
     defect_inspection = None
-    if angle1_crops and len(angle1_crops) > 0:
+    if angle1_crops and len(angle1_crops) > 0 and enable_defect_inspection:
         try:
             from libs.detection.defect_model import run_defect_inspection
             first_angle1 = angle1_crops[0]
@@ -316,7 +320,7 @@ def draw_detections_on_image(image: np.ndarray, detections: List[Dict]) -> np.nd
     return result_image
 
 # ===== SIMPLE API FUNCTIONS =====
-def process_bottle_image_simple(image_path: str) -> Dict:
+def process_bottle_image_simple(image_path: str, enable_defect_inspection: bool = True) -> Dict:
     """
     Simple function to process bottle image from file path
     
@@ -330,7 +334,7 @@ def process_bottle_image_simple(image_path: str) -> Dict:
     if image is None:
         return {"error": "Could not load image"}
     
-    return detect_bottle_and_crop_type(image)
+    return detect_bottle_and_crop_type(image, enable_defect_inspection=enable_defect_inspection)
 
 def get_type_crops_only(image_path: str) -> List[np.ndarray]:
     """

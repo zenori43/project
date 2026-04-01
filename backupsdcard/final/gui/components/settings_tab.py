@@ -13,7 +13,12 @@ from PyQt5.QtCore import Qt
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config.settings import FADED_TEXT_CONFIG
+from config.settings import (
+    FADED_TEXT_CONFIG,
+    BOTTLE_ENABLE_SHARPEN,
+    BOTTLE_SHARPEN_AMOUNT,
+    BOTTLE_SHARPEN_SIGMA,
+)
 
 
 def create_settings_tab():
@@ -63,7 +68,7 @@ def create_settings_tab():
     shrink_x_spinbox = QDoubleSpinBox()
     shrink_x_spinbox.setMinimum(0.0)
     shrink_x_spinbox.setMaximum(10.0)
-    shrink_x_spinbox.setValue(2.0)
+    shrink_x_spinbox.setValue(0.0)
     shrink_x_spinbox.setSingleStep(0.1)
     shrink_x_spinbox.setDecimals(1)
     shrink_x_spinbox.setSuffix("%")
@@ -101,7 +106,7 @@ def create_settings_tab():
     max_height_ratio_spinbox = QDoubleSpinBox()
     max_height_ratio_spinbox.setMinimum(1.0)
     max_height_ratio_spinbox.setMaximum(30.0)
-    max_height_ratio_spinbox.setValue(8.0)
+    max_height_ratio_spinbox.setValue(10.0)
     max_height_ratio_spinbox.setSingleStep(0.5)
     max_height_ratio_spinbox.setDecimals(1)
     max_height_ratio_spinbox.setSuffix("%")
@@ -116,6 +121,81 @@ def create_settings_tab():
     crop_settings_layout.addWidget(info_label)
     
     settings_layout.addWidget(crop_settings_group)
+    
+    # Defect Inspection Settings Group
+    defect_settings_group = QGroupBox("🔬 การตั้งค่า Defect Inspection")
+    defect_settings_group.setStyleSheet("QGroupBox { font-weight: bold; color: #8e44ad; font-size: 14px; padding: 10px; margin: 5px; }")
+    defect_settings_layout = QVBoxLayout(defect_settings_group)
+    defect_settings_layout.setContentsMargins(10, 15, 10, 10)
+    defect_settings_layout.setSpacing(15)
+
+    bottle_defect_check = QCheckBox("เปิดตรวจ Defect ขวด (Good/NG)")
+    bottle_defect_check.setChecked(True)
+    bottle_defect_check.setStyleSheet("color: #2c3e50; font-size: 12px; font-weight: bold;")
+    defect_settings_layout.addWidget(bottle_defect_check)
+
+    cap_defect_check = QCheckBox("เปิดตรวจ Defect ฝา (ฝาจาง/Fade)")
+    cap_defect_check.setChecked(True)
+    cap_defect_check.setStyleSheet("color: #2c3e50; font-size: 12px; font-weight: bold;")
+    defect_settings_layout.addWidget(cap_defect_check)
+
+    defect_info_label = QLabel("💡 หมายเหตุ: การเปลี่ยนแปลงจะมีผลทันทีเมื่อตรวจจับครั้งถัดไป")
+    defect_info_label.setStyleSheet("color: #7f8c8d; font-size: 11px; font-style: italic; padding: 5px;")
+    defect_settings_layout.addWidget(defect_info_label)
+
+    settings_layout.addWidget(defect_settings_group)
+
+    # Bottle Sharpen Settings Group
+    bottle_sharpen_group = QGroupBox("🧴 การตั้งค่าความคมภาพขวดก่อนประมวลผล")
+    bottle_sharpen_group.setStyleSheet("QGroupBox { font-weight: bold; color: #16a085; font-size: 14px; padding: 10px; margin: 5px; }")
+    bottle_sharpen_layout = QVBoxLayout(bottle_sharpen_group)
+    bottle_sharpen_layout.setContentsMargins(10, 15, 10, 10)
+    bottle_sharpen_layout.setSpacing(12)
+
+    bottle_sharpen_enable_check = QCheckBox("เปิด Sharpen ภาพขวดก่อนเข้าโมเดล")
+    bottle_sharpen_enable_check.setChecked(bool(BOTTLE_ENABLE_SHARPEN))
+    bottle_sharpen_enable_check.setStyleSheet("color: #2c3e50; font-size: 12px; font-weight: bold;")
+    bottle_sharpen_layout.addWidget(bottle_sharpen_enable_check)
+
+    bottle_sharpen_amount_layout = QHBoxLayout()
+    bottle_sharpen_amount_label = QLabel("Sharpen Amount:")
+    bottle_sharpen_amount_label.setStyleSheet("color: #2c3e50; font-size: 12px;")
+    bottle_sharpen_amount_label.setFixedWidth(150)
+    bottle_sharpen_amount_layout.addWidget(bottle_sharpen_amount_label)
+
+    bottle_sharpen_amount_spinbox = QDoubleSpinBox()
+    bottle_sharpen_amount_spinbox.setMinimum(0.0)
+    bottle_sharpen_amount_spinbox.setMaximum(3.0)
+    bottle_sharpen_amount_spinbox.setValue(float(BOTTLE_SHARPEN_AMOUNT))
+    bottle_sharpen_amount_spinbox.setSingleStep(0.1)
+    bottle_sharpen_amount_spinbox.setDecimals(2)
+    bottle_sharpen_amount_spinbox.setStyleSheet("padding: 5px; font-size: 12px;")
+    bottle_sharpen_amount_layout.addWidget(bottle_sharpen_amount_spinbox)
+    bottle_sharpen_amount_layout.addStretch()
+    bottle_sharpen_layout.addLayout(bottle_sharpen_amount_layout)
+
+    bottle_sharpen_sigma_layout = QHBoxLayout()
+    bottle_sharpen_sigma_label = QLabel("Sharpen Sigma:")
+    bottle_sharpen_sigma_label.setStyleSheet("color: #2c3e50; font-size: 12px;")
+    bottle_sharpen_sigma_label.setFixedWidth(150)
+    bottle_sharpen_sigma_layout.addWidget(bottle_sharpen_sigma_label)
+
+    bottle_sharpen_sigma_spinbox = QDoubleSpinBox()
+    bottle_sharpen_sigma_spinbox.setMinimum(0.1)
+    bottle_sharpen_sigma_spinbox.setMaximum(3.0)
+    bottle_sharpen_sigma_spinbox.setValue(float(BOTTLE_SHARPEN_SIGMA))
+    bottle_sharpen_sigma_spinbox.setSingleStep(0.1)
+    bottle_sharpen_sigma_spinbox.setDecimals(2)
+    bottle_sharpen_sigma_spinbox.setStyleSheet("padding: 5px; font-size: 12px;")
+    bottle_sharpen_sigma_layout.addWidget(bottle_sharpen_sigma_spinbox)
+    bottle_sharpen_sigma_layout.addStretch()
+    bottle_sharpen_layout.addLayout(bottle_sharpen_sigma_layout)
+
+    bottle_sharpen_info_label = QLabel("💡 ค่านี้ใช้กับการตรวจขวดรอบถัดไปทันที (ไม่แก้ภาพดิบจากกล้อง)")
+    bottle_sharpen_info_label.setStyleSheet("color: #7f8c8d; font-size: 11px; font-style: italic; padding: 5px;")
+    bottle_sharpen_layout.addWidget(bottle_sharpen_info_label)
+
+    settings_layout.addWidget(bottle_sharpen_group)
     
     # Fade Detection Settings Group
     fade_settings_group = QGroupBox("🔍 การตั้งค่าการตรวจจับ Fade ของฝา")
@@ -286,6 +366,24 @@ def create_settings_tab():
     fade_settings_layout.addWidget(fade_info_label)
     
     settings_layout.addWidget(fade_settings_group)
+
+    # OCR Normalize Format Settings Group
+    ocr_format_group = QGroupBox("🔤 ตั้งค่า OCR รูปแบบฝา")
+    ocr_format_group.setStyleSheet("QGroupBox { font-weight: bold; color: #2c3e50; font-size: 14px; padding: 10px; margin: 5px; }")
+    ocr_format_layout = QVBoxLayout(ocr_format_group)
+    ocr_format_layout.setContentsMargins(10, 15, 10, 10)
+    ocr_format_layout.setSpacing(15)
+
+    normalize_format_check = QCheckBox("เปิด Normalize Format (จัดรูปแบบ 3 บรรทัด)")
+    normalize_format_check.setChecked(True)
+    normalize_format_check.setStyleSheet("color: #2c3e50; font-size: 12px; font-weight: bold;")
+    ocr_format_layout.addWidget(normalize_format_check)
+
+    normalize_info_label = QLabel("💡 ปิดเพื่อเทียบ OCR แบบดิบกับผลที่ถูกจัดรูปแบบแล้ว")
+    normalize_info_label.setStyleSheet("color: #7f8c8d; font-size: 11px; font-style: italic; padding: 5px;")
+    ocr_format_layout.addWidget(normalize_info_label)
+
+    settings_layout.addWidget(ocr_format_group)
     settings_layout.addStretch()
     
     # Create widgets dict for main window to reference
@@ -294,6 +392,12 @@ def create_settings_tab():
         'shrink_x_spinbox': shrink_x_spinbox,
         'shrink_y_spinbox': shrink_y_spinbox,
         'max_height_ratio_spinbox': max_height_ratio_spinbox,
+        # Defect inspection widgets
+        'bottle_defect_check': bottle_defect_check,
+        'cap_defect_check': cap_defect_check,
+        'bottle_sharpen_enable_check': bottle_sharpen_enable_check,
+        'bottle_sharpen_amount_spinbox': bottle_sharpen_amount_spinbox,
+        'bottle_sharpen_sigma_spinbox': bottle_sharpen_sigma_spinbox,
         'brightness_spinbox': brightness_spinbox,
         'contrast_spinbox': contrast_spinbox,
         'gamma_spinbox': gamma_spinbox,
@@ -302,7 +406,9 @@ def create_settings_tab():
         'reference_cap_path_label': reference_cap_path_label,
         'select_reference_btn': select_reference_btn,
         'matching_method_combo': matching_method_combo,
-        'prevent_saturation_check': prevent_saturation_check
+        'prevent_saturation_check': prevent_saturation_check,
+        # OCR format widgets
+        'normalize_format_check': normalize_format_check
     }
     
     return settings_tab, widgets_dict

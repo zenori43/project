@@ -159,9 +159,9 @@ def main():
             from config import settings
             
             if use_splash:
-                splash.set_progress(3, 10, "กำลังโหลด Core Modules...")
+                splash.set_progress(3, 10, "Loading core modules...")
                 app.processEvents()
-            print("📦 กำลังโหลด Core Modules...")
+            print("📦 Loading core modules...")
             from core import camera_manager
             from core import image_processor
             from core import business_logic

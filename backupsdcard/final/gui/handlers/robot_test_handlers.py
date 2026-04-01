@@ -63,7 +63,7 @@ class RobotTestHandlers:
         if register_data == 5012:
             desc_text = "D5012: 1=Press (กด), 0=Release (ปล่อย)"
         elif register_data == 5500:
-            desc_text = "D5500: 7=ID7 full auto, 5=ID5 capture only, 8=ID8 reset modbus"
+            desc_text = "D5500: 7=ID7 full auto, 5=ID5 capture only, 8=ID8 reset, 9=ID9 refill (idle)"
         elif register_data == 9002:
             desc_text = "D9002: 1=M100+M110, 2=M100+M120, 3=M110+M120, 4=M110+M100, 5=M120+M110, 6=M120+M100"
         elif register_data == 9006:

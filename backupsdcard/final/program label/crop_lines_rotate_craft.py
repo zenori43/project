@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Rotate then crop text lines (CRAFT rotation + CRAFT line detection).
+Rotate then crop text lines — ให้สอดคล้องโปรแกรมหลัก (CapDetectionThread / rotationmodel).
 
-Pipeline (aligned with test_cap_rotation_ui / business_logic):
-1) Optional enhance_cap_sharpness (BGR) — same as test UI
+Pipeline แบบหลัก (ค่าเริ่มต้น):
+1) Optional enhance_cap_sharpness (BGR)
 2) rotationCRAFT.detect_text_and_rotate(image_array=...)
-3) core.cap_rotation.apply_craft_rotation — longest-edge box → horizontal (replaces CRAFT's default rotate)
-4) craft_line_detection: detect lines on rotated_image (RGB) -> cropped_lines
-5) Save cropped line PNGs ลงโฟลเดอร์ output โดยตรง (ไม่สร้างโฟลเดอร์ย่อย) ชื่อ `{stem}_line_N.png`
-   Optional --debug: ภาพหมุน + annotate (`{stem}_rotated.png` …)
+3) core.cap_rotation.apply_craft_rotation → ได้ภาพหมุน BGR
+4) RotationModel.process_craft_rotated_image_with_models(rotated_bgr, line_det, ocr_model)
+   — เหมือน business_logic: ลองมุม 0°/180° + line detect + OCR เลือกชุดที่ดีที่สุด
+5) ใช้ line_detection_result จากผลลัพธ์ด้านบน → บันทึก cropped_lines เป็น `{stem}_line_N.png`
+
+--legacy-crop: ข้ามขั้นตอน 4 (ไม่โหลด OCR) แค่ detect_lines_from_rotation_result ครั้งเดียวบนภาพหมุน
 """
 
 from __future__ import annotations
@@ -49,14 +51,52 @@ except Exception:
     except Exception:
         pass
 
-from config.settings import CRAFT_MODEL_PATH, CRAFT_REFINER_PATH
+from config.settings import CRAFT_MODEL_PATH, CRAFT_REFINER_PATH, OCR_MODEL_PATH
 from core.cap_rotation import apply_craft_rotation
 from core.image_processor import enhance_cap_sharpness
 from libs.processing.rotationCRAFT import CRAFTTextDetector
 from libs.processing.craft_line_detection import CRAFTLineDetector
+from libs.processing.rotationmodel import RotationModel
+
+try:
+    from libs.processing.deep_ocr import initialize_ocr_model
+except ImportError:
+    initialize_ocr_model = None  # type: ignore
 
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+
+
+def apply_main_window_line_crop_defaults(line_det: CRAFTLineDetector) -> None:
+    """
+    การตั้งค่าการครอปภาพบรรทัด — ให้ตรงแท็บโปรแกรมหลัก:
+    Padding 0, Shrink X 0%, Shrink Y 10%, Max Height Ratio 10%
+    """
+    line_det.update_settings(
+        padding=0,
+        shrink_x_percent=0.0,
+        shrink_y_percent=0.10,
+        max_height_ratio=0.10,
+    )
+
+
+def load_main_pipeline_models(use_cuda: bool, legacy_crop: bool):
+    """
+    โหลด RotationModel (ไม่โหลด weight EfficientNet — ใช้แค่ retry 0°/180°) + OCR
+    เหมือนเส้นทางฝาในโปรแกรมหลัก
+    """
+    if legacy_crop:
+        return None, None
+    if initialize_ocr_model is None:
+        print("⚠️ deep_ocr ไม่พร้อม — ใช้ legacy crop (ครั้งเดียว)")
+        return None, None
+    ocr_path = Path(OCR_MODEL_PATH)
+    if not ocr_path.is_file():
+        print(f"⚠️ ไม่พบ OCR model ({ocr_path}) — ใช้ legacy crop")
+        return None, None
+    rotation_model = RotationModel(model_path=None)
+    ocr_model = initialize_ocr_model(str(ocr_path), cuda=use_cuda)
+    return rotation_model, ocr_model
 
 
 def iter_images(input_path: Path, recursive: bool = False) -> Iterable[Path]:
@@ -94,17 +134,22 @@ def flat_file_prefix(img_path: Path, stem_counts: Dict[str, int]) -> str:
     return f"{stem}_{n}"
 
 
-def apply_rotation_like_test_ui(image_bgr: np.ndarray, rotation_result: dict) -> None:
+def _fill_rotation_result_after_craft_rotate(image_bgr: np.ndarray, rotation_result: dict) -> np.ndarray:
     """
-    หมุนแบบเดียวกับ test_cap_rotation_ui / business_logic: ใช้ apply_craft_rotation บนภาพเดียวกับที่ส่งเข้า CRAFT
-    อัปเดต rotation_result['rotated_image'] เป็น RGB (สำหรับ craft_line_detection)
+    หมุนด้วย apply_craft_rotation เหมือนโปรแกรมหลัก คืนค่า BGR สำหรับ pipeline ถัดไป
+    และตั้ง rotation_result สำหรับ save_rotated_image / draw (RGB)
     """
     rotated_bgr, angle_edge, rotate_deg = apply_craft_rotation(image_bgr, rotation_result)
     if rotated_bgr is not None:
         rotation_result["rotated_image"] = cv2.cvtColor(rotated_bgr, cv2.COLOR_BGR2RGB)
         rotation_result["rotation_angle"] = float(rotate_deg)
         rotation_result["craft_angle_edge_deg"] = float(angle_edge) if angle_edge is not None else None
-    # ถ้าไม่มีกรอบ: คง rotated_image เดิมจาก CRAFT (RGB)
+        return rotated_bgr
+    # ไม่มีกรอบ: ใช้ภาพหมุนจาก CRAFT (อาจเป็น RGB)
+    ri = rotation_result.get("rotated_image")
+    if ri is not None and len(ri.shape) == 3 and ri.shape[2] == 3:
+        return cv2.cvtColor(ri, cv2.COLOR_RGB2BGR)
+    return image_bgr
 
 
 def save_cropped_line_images_only(out_dir: Path, line_result: dict, file_prefix: str) -> int:
@@ -136,9 +181,11 @@ def process_one_image_pipeline(
     *,
     sharpen: bool,
     save_debug: bool = False,
+    rotation_model: Optional[RotationModel] = None,
+    ocr_model=None,
+    legacy_crop: bool = False,
 ) -> int:
-    """โหลดภาพ → (optional) sharpen → CRAFT → apply_craft_rotation → crop lines → บันทึกแค่ PNG บรรทัด
-    คืนจำนวนบรรทัดที่บันทึก"""
+    """โหลดภาพ → CRAFT หมุน → (แบบหลัก) retry 0°/180° + OCR เหมือนโปรแกรมหลัก → บันทึก PNG บรรทัด"""
     img_bgr = cv2.imread(str(img_path))
     if img_bgr is None:
         raise RuntimeError(f"Cannot read image: {img_path}")
@@ -155,7 +202,7 @@ def process_one_image_pipeline(
             rotation_result.get("error", "Unknown error") if isinstance(rotation_result, dict) else "Unknown error"
         )
     rotation_result["image_path"] = str(img_path)
-    apply_rotation_like_test_ui(img_for_craft, rotation_result)
+    rotated_bgr = _fill_rotation_result_after_craft_rotate(img_for_craft, rotation_result)
 
     if save_debug:
         rotated_out = out_dir / f"{file_prefix}_rotated.png"
@@ -164,11 +211,44 @@ def process_one_image_pipeline(
         annotated_bgr = rotation_det.draw_detections(result=rotation_result)
         cv2.imwrite(str(annotated_out), annotated_bgr)
 
-    line_result = line_det.detect_lines_from_rotation_result(rotation_result)
-    if not line_result or "error" in line_result:
-        raise RuntimeError(
-            line_result.get("error", "Unknown error") if isinstance(line_result, dict) else "Unknown error"
+    use_main = (
+        not legacy_crop
+        and rotation_model is not None
+        and ocr_model is not None
+    )
+    if use_main:
+        combined = rotation_model.process_craft_rotated_image_with_models(
+            rotated_bgr, line_det, ocr_model
         )
+        if not combined or "error" in combined:
+            err = (
+                combined.get("error", "unknown")
+                if isinstance(combined, dict)
+                else "no result"
+            )
+            raise RuntimeError(f"process_craft_rotated_image_with_models: {err}")
+        line_result = combined.get("line_detection_result")
+        if not line_result or "error" in line_result:
+            raise RuntimeError(
+                line_result.get("error", "no line_detection_result")
+                if isinstance(line_result, dict)
+                else "no line_detection_result"
+            )
+    else:
+        rr = {
+            "rotated_image": rotated_bgr,
+            "cropped_image": rotated_bgr,
+            "image_path": str(img_path),
+            "rotation_angle": float(rotation_result.get("rotation_angle", 0) or 0),
+        }
+        line_result = line_det.detect_lines_from_rotation_result(rr)
+        if not line_result or "error" in line_result:
+            raise RuntimeError(
+                line_result.get("error", "Unknown error")
+                if isinstance(line_result, dict)
+                else "Unknown error"
+            )
+
     return save_cropped_line_images_only(out_dir, line_result, file_prefix)
 
 
@@ -223,6 +303,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip enhance_cap_sharpness before CRAFT (default: sharpen on, same as test_cap_rotation_ui).",
     )
+    parser.add_argument(
+        "--legacy-crop",
+        action="store_true",
+        help="ไม่ใช้ retry 0°/180° + OCR แบบโปรแกรมหลัก — ครอปบรรทัดครั้งเดียวจากภาพหมุน (เบากว่า)",
+    )
     return parser.parse_args()
 
 
@@ -274,6 +359,12 @@ def run_ui() -> int:
                 text="บันทึก debug (ภาพหมุน + CRAFT annotate)",
                 variable=self.debug_var,
             ).pack(side=tk.LEFT)
+            self.legacy_var = tk.BooleanVar(value=False)
+            ttk.Checkbutton(
+                opt,
+                text="Legacy crop (ไม่ retry 0°/180° แบบโปรแกรมหลัก)",
+                variable=self.legacy_var,
+            ).pack(side=tk.LEFT, padx=(16, 0))
             self.cpu_only_var = tk.BooleanVar(value=False)
             ttk.Checkbutton(opt, text="ใช้ CPU เท่านั้น", variable=self.cpu_only_var).pack(side=tk.LEFT, padx=(16, 0))
 
@@ -353,6 +444,7 @@ def run_ui() -> int:
             use_cuda = not self.cpu_only_var.get()
             save_debug = self.debug_var.get()
             sharpen = True
+            legacy_crop = self.legacy_var.get()
 
             images = list(self.images)
             total = len(images)
@@ -371,6 +463,7 @@ def run_ui() -> int:
                         refiner_path=craft_refiner,
                         cuda=use_cuda,
                     )
+                    rot_m, ocr_m = load_main_pipeline_models(use_cuda, legacy_crop)
                     stem_counts: Dict[str, int] = {}
 
                     for i, img_path in enumerate(images, start=1):
@@ -388,6 +481,9 @@ def run_ui() -> int:
                             prefix,
                             sharpen=sharpen,
                             save_debug=save_debug,
+                            rotation_model=rot_m,
+                            ocr_model=ocr_m,
+                            legacy_crop=legacy_crop,
                         )
                         self.queue.put(("status", f"{img_path.name}: บันทึก {n_lines} บรรทัด"))
 
@@ -463,6 +559,7 @@ def main() -> int:
         print(f"⚠️ CRAFT refiner not found (optional): {craft_refiner_path}")
 
     use_cuda = not args.no_cuda
+    legacy_crop = bool(args.legacy_crop)
 
     print("Loading detectors...")
     rotation_det = CRAFTTextDetector(
@@ -475,6 +572,12 @@ def main() -> int:
         refiner_path=refiner_path,
         cuda=use_cuda,
     )
+    apply_main_window_line_crop_defaults(line_det)
+    rot_m, ocr_m = load_main_pipeline_models(use_cuda, legacy_crop)
+    if rot_m is not None and ocr_m is not None:
+        print("✅ ใช้ pipeline แบบโปรแกรมหลัก (retry 0°/180° + OCR → line_detection_result)")
+    else:
+        print("ℹ️ ใช้ legacy crop — ครอปครั้งเดียวจากภาพหมุน")
 
     images: List[Path] = list(iter_images(input_path, recursive=recursive))
     if not images:
@@ -499,6 +602,9 @@ def main() -> int:
                 prefix,
                 sharpen=sharpen,
                 save_debug=save_debug,
+                rotation_model=rot_m,
+                ocr_model=ocr_m,
+                legacy_crop=legacy_crop,
             )
             print(f"   → บันทึก {n_lines} บรรทัด → {output_root}")
             ok += 1

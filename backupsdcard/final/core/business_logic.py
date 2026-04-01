@@ -37,6 +37,7 @@ from libs.detection.bottledetect import process_bottle_image_simple
 
 # Import cap detection modules
 from config.settings import CAP_DETECTION_AVAILABLE
+from config import settings as config_settings
 if CAP_DETECTION_AVAILABLE:
     from libs.processing.craft_line_detection import (
         detect_lines_from_rotation_result,
@@ -51,7 +52,18 @@ class CapDetectionThread(QThread):
     status_updated = pyqtSignal(str)
     rotation_attempt_updated = pyqtSignal(int, int, object, object, object)  # attempt_num, total_attempts, rotated_image, ocr_results, format_valid
     
-    def __init__(self, image, cap_detector, craft_detector, rotation_model, line_detector, ocr_model, faded_text_yolo_model=None, bottle_type=None):
+    def __init__(
+        self,
+        image,
+        cap_detector,
+        craft_detector,
+        rotation_model,
+        line_detector,
+        ocr_model,
+        faded_text_yolo_model=None,
+        bottle_type=None,
+        enable_cap_fade_inspection: bool = True,
+    ):
         super().__init__()
         self.image = image
         self.cap_detector = cap_detector
@@ -61,12 +73,39 @@ class CapDetectionThread(QThread):
         self.ocr_model = ocr_model
         self.faded_text_yolo_model = faded_text_yolo_model
         self.bottle_type = bottle_type  # เก็บ bottle_type เพื่อใช้ในการปรับ brightness/contrast
+        self.enable_cap_fade_inspection = bool(enable_cap_fade_inspection)
         self.modbus_thread = None  # Will be set by GUI if needed
         self._stop_requested = False  # ขวด NG → เรียก request_stop() ให้หยุดประมวลผลฝา
 
     def request_stop(self):
         """ขอให้หยุดประมวลผล (ขวด NG แล้ว ไม่ต้องทำฝาต่อ) — thread จะเช็คและออกที่ checkpoint ถัดไป"""
         self._stop_requested = True
+
+    def _emit_cap_invalid_line_count(self, line_detection_result, all_cap_results, total_lines: int):
+        """ส่งผล NG (invalid_line_count) เมื่อครอปบรรทัดฝาไม่ครบ 3 — UI/cap_handlers จัดการ M140/M600"""
+        out = {
+            'error': 'invalid_line_count',
+            'message': f'พบบรรทัดข้อความ {total_lines} บรรทัด (ต้องเป็น 3) - กำหนดเป็น NG',
+            'line_detection_result': line_detection_result,
+            'cap_processing_results': all_cap_results,
+            'image': self.image,
+            'image_shape': self.image.shape if self.image is not None else None,
+        }
+        self.progress_updated.emit(100)
+        self.status_updated.emit(f"พบบรรทัด {total_lines} (ต้องเป็น 3) - ตัดสินเป็น NG")
+        self.result_ready.emit(out)
+
+    @staticmethod
+    def _count_cap_cropped_lines(line_detection_result):
+        """นับจำนวนบรรทัดจาก cropped_lines เป็นหลัก; ถ้ายังไม่มีครอปใช้ total_lines"""
+        if not line_detection_result or not isinstance(line_detection_result, dict):
+            return 0
+        if 'error' in line_detection_result:
+            return 0
+        cropped = line_detection_result.get('cropped_lines') or []
+        if isinstance(cropped, list) and len(cropped) > 0:
+            return len(cropped)
+        return int(line_detection_result.get('total_lines', 0) or 0)
 
     def run(self):
         try:
@@ -168,12 +207,18 @@ class CapDetectionThread(QThread):
                 craft_rotated_image = None
                 if craft_result is not None:
                     rotated_img, craft_angle, rotate_deg = apply_craft_rotation(enhanced_image, craft_result)
+                    if craft_angle is not None:
+                        result['craft_angle_edge_deg'] = float(craft_angle)
+                    if rotate_deg is not None:
+                        result['craft_deskew_rotation_deg'] = float(rotate_deg)
                     if rotated_img is not None:
                         craft_rotated_image = rotated_img
                         print(f"🔄 CAP DETECTION THREAD: CRAFT หมุนภาพสำเร็จ (มุม {rotate_deg:.2f}°)")
                     elif craft_result.get('rotated_image') is not None:
                         craft_rotated_image = craft_result['rotated_image']
                         print("🔄 CAP DETECTION THREAD: CRAFT หมุนภาพสำเร็จ (จาก CRAFT)")
+                        if result.get('craft_deskew_rotation_deg') is None and craft_result.get('rotation_angle') is not None:
+                            result['craft_deskew_rotation_deg'] = float(craft_result['rotation_angle'])
                 if craft_rotated_image is not None:
                     result['craft_rotated_image'] = craft_rotated_image.copy()
                     self.progress_updated.emit(65)
@@ -231,12 +276,38 @@ class CapDetectionThread(QThread):
                                 print(f"🔄 CAP DETECTION THREAD: ครั้งที่หมุน: {attempt}/5")
                             
                             self.progress_updated.emit(95)
+                            
+                            # บังคับ NG ถ้าครอปบรรทัดไม่ครบ 3 (โหมดไม่พบฝา YOLO — ใช้ CRAFT เต็มภาพ)
+                            ldr = result.get('line_detection_result')
+                            if ldr and 'error' not in ldr:
+                                n_crop = len(ldr.get('cropped_lines') or [])
+                                n_tot = int(ldr.get('total_lines', 0) or 0)
+                                if n_crop != 3 or n_tot != 3:
+                                    eff = n_crop if n_crop > 0 else n_tot
+                                    print(f"❌ CAP DETECTION THREAD (ไม่พบฝา YOLO): ครอป {n_crop} / total_lines={n_tot} (ต้อง 3) -> NG")
+                                    self._emit_cap_invalid_line_count(ldr, [], eff)
+                                    return
+                            else:
+                                ocr = combined_result.get('ocr_results')
+                                ocr_n = int(ocr.get('total_lines', 0) or 0) if isinstance(ocr, dict) else 0
+                                if ocr_n != 3:
+                                    print(f"❌ CAP DETECTION THREAD (ไม่พบฝา YOLO): ไม่มี line_detection หรือบรรทัดไม่ครบ 3 (OCR total_lines={ocr_n}) -> NG")
+                                    self._emit_cap_invalid_line_count(ldr, [], ocr_n)
+                                    return
                         else:
                             print("⚠️ CAP DETECTION THREAD: ไม่สามารถตรวจจับบรรทัดข้อความได้")
+                            ldr = result.get('line_detection_result')
+                            n_fail = self._count_cap_cropped_lines(ldr) if ldr else 0
+                            self._emit_cap_invalid_line_count(ldr, [], n_fail)
+                            return
                     else:
                         print("⚠️ CAP DETECTION THREAD: AI rotation ไม่สำเร็จ")
+                        self._emit_cap_invalid_line_count(None, [], 0)
+                        return
                 else:
                     print("⚠️ CAP DETECTION THREAD: CRAFT ไม่สามารถหมุนภาพได้")
+                    self._emit_cap_invalid_line_count(None, [], 0)
+                    return
             else:
                 if self._stop_requested:
                     print("🛑 CAP DETECTION THREAD: หยุด (stop requested)")
@@ -247,6 +318,7 @@ class CapDetectionThread(QThread):
                 bottommost_cap = None
                 bottommost_index = 0
                 max_y = 0
+                selected_cap_confidence = None
                 
                 # Find the cap with the highest y-coordinate (bottom of image)
                 _dets = cap_result.get('detections')
@@ -267,9 +339,12 @@ class CapDetectionThread(QThread):
                                 max_y = y_center
                                 bottommost_cap = cropped_images[i]
                                 bottommost_index = i
+                                selected_cap_confidence = conf
                     
                     # แสดงความเชื่อมั่นของฝาที่เลือก
                     selected_conf = detections[bottommost_index].get('confidence', 0.0) if bottommost_index < len(detections) else 0.0
+                    if bottommost_index < len(detections):
+                        selected_cap_confidence = selected_conf
                     print(f"🔄 CAP DETECTION THREAD: เลือกฝาที่ {bottommost_index + 1} (y_center: {max_y:.1f}, ความเชื่อมั่น: {selected_conf:.4f} ({selected_conf*100:.2f}%)) เป็นฝาล่างสุด")
                 elif cropped_images is not None and len(cropped_images) > 0:
                     # Fallback: use the last cap if no bounding box info available
@@ -296,6 +371,7 @@ class CapDetectionThread(QThread):
                     selected_conf_str = ""
                     if bottommost_index < len(detections):
                         selected_conf = detections[bottommost_index].get('confidence', 0.0)
+                        selected_cap_confidence = selected_conf
                         selected_conf_str = f" (ความเชื่อมั่น: {selected_conf:.2%})"
                     print(f"🔄 CAP DETECTION THREAD: ประมวลผลฝาที่ {bottommost_index + 1} (ฝาล่างสุด){selected_conf_str}")
                     
@@ -350,27 +426,41 @@ class CapDetectionThread(QThread):
                     cap_result = {
                         'cap_index': bottommost_index,
                         'original_crop': bottommost_cap,
-                        'craft_result': craft_result
+                        'craft_result': craft_result,
+                        # Keep cap detection confidence for UI/history display.
+                        'cap_confidence': selected_cap_confidence,
                     }
                     # Step 2c: ตรวจฝาจางด้วย cap_fade_model.h5 (เทรนแบบเดียวกับ defect: score > 0.5 = Good, <= 0.5 = NG (Fade))
                     self.status_updated.emit(f"กำลังตรวจสอบฝาจางที่ {bottommost_index + 1} (cap_fade_model)...")
                     print(f"🔄 CAP DETECTION THREAD: Step 2c - ตรวจฝาจางด้วย cap_fade_model ที่ฝาที่ {bottommost_index + 1}")
-                    inspection = run_cap_fade_inspection(bottommost_cap)
-                    if inspection is None:
-                        # โมเดลไม่พร้อม ให้ถือว่าผ่าน (normal)
-                        faded_text_result = {'status': 'normal', 'score': None, 'result': 'Good', 'total_area': None, 'num_chars': None, 'normalized_area': None}
-                        print("⚠️ CAP DETECTION THREAD: Cap fade model ไม่พร้อม - ถือว่าผ่าน")
+                    if self.enable_cap_fade_inspection:
+                        inspection = run_cap_fade_inspection(bottommost_cap)
+                        if inspection is None:
+                            # โมเดลไม่พร้อม ให้ถือว่าผ่าน (normal)
+                            faded_text_result = {'status': 'normal', 'score': None, 'result': 'Good', 'total_area': None, 'num_chars': None, 'normalized_area': None}
+                            print("⚠️ CAP DETECTION THREAD: Cap fade model ไม่พร้อม - ถือว่าผ่าน")
+                        else:
+                            # status สำหรับ UI/Modbus: normal = ผ่าน, faded = ไม่ผ่าน (จาง)
+                            faded_text_result = {
+                                'status': 'normal' if inspection['result'] == 'Good' else 'faded',
+                                'score': inspection['score'],
+                                'result': inspection['result'],
+                                'total_area': None,
+                                'num_chars': None,
+                                'normalized_area': None
+                            }
+                            print(f"🔄 CAP DETECTION THREAD: ตรวจฝาจางสำเร็จ - result: {inspection['result']}, score: {inspection['score']}")
                     else:
-                        # status สำหรับ UI/Modbus: normal = ผ่าน, faded = ไม่ผ่าน (จาง)
+                        # ข้ามการตรวจฝาจาง (defect ฝา) ตาม settings
                         faded_text_result = {
-                            'status': 'normal' if inspection['result'] == 'Good' else 'faded',
-                            'score': inspection['score'],
-                            'result': inspection['result'],
+                            'status': 'normal',
+                            'score': None,
+                            'result': 'Good',
                             'total_area': None,
                             'num_chars': None,
-                            'normalized_area': None
+                            'normalized_area': None,
                         }
-                        print(f"🔄 CAP DETECTION THREAD: ตรวจฝาจางสำเร็จ - result: {inspection['result']}, score: {inspection['score']}")
+                        print("ℹ️ CAP DETECTION THREAD: cap fade inspection disabled - skip model")
                     if self._stop_requested:
                         print("🛑 CAP DETECTION THREAD: หยุดหลังตรวจฝาจาง (stop requested)")
                         return
@@ -408,12 +498,18 @@ class CapDetectionThread(QThread):
                     craft_rotated_image = None
                     if craft_result is not None:
                         rotated_img, craft_angle, rotate_deg = apply_craft_rotation(enhanced_cap, craft_result)
+                        if craft_angle is not None:
+                            cap_result['craft_angle_edge_deg'] = float(craft_angle)
+                        if rotate_deg is not None:
+                            cap_result['craft_deskew_rotation_deg'] = float(rotate_deg)
                         if rotated_img is not None:
                             craft_rotated_image = rotated_img
                             print(f"🔄 CAP DETECTION THREAD: CRAFT หมุนฝาที่ {bottommost_index + 1} สำเร็จ (มุม {rotate_deg:.2f}°)")
                         elif craft_result.get('rotated_image') is not None:
                             craft_rotated_image = craft_result['rotated_image']
                             print(f"🔄 CAP DETECTION THREAD: CRAFT หมุนฝาที่ {bottommost_index + 1} สำเร็จ (จาก CRAFT)")
+                            if cap_result.get('craft_deskew_rotation_deg') is None and craft_result.get('rotation_angle') is not None:
+                                cap_result['craft_deskew_rotation_deg'] = float(craft_result['rotation_angle'])
                     if craft_rotated_image is not None:
                         cap_result['craft_rotated_image'] = craft_rotated_image
                         
@@ -438,18 +534,38 @@ class CapDetectionThread(QThread):
                             
                             if line_detection_result and 'error' not in line_detection_result:
                                 print(f"🔄 CAP DETECTION THREAD: ตรวจจับบรรทัดข้อความฝาที่ {bottommost_index + 1} สำเร็จ")
+                                n_crop = len(line_detection_result.get('cropped_lines') or [])
+                                n_tot = int(line_detection_result.get('total_lines', 0) or 0)
+                                # ต้องครอปได้ครบ 3 บรรทัด และ total_lines ต้องสอดคล้อง
+                                if n_crop != 3 or n_tot != 3:
+                                    eff = n_crop if n_crop > 0 else n_tot
+                                    print(f"❌ CAP DETECTION THREAD: ครอปบรรทัด {n_crop} / total_lines={n_tot} (ต้องเป็น 3) -> NG")
+                                    self._emit_cap_invalid_line_count(line_detection_result, all_cap_results, eff)
+                                    return
                                 
                                 # Step 4: Perform OCR on detected lines
                                 self.status_updated.emit(f"กำลังอ่านข้อความในฝาที่ {bottommost_index + 1} ด้วย OCR...")
                                 ocr_results = recognize_text_from_craft_lines(line_detection_result)
                                 cap_result['ocr_results'] = ocr_results
-                                print(f"🔄 CAP DETECTION THREAD: OCR ฝาที่ {bottommost_index + 1} สำเร็จ - อ่านได้ {len(ocr_results)} รายการ")
+                                _ocr_n = len(ocr_results) if isinstance(ocr_results, (list, tuple)) else 1
+                                print(f"🔄 CAP DETECTION THREAD: OCR ฝาที่ {bottommost_index + 1} สำเร็จ - อ่านได้ {_ocr_n} รายการ")
                             else:
                                 print(f"⚠️ CAP DETECTION THREAD: ไม่สามารถตรวจจับบรรทัดข้อความฝาที่ {bottommost_index + 1} ได้")
+                                n_fail = self._count_cap_cropped_lines(line_detection_result) if line_detection_result else 0
+                                self._emit_cap_invalid_line_count(line_detection_result, all_cap_results, n_fail)
+                                return
                         elif combined_result is None:
-                            print(f"⚠️ CAP DETECTION THREAD: Rotation ฝาที่ {bottommost_index + 1} ไม่สำเร็จ")
+                            print(f"⚠️ CAP DETECTION THREAD: Rotation ฝาที่ {bottommost_index + 1} ไม่สำเร็จ (combined_result is None)")
+                            self._emit_cap_invalid_line_count(None, all_cap_results, 0)
+                            return
+                        else:
+                            print(f"⚠️ CAP DETECTION THREAD: Rotation ฝาที่ {bottommost_index + 1} ไม่สำเร็จ (ไม่มี rotated_image)")
+                            self._emit_cap_invalid_line_count(None, all_cap_results, 0)
+                            return
                     else:
                         print(f"⚠️ CAP DETECTION THREAD: CRAFT ไม่สามารถหมุนฝาที่ {bottommost_index + 1} ได้")
+                        self._emit_cap_invalid_line_count(None, all_cap_results, 0)
+                        return
                     
                     all_cap_results.append(cap_result)
                 
@@ -504,6 +620,7 @@ class ModbusThread(QThread):
     m513_stop_signal = pyqtSignal()  # สำหรับ M513 stop program
     capture_only_trigger = pyqtSignal()  # ID 5: capture only mode (no processing)
     capture_limit_reached_signal = pyqtSignal()  # สำหรับหยุดระบบเมื่อถ่ายครบจำนวนแล้ว
+    d5500_program_id_updated = pyqtSignal(int)  # ค่าโปรแกรมจาก D5500 (unit 1) — ให้ GUI สอดคล้องกับ PLC
     
     def __init__(self, modbus_ip="192.168.1.5", modbus_port=502):
         super().__init__()
@@ -515,6 +632,7 @@ class ModbusThread(QThread):
         self.last_m401 = False  # ใช้เช็ค M401 rising edge (ไม่ทำซ้ำเมื่อ M401 ค้าง ON)
         self.last_m512 = False
         self.last_m513 = False
+        self.last_m453 = False  # ID 9 refill: หยุดโปรแกรมเมื่อ M453 ON
         self.last_m511 = False
         self.m512_ready = False
         self.stop_requested = False
@@ -533,7 +651,13 @@ class ModbusThread(QThread):
         self.last_m406_value = None  # เก็บค่า M406 ครั้งล่าสุด
         self.last_d5002_value = None  # เก็บค่า D5002 ครั้งล่าสุดเพื่อตรวจสอบการเปลี่ยนแปลง
         self.last_d5001_value = None  # เก็บค่า D5001 ครั้งล่าสุดเพื่อตรวจสอบการเปลี่ยนแปลง
+        self.last_d5500_value = None  # ค่า D5500 ล่าสุดที่อ่านได้ (debug / สถานะ)
+        self._d5500_read_slave = None  # slave ที่อ่าน D5500 สำเร็จ
+        self._d5500_read_fail_logged = False
         self.capture_only_mode = False  # ID 5: capture only mode (no processing)
+        self.refill_idle_mode = False  # ID 9: refill — ไม่ถ่าย ไม่ประมวลผล เมื่อ M301
+        self._id9_m701_release_at = None  # time.monotonic() เมื่อจะ RESET M701 หลัง M453
+        self._id9_m701_hold_active = False  # กัน reset_modbus ปล่อย M701 ก่อนครบ 3 วิ
         self.capture_image_count = 0  # นับจำนวนภาพที่ถ่ายใน capture only mode
         self.capture_with_limit_mode = False  # ID 6: capture with limit mode
         self.capture_limit_count = 10  # จำนวนครั้งที่ต้องการถ่าย
@@ -566,6 +690,12 @@ class ModbusThread(QThread):
         self._m401_popped_once = False
         print("🔄 ID 5 CAPTURE ONLY: รีเซ็ตเซสชันถ่ายภาพ (นับใหม่, พร้อมรับ M301)")
 
+    def cancel_id9_m701_hold(self):
+        """ยกเลิกการค้าง M701 จาก M453 (เช่น สลับออกจาก ID 9)"""
+        self._id9_m701_release_at = None
+        self._id9_m701_hold_active = False
+        return self.reset_m701()
+
     def _unit_kw(self, unit_id):
         """คืน dict สำหรับส่ง unit/slave ไปยัง pymodbus client ตามเวอร์ชันที่ติดตั้ง"""
         if self._modbus_unit_key is None:
@@ -579,16 +709,54 @@ class ModbusThread(QThread):
             kw["count"] = count
         return kw
 
+    def _read_d5500_program_id(self):
+        """
+        อ่าน holding D5500 — เลข = ID โปรแกรมบน PLC
+        ลอง slave ที่เคยสำเรจก่อน แล้ว 1 และ 2 (บางระบบแยก device กับ D5001/D5002)
+        """
+        if not self.modbus_client or not self.modbus_client.is_socket_open():
+            return None
+        try_order = []
+        if self._d5500_read_slave is not None:
+            try_order.append(int(self._d5500_read_slave))
+        for sid in (1, 2):
+            if sid not in try_order:
+                try_order.append(sid)
+        for sid in try_order:
+            try:
+                res = self.modbus_client.read_holding_registers(5500, 1, **self._unit_kw(sid))
+                if not res.isError() and getattr(res, "registers", None):
+                    self._d5500_read_slave = sid
+                    self._d5500_read_fail_logged = False
+                    return int(res.registers[0])
+            except Exception:
+                continue
+        # สำรอง: slave= ชัดเจน (รวม 0 — บาง PLC / gateway ใช้ unit 0)
+        for sid in (0, 1, 2):
+            try:
+                res = self.modbus_client.read_holding_registers(5500, count=1, slave=sid)
+                if not res.isError() and getattr(res, "registers", None):
+                    self._d5500_read_slave = sid
+                    self._d5500_read_fail_logged = False
+                    return int(res.registers[0])
+            except Exception:
+                continue
+        if not self._d5500_read_fail_logged:
+            print("⚠️ D5500: อ่านไม่สำเร็จ (ลอง slave 1 และ 2 แล้ว) — Program combo จะไม่อัปเดตจาก PLC")
+            self._d5500_read_fail_logged = True
+        return None
+
     def run(self):
         """Main Modbus loop"""
         try:
-            # Create Modbus client
+            # Create Modbus client (IP/พอร์ตจาก config/settings.py — โรบอตมาตรฐาน 192.168.1.5:502)
             self.modbus_client = ModbusTcpClient(self.modbus_ip, port=self.modbus_port)
+            print(f"📡 Modbus TCP เชื่อมต่อไปที่ {self.modbus_ip}:{self.modbus_port} (coils + D5500/D registers ใช้สายนี้)")
             if not self.modbus_client.connect():
-                self.modbus_status.emit("❌ ไม่สามารถเชื่อมต่อ Modbus ได้")
+                self.modbus_status.emit(f"❌ ไม่สามารถเชื่อมต่อ Modbus ได้ ({self.modbus_ip}:{self.modbus_port})")
                 return
             
-            self.modbus_status.emit("✅ เชื่อมต่อ Modbus สำเร็จ")
+            self.modbus_status.emit(f"✅ เชื่อมต่อ Modbus สำเร็จ {self.modbus_ip}:{self.modbus_port}")
             self.is_running = True
             # ตรวจสอบว่า pymodbus ใช้ keyword 'unit' หรือ 'slave' และรับ count หรือไม่
             try:
@@ -637,6 +805,56 @@ class ModbusThread(QThread):
                 
                 self.last_m511 = m511
                 
+                # ID 9 refill: อ่าน M453 — ON แล้วหยุดโปรแกรม (เหมือน M513) แล้ว reset M453
+                if self.refill_idle_mode:
+                    try:
+                        result = self.modbus_client.read_coils(453, **self._read_coils_kw(1))
+                        m453 = not result.isError() and result.bits[0]
+                    except Exception:
+                        m453 = False
+                    if m453 and not self.last_m453:
+                        self.modbus_status.emit("🔔 ID 9 refill: M453 ON — หยุดโปรแกรม")
+                        self.program_enabled = False
+                        try:
+                            self.reset_m700()
+                            print("✅ RESET M700 = 0 (จาก M453 / ID 9 refill)")
+                            self.modbus_status.emit("✅ RESET M700 = 0 (จาก M453 / ID 9)")
+                        except Exception as e:
+                            print(f"❌ M453 stop: RESET M700: {e}")
+                        try:
+                            if self.write_coil(453, False):
+                                print("✅ RESET M453 = 0 (หลังหยุดโปรแกรม refill)")
+                                self.modbus_status.emit("✅ RESET M453 = 0")
+                            else:
+                                print("⚠️ ไม่สามารถ RESET M453 = 0 ได้")
+                                self.modbus_status.emit("⚠️ ไม่สามารถ RESET M453 ได้")
+                        except Exception as e:
+                            print(f"❌ RESET M453: {e}")
+                        try:
+                            if self.write_register(10008, 0):
+                                print("✅ D10008 = 0 (จาก M453 / ID 9 refill)")
+                                self.modbus_status.emit("✅ D10008 = 0 (ID 9 M453)")
+                            else:
+                                print("⚠️ ไม่สามารถเขียน D10008 = 0 ได้")
+                                self.modbus_status.emit("⚠️ เขียน D10008 = 0 ไม่สำเร็จ")
+                        except Exception as e:
+                            print(f"❌ D10008 write: {e}")
+                        try:
+                            if self.write_coil(701, True):
+                                print("✅ ON M701 = 1 (ค้าง 3 วิ — ID 9 M453)")
+                                self.modbus_status.emit("⏹️ ON M701 ค้าง 3 วิ (ID 9 M453)")
+                            else:
+                                print("⚠️ ไม่สามารถ ON M701 ได้")
+                        except Exception as e:
+                            print(f"❌ ON M701: {e}")
+                        self._id9_m701_hold_active = True
+                        self._id9_m701_release_at = time.monotonic() + 3.0
+                        self.m513_stop_signal.emit()
+                        print("🔄 ID 9 M453: ส่งสัญญาณให้ GUI reset ทั้งหมด (M701 ค้างจน Modbus thread ปล่อย)")
+                    self.last_m453 = m453
+                else:
+                    self.last_m453 = False
+                
                 # Check M301 (trigger) - เพิ่มการตรวจสอบที่แม่นยำขึ้น
                 try:
                     result = self.modbus_client.read_coils(301, **self._read_coils_kw(1))
@@ -666,6 +884,10 @@ class ModbusThread(QThread):
                     if self.d6006_monitoring:
                         # print("⚠️ M301 detected but M130 is active - ignoring trigger")  # Reduced spam
                         self.modbus_status.emit("⚠️ M301 ตรวจพบแต่ M130 กำลังทำงาน - ไม่สนใจสัญญาณ")
+                        continue
+                    
+                    # ID 9 refill: โปรแกรมไม่ถ่ายและไม่ประมวลผล (PLC ทำงานต่อได้)
+                    if self.refill_idle_mode:
                         continue
                     
                     # Check if capture only mode (ID 5)
@@ -960,7 +1182,7 @@ class ModbusThread(QThread):
                 
                 # ตรวจสอบ M403, M404, M405, M406 เพื่อตรวจสอบประเภทขวด (ใช้แทน D6007)
                 # อ่านตลอดในโหมด auto (เหมือน D6007 เดิม)
-                if not self.capture_only_mode:
+                if not self.capture_only_mode and not self.refill_idle_mode:
                     try:
                         # อ่าน M403, M404, M405, M406 พร้อมกัน
                         result = self.modbus_client.read_coils(403, **self._read_coils_kw(1, count=4))
@@ -1025,6 +1247,12 @@ class ModbusThread(QThread):
                     d5001 = None
                     print("❌ D5001 Read Error")
                 
+                # อ่าน D5500 — ส่งเข้า GUI ทุกครั้งที่อ่านได้ (handler จะข้ามถ้า combo ตรงแล้ว — กัน GUI ค้าง)
+                d5500 = self._read_d5500_program_id()
+                if d5500 is not None:
+                    self.last_d5500_value = int(d5500)
+                    self.d5500_program_id_updated.emit(int(d5500))
+                
                 # อ่าน M401 สำหรับแสดงสถานะใน status tab (เฉพาะโหมด capture only)
                 if self.capture_only_mode:
                     try:
@@ -1035,6 +1263,17 @@ class ModbusThread(QThread):
                             self.m401_status_updated.emit(m401)
                     except:
                         pass  # ไม่ต้อง print error ถ้าไม่สามารถอ่านได้
+                
+                # ID 9 M453: ปล่อย M701 หลังค้าง 3 วิ
+                if self._id9_m701_release_at is not None and time.monotonic() >= self._id9_m701_release_at:
+                    self._id9_m701_release_at = None
+                    self._id9_m701_hold_active = False
+                    try:
+                        if self.reset_m701():
+                            print("✅ RESET M701 = 0 (หลัง 3 วิ — ID 9 M453)")
+                            self.modbus_status.emit("✅ RESET M701 = 0 (ครบ 3 วิ — ID 9)")
+                    except Exception as e:
+                        print(f"❌ ID 9 M701 release: {e}")
                 
                 # Sleep to reduce CPU usage
                 time.sleep(0.1)
@@ -1423,17 +1662,51 @@ class BottleDetectionThread(QThread):
     progress_updated = pyqtSignal(int)
     status_updated = pyqtSignal(str)
     
-    def __init__(self, image, save_crops: bool = False, output_folder: str = "", selected_tastes: list = None):
+    def __init__(
+        self,
+        image,
+        save_crops: bool = False,
+        output_folder: str = "",
+        selected_tastes: list = None,
+        enable_bottle_defect_inspection: bool = True,
+    ):
         super().__init__()
         self.image = image
         self.save_crops = save_crops
         self.selected_tastes = selected_tastes or ["M100", "M110", "M120"]  # Default to all tastes
         self.output_folder = output_folder
+        self.enable_bottle_defect_inspection = bool(enable_bottle_defect_inspection)
         self._stop_requested = False
     
     def request_stop(self):
         """เรียกเมื่อกดปุ่มหยุด — thread จะหยุดที่จุดตรวจถัดไป"""
         self._stop_requested = True
+
+    @staticmethod
+    def _preprocess_bottle_image(image: np.ndarray) -> np.ndarray:
+        """
+        เพิ่มความคมภาพก่อนประมวลผลขวด (Unsharp Mask)
+        ปรับได้ผ่าน config.settings
+        """
+        if image is None:
+            return image
+        if not getattr(config_settings, "BOTTLE_ENABLE_SHARPEN", True):
+            return image
+
+        try:
+            amount = float(getattr(config_settings, "BOTTLE_SHARPEN_AMOUNT", 1.0))
+            sigma = float(getattr(config_settings, "BOTTLE_SHARPEN_SIGMA", 1.2))
+            amount = max(0.0, min(amount, 3.0))
+            sigma = max(0.1, sigma)
+            if amount <= 0.0:
+                return image
+
+            blurred = cv2.GaussianBlur(image, (0, 0), sigma)
+            sharpened = cv2.addWeighted(image, 1.0 + amount, blurred, -amount, 0)
+            return sharpened
+        except Exception as e:
+            print(f"⚠️ BOTTLE PREPROCESS: sharpen skipped due to error: {e}")
+            return image
         
     def run(self):
         try:
@@ -1448,6 +1721,11 @@ class BottleDetectionThread(QThread):
                 print("🛑 BOTTLE DETECTION THREAD: หยุด (stop requested)")
                 return
         
+            # Preprocess image before model inference (sharpen)
+            processed_image = self._preprocess_bottle_image(self.image)
+            if processed_image is not None:
+                self.image = processed_image
+
             # Save temporary image for processing
             temp_path = "temp_camera_image.jpg"
             cv2.imwrite(temp_path, self.image)
@@ -1461,7 +1739,10 @@ class BottleDetectionThread(QThread):
             print("🔄 BOTTLE DETECTION THREAD: Calling process_bottle_image_simple...")
             self.status_updated.emit("กำลังตรวจจับขวด...")
             self.progress_updated.emit(30)
-            result = process_bottle_image_simple(temp_path)
+            result = process_bottle_image_simple(
+                temp_path,
+                enable_defect_inspection=self.enable_bottle_defect_inspection,
+            )
             if getattr(self, '_stop_requested', False):
                 print("🛑 BOTTLE DETECTION THREAD: หยุดหลังประมวลผล (stop requested)")
                 return
